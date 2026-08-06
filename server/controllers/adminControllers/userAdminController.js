@@ -700,7 +700,7 @@ exports.getNotifications = [
     try {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      const [newUsers, pendingTopUps, recentFailedTx, recentPurchases] =
+      const [newUsers, pendingTopUps, recentFailedTx, recentPurchases, pendingRefunds] =
         await Promise.all([
           User.find({ createdAt: { $gte: since24h } })
             .select("username email createdAt")
@@ -715,6 +715,10 @@ exports.getNotifications = [
             .select("amount createdAt")
             .sort({ createdAt: -1 })
             .limit(5),
+          Transaction.countDocuments({
+            "apiResponse.adminDeducted": true,
+            "apiResponse.refundPending": true,
+          }),
         ]);
 
       const notifications = [];
@@ -754,6 +758,16 @@ exports.getNotifications = [
           time: tx.createdAt,
         });
       });
+
+      if (pendingRefunds > 0) {
+        notifications.push({
+          icon: "rotate-ccw",
+          color: "bg-warning",
+          text: `<b>${pendingRefunds}</b> refund request${pendingRefunds > 1 ? "s" : ""} pending approval`,
+          time: new Date(),
+          link: "/admin/flagged-transactions",
+        });
+      }
 
       // Sort by time descending, cap at 10
       notifications.sort((a, b) => new Date(b.time) - new Date(a.time));

@@ -1,7 +1,7 @@
 const { authenticateAdminUser } = require('../../config/authMiddleware');
-const Transaction = require('../../models/TransactionModel');
-const Wallet      = require('../../models/WalletModal');
-const { notify }  = require('../../services/userNotificationService');
+const Transaction     = require('../../models/TransactionModel');
+const Wallet          = require('../../models/WalletModal');
+const { notify }      = require('../../services/userNotificationService');
 
 // Case 1 (pre-fix): timed out → treated as fail → wallet refunded → may need manual deduction
 const OLD_FLAGGED_FILTER = {
@@ -48,14 +48,24 @@ exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
 
     const totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
 
-    const [deductedHistory, clearedRows] = await Promise.all([
+    const [deductedHistory, clearedRows, refundedHistory] = await Promise.all([
       Transaction.find({
         paymentMethod: 'wallet',
         'apiResponse.adminDeducted': true,
+        'apiResponse.adminRefunded': { $ne: true },
+        'apiResponse.refundPending':  { $ne: true },
       }).populate('user', 'username email').sort({ 'apiResponse.adminDeductedAt': -1 }).lean(),
       Transaction.find({
         adminCleared: true,
       }).populate('user', 'username email').sort({ adminClearedAt: -1 }).lean(),
+      Transaction.find({
+        paymentMethod: 'wallet',
+        'apiResponse.adminDeducted': true,
+        $or: [
+          { 'apiResponse.adminRefunded': true },
+          { 'apiResponse.refundPending': true },
+        ],
+      }).populate('user', 'username email').sort({ createdAt: -1 }).lean(),
     ]);
 
     const alreadyDeducted = deductedHistory.length;
@@ -67,6 +77,7 @@ exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
       alreadyDeducted,
       deductedHistory,
       clearedRows,
+      refundedHistory,
     });
   } catch (err) {
     console.error('[damageControl]', err);
@@ -77,6 +88,7 @@ exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
       alreadyDeducted: 0,
       deductedHistory: [],
       clearedRows: [],
+      refundedHistory: [],
       error: 'Failed to load data',
     });
   }
@@ -145,6 +157,118 @@ exports.clearTransaction = [authenticateAdminUser, async (req, res) => {
   } catch (err) {
     console.error('[flagged clear]', err);
     return res.json({ success: false, message: 'Server error' });
+  }
+}];
+
+// POST /refund-deduction
+// Reverse an admin-deducted wallet charge.
+// super_admin: immediate refund + user notification.
+// junior/senior: creates a pending request that super_admin must approve.
+exports.adminRefundDeduction = [authenticateAdminUser, async (req, res) => {
+  try {
+    const { transactionId, reason } = req.body;
+    if (!transactionId || !reason || !reason.trim()) {
+      return res.json({ success: false, message: 'Transaction ID and reason are required.' });
+    }
+
+    const tx = await Transaction.findById(transactionId).populate('user', 'username email');
+    if (!tx) return res.json({ success: false, message: 'Transaction not found.' });
+    if (!tx.apiResponse?.adminDeducted) return res.json({ success: false, message: 'This transaction has not been admin-deducted.' });
+    if (tx.apiResponse?.adminRefunded)  return res.json({ success: false, message: 'This transaction has already been refunded.' });
+    if (tx.apiResponse?.refundPending)  return res.json({ success: false, message: 'A refund request is already pending for this transaction.' });
+
+    const isSuperAdmin = req.user.role === 'super_admin';
+
+    if (isSuperAdmin) {
+      const wallet = await Wallet.findOne({ user: tx.user._id || tx.user });
+      if (!wallet) return res.json({ success: false, message: 'User wallet not found.' });
+
+      const before = wallet.balances.NAIRA;
+      wallet.balances.NAIRA += tx.amount;
+      await wallet.save();
+
+      tx.apiResponse = {
+        ...tx.apiResponse,
+        adminRefunded:    true,
+        adminRefundedAt:  new Date().toISOString(),
+        refundReason:     reason.trim(),
+        refundApprovedBy: req.user.username,
+        refundPending:    false,
+      };
+      tx.markModified('apiResponse');
+      await tx.save();
+
+      notify(tx.user._id || tx.user, {
+        type: 'info',
+        text: `Your wallet has been credited with ₦${tx.amount.toLocaleString()}. Reason: ${reason.trim()}`,
+        link: '/user/transaction-history',
+      }).catch(() => {});
+
+      return res.json({ success: true, immediate: true, message: `₦${tx.amount.toLocaleString()} refunded to ${tx.user?.username || 'user'}'s wallet.` });
+    } else {
+      tx.apiResponse = {
+        ...tx.apiResponse,
+        refundPending:      true,
+        refundPendingAt:    new Date().toISOString(),
+        refundReason:       reason.trim(),
+        refundRequestedBy:  req.user.username,
+      };
+      tx.markModified('apiResponse');
+      await tx.save();
+
+      return res.json({ success: true, immediate: false, message: 'Refund request submitted for approval.' });
+    }
+  } catch (err) {
+    console.error('[adminRefundDeduction]', err);
+    return res.json({ success: false, message: 'Server error.' });
+  }
+}];
+
+// POST /approve-refund
+// super_admin approves a pending refund request.
+exports.approveRefundRequest = [authenticateAdminUser, async (req, res) => {
+  try {
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Only super admins can approve refund requests.' });
+    }
+
+    const { transactionId } = req.body;
+    if (!transactionId) return res.json({ success: false, message: 'Transaction ID is required.' });
+
+    const tx = await Transaction.findById(transactionId).populate('user', 'username email');
+    if (!tx) return res.json({ success: false, message: 'Transaction not found.' });
+    if (!tx.apiResponse?.refundPending) return res.json({ success: false, message: 'No pending refund request for this transaction.' });
+    if (tx.apiResponse?.adminRefunded)  return res.json({ success: false, message: 'This transaction has already been refunded.' });
+
+    const wallet = await Wallet.findOne({ user: tx.user._id || tx.user });
+    if (!wallet) return res.json({ success: false, message: 'User wallet not found.' });
+
+    const before = wallet.balances.NAIRA;
+    wallet.balances.NAIRA += tx.amount;
+    await wallet.save();
+
+    const reason = tx.apiResponse.refundReason;
+
+    tx.apiResponse = {
+      ...tx.apiResponse,
+      adminRefunded:    true,
+      adminRefundedAt:  new Date().toISOString(),
+      refundApprovedBy: req.user.username,
+      refundPending:    false,
+    };
+    tx.markModified('apiResponse');
+    await tx.save();
+
+    notify(tx.user._id || tx.user, {
+      type: 'info',
+      text: `Your wallet has been credited with ₦${tx.amount.toLocaleString()}. Reason: ${reason || 'Admin refund approved'}`,
+      link: '/user/transaction-history',
+    }).catch(() => {});
+
+    return res.json({ success: true, message: `Refund of ₦${tx.amount.toLocaleString()} approved and credited to ${tx.user?.username || 'user'}'s wallet.` });
+  } catch (err) {
+    console.error('[approveRefundRequest]', err);
+    return res.json({ success: false, message: 'Server error.' });
   }
 }];
 
