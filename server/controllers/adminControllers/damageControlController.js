@@ -79,7 +79,8 @@ exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
       }).populate('user', 'username email').sort({ 'apiResponse.adminDeductedAt': -1 }).lean(),
       Transaction.find({
         adminCleared: true,
-      }).populate('user', 'username email').sort({ adminClearedAt: -1 }).lean(),
+        adminClearedAt: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+      }).populate('user', 'username email').sort({ adminClearedAt: -1 }).limit(500).lean(),
       Transaction.find({
         paymentMethod: 'wallet',
         'apiResponse.adminDeducted': true,

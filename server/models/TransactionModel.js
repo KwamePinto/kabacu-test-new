@@ -106,6 +106,12 @@ const transactionSchema = new mongoose.Schema({
     timestamps: true
 });
 
+transactionSchema.index({ status: 1, createdAt: -1 });
+transactionSchema.index({ user: 1, createdAt: -1 });
+transactionSchema.index({ paymentMethod: 1, status: 1 });
+transactionSchema.index({ adminCleared: 1 });
+transactionSchema.index({ phone: 1, createdAt: -1 });
+
 module.exports = mongoose.model(
     'Transaction',
     transactionSchema

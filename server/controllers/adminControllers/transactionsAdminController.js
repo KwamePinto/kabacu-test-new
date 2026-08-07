@@ -66,9 +66,10 @@ exports.viewTransactions = [authenticateAdminUser, async (req, res) => {
   try {
     const transactions = await Transaction.find()
       .populate('user', 'username email firstname')
-      .populate('product')
-      .populate('products.product')
+      .populate('product', 'item_name category dataDetails costPrice')
+      .populate('products.product', 'item_name category')
       .sort({ createdAt: -1 })
+      .limit(1000)
       .lean();
 
     // Group by user for suspicious-rule checks

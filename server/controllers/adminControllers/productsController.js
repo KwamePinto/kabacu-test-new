@@ -272,7 +272,10 @@ exports.userView = [
   authenticateAdminUser,
   async (req, res) => {
     try {
-      const users = await User.find().sort({ createdAt: -1 });
+      const users = await User.find()
+        .select('username email firstname lastname createdAt isVerified role country phone_number')
+        .sort({ createdAt: -1 })
+        .lean();
       res.render("adminview/tables/view-users", {
         users,
         layout: adminLayouts,
@@ -292,12 +295,14 @@ exports.userDetails = [
       if (!user) return res.redirect("/admin/product/view-users");
 
       const [wallet, transactions, topups] = await Promise.all([
-        Wallet.findOne({ user: user._id }),
+        Wallet.findOne({ user: user._id }).lean(),
         Transaction.find({ user: user._id })
-          .populate("product")
-          .populate("products.product")
-          .sort({ createdAt: -1 }),
-        TopUp.find({ user: user._id }).sort({ createdAt: -1 }),
+          .populate("product", "item_name category dataDetails costPrice")
+          .populate("products.product", "item_name category")
+          .sort({ createdAt: -1 })
+          .limit(200)
+          .lean(),
+        TopUp.find({ user: user._id }).sort({ createdAt: -1 }).limit(100).lean(),
       ]);
 
       const walletBalances = wallet?.balances || {
@@ -354,10 +359,12 @@ exports.viewTransactions = [
   async (req, res) => {
     try {
       const transactions = await Transaction.find()
-        .populate("user")
-        .populate("product")
-        .populate("products.product")
-        .sort({ createdAt: -1 });
+        .populate("user", "username email firstname")
+        .populate("product", "item_name category dataDetails costPrice")
+        .populate("products.product", "item_name category")
+        .sort({ createdAt: -1 })
+        .limit(1000)
+        .lean();
       res.render("adminview/tables/transactions", {
         layout: adminLayouts,
         transactions,
@@ -373,8 +380,10 @@ exports.viewTopUps = [
   async (req, res) => {
     try {
       const topups = await TopUp.find()
-        .populate("user")
-        .sort({ createdAt: -1 });
+        .populate("user", "username email")
+        .sort({ createdAt: -1 })
+        .limit(1000)
+        .lean();
       res.render("adminview/tables/topUps", { layout: adminLayouts, topups });
     } catch (err) {
       console.log(err);

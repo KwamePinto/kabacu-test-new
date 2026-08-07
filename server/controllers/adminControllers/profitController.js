@@ -13,40 +13,39 @@ exports.viewReport = [authenticateAdminUser, async (req, res) => {
     const rangeMatch = { status: 'success', markup: { $gt: 0 } };
     if (from || to) rangeMatch.createdAt = dateFilter;
 
-    // Summary for the selected range (or all time if no filter)
-    const [summary] = await Transaction.aggregate([
-      { $match: rangeMatch },
-      { $group: {
-        _id:          null,
-        totalProfit:  { $sum: '$markup' },
-        totalRevenue: { $sum: '$amount' },
-        count:        { $sum: 1 },
-      }},
+    const now          = new Date();
+    const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek  = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Run all three queries in parallel
+    const [[summary], [quickStats], transactions] = await Promise.all([
+      Transaction.aggregate([
+        { $match: rangeMatch },
+        { $group: {
+          _id:          null,
+          totalProfit:  { $sum: '$markup' },
+          totalRevenue: { $sum: '$amount' },
+          count:        { $sum: 1 },
+        }},
+      ]),
+      Transaction.aggregate([
+        { $match: { status: 'success', markup: { $gt: 0 } } },
+        { $group: {
+          _id:     null,
+          today:   { $sum: { $cond: [{ $gte: ['$createdAt', startOfDay]   }, '$markup', 0] } },
+          week:    { $sum: { $cond: [{ $gte: ['$createdAt', startOfWeek]  }, '$markup', 0] } },
+          month:   { $sum: { $cond: [{ $gte: ['$createdAt', startOfMonth] }, '$markup', 0] } },
+          allTime: { $sum: '$markup' },
+        }},
+      ]),
+      Transaction.find(rangeMatch)
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .populate('user', 'name email username')
+        .populate('product', 'item_name category costPrice dataDetails coursesDetails electronicDetails automobileDetails')
+        .lean(),
     ]);
-
-    // Always-on quick stats (Today / Week / Month / All-time)
-    const now           = new Date();
-    const startOfDay    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek   = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
-    const startOfMonth  = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const [quickStats] = await Transaction.aggregate([
-      { $match: { status: 'success', markup: { $gt: 0 } } },
-      { $group: {
-        _id:     null,
-        today:   { $sum: { $cond: [{ $gte: ['$createdAt', startOfDay]   }, '$markup', 0] } },
-        week:    { $sum: { $cond: [{ $gte: ['$createdAt', startOfWeek]  }, '$markup', 0] } },
-        month:   { $sum: { $cond: [{ $gte: ['$createdAt', startOfMonth] }, '$markup', 0] } },
-        allTime: { $sum: '$markup' },
-      }},
-    ]);
-
-    // Transaction table (most recent 200 matching the range)
-    const transactions = await Transaction.find(rangeMatch)
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .populate('user', 'name email username')
-      .populate('product', 'item_name category costPrice dataDetails coursesDetails electronicDetails automobileDetails');
 
     res.render('adminview/profit', {
       layout:       'layouts/adminLayout',

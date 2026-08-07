@@ -18,12 +18,7 @@ exports.dashboard = [authenticateAdminUser, async (req, res) => {
             totalUsers,
             newUsersToday,
             verifiedUsers,
-            totalRevenueAgg,
-            todayRevenueAgg,
-            weeklyRevenueAgg,
-            monthlyRevenueAgg,
-            yearlyRevenueAgg,
-            totalPurchases,
+            [revenueStats],
             pendingTopUps,
             completedTopUps,
             totalConversions,
@@ -32,47 +27,38 @@ exports.dashboard = [authenticateAdminUser, async (req, res) => {
             User.countDocuments(),
             User.countDocuments({ createdAt: { $gte: today } }),
             User.countDocuments({ isVerified: true }),
+            // Single $facet pass replaces 5 separate aggregations + 1 countDocuments
             Transaction.aggregate([
                 { $match: { status: 'success' } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
+                { $facet: {
+                    total:   [{ $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } }],
+                    today:   [{ $match: { createdAt: { $gte: today } } },      { $group: { _id: null, sum: { $sum: '$amount' } } }],
+                    week:    [{ $match: { createdAt: { $gte: thisWeek } } },   { $group: { _id: null, sum: { $sum: '$amount' } } }],
+                    month:   [{ $match: { createdAt: { $gte: thisMonth } } },  { $group: { _id: null, sum: { $sum: '$amount' } } }],
+                    year:    [{ $match: { createdAt: { $gte: thisYear } } },   { $group: { _id: null, sum: { $sum: '$amount' } } }],
+                }},
             ]),
-            Transaction.aggregate([
-                { $match: { status: 'success', createdAt: { $gte: today } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
-            ]),
-            Transaction.aggregate([
-                { $match: { status: 'success', createdAt: { $gte: thisWeek } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
-            ]),
-            Transaction.aggregate([
-                { $match: { status: 'success', createdAt: { $gte: thisMonth } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
-            ]),
-            Transaction.aggregate([
-                { $match: { status: 'success', createdAt: { $gte: thisYear } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
-            ]),
-            Transaction.countDocuments({ status: 'success' }),
             TopUp.countDocuments({ status: 'PENDING' }),
             TopUp.countDocuments({ status: 'COMPLETED' }),
             Conversion.countDocuments(),
             Transaction.find({ status: 'success' })
                 .populate('user', 'username email')
-                .populate('product')
+                .populate('product', 'item_name category dataDetails costPrice')
                 .sort({ createdAt: -1 })
                 .limit(10)
+                .lean()
         ]);
 
         res.render('adminview/dashboard', {
             totalUsers,
             newUsersToday,
             verifiedUsers,
-            totalRevenue:   totalRevenueAgg[0]?.total   || 0,
-            todayRevenue:   todayRevenueAgg[0]?.total   || 0,
-            weeklyRevenue:  weeklyRevenueAgg[0]?.total  || 0,
-            monthlyRevenue: monthlyRevenueAgg[0]?.total || 0,
-            yearlyRevenue:  yearlyRevenueAgg[0]?.total  || 0,
-            totalPurchases,
+            totalRevenue:   revenueStats?.total[0]?.sum   || 0,
+            todayRevenue:   revenueStats?.today[0]?.sum   || 0,
+            weeklyRevenue:  revenueStats?.week[0]?.sum    || 0,
+            monthlyRevenue: revenueStats?.month[0]?.sum   || 0,
+            yearlyRevenue:  revenueStats?.year[0]?.sum    || 0,
+            totalPurchases: revenueStats?.total[0]?.count || 0,
             pendingTopUps,
             completedTopUps,
             totalConversions,

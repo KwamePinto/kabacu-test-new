@@ -61,6 +61,9 @@ forgotPasswordTokenExpires: Date,
 
 })
 
+userSchema.index({ createdAt: -1 });
+userSchema.index({ isVerified: 1 });
+
 const UserModel = mongoose.model('user', userSchema);
 module.exports = UserModel;
 
