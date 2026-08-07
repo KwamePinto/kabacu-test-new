@@ -21,15 +21,37 @@ const NEW_FLAGGED_FILTER = {
   adminCleared: { $ne: true },
 };
 
+// Case 3: timed out → poller refunded wallet after 30 min → status=failed, apiResponse._timedOut still set
+// These were invisible because OLD_FLAGGED requires apiResponse.status:'fail' (never set by poller).
+const POLLER_FAILED_FILTER = {
+  paymentMethod: 'wallet',
+  status: 'failed',
+  'apiResponse._timedOut': true,
+  'apiResponse.adminDeducted': { $ne: true },
+  adminCleared: { $ne: true },
+};
+
+// Case 4: ODS cross-reference confirmed data was delivered but Kabacu refunded the wallet.
+// Marked with odsDelivered:true by the mark-ods-damage.js script.
+const ODS_DAMAGE_FILTER = {
+  paymentMethod: 'wallet',
+  status: 'failed',
+  'apiResponse.odsDelivered': true,
+  'apiResponse.adminDeducted': { $ne: true },
+  adminCleared: { $ne: true },
+};
+
 exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
   try {
-    const [oldFlagged, newFlagged] = await Promise.all([
+    const [oldFlagged, newFlagged, pollerFailed, odsDamage] = await Promise.all([
       Transaction.find(OLD_FLAGGED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
       Transaction.find(NEW_FLAGGED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
+      Transaction.find(POLLER_FAILED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
+      Transaction.find(ODS_DAMAGE_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
     ]);
 
     // Merge and sort by date descending
-    const allFlagged = [...oldFlagged, ...newFlagged]
+    const allFlagged = [...oldFlagged, ...newFlagged, ...pollerFailed, ...odsDamage]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     // For each, check if a successful retry exists within 24 h
@@ -127,9 +149,15 @@ exports.deductWallet = [authenticateAdminUser, async (req, res) => {
     if (wallet.balances.NAIRA < 0) {
       notify(tx.user, {
         type: 'info',
-        text: `Your account has a pending balance of ₦${Math.abs(wallet.balances.NAIRA).toLocaleString()} to be paid. This amount will be debited from your account when you recharge.`,
+        text: `Your account has a pending balance of ₦${Math.abs(wallet.balances.NAIRA).toLocaleString()} to be paid. This amount will be debited when you recharge.`,
         link: '/user/transaction-history',
-      });
+      }).catch(() => {});
+    } else {
+      notify(tx.user, {
+        type: 'info',
+        text: `₦${tx.amount.toLocaleString()} has been deducted from your wallet for a data transaction that was previously refunded in error.`,
+        link: '/user/transaction-history',
+      }).catch(() => {});
     }
 
     return res.json({

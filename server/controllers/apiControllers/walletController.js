@@ -62,13 +62,22 @@ exports.payWithWallet = async (req, res) => {
       return res.json({ success: false, message: 'productId is required' });
     }
 
-    if (wallet.balances.NAIRA < total) {
+    // Atomic balance check + deduction — prevents double-spend if two requests arrive simultaneously.
+    // Returns the document as it was BEFORE the decrement (new: false), so we know balanceBefore.
+    const walletSnap = await Wallet.findOneAndUpdate(
+      { user: userId, 'balances.NAIRA': { $gte: total } },
+      { $inc: { 'balances.NAIRA': -total } },
+      { new: false }
+    );
+    if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
+    const balanceBefore         = walletSnap.balances.NAIRA;
+    const balanceAfterDeduction = balanceBefore - total;
 
-    const balanceBefore = wallet.balances.NAIRA;
-    wallet.balances.NAIRA -= total;
-    await wallet.save();
+    // Atomic refund helper used by error paths below
+    const refundWallet = () =>
+      Wallet.findOneAndUpdate({ user: userId }, { $inc: { 'balances.NAIRA': total } });
 
     let checkout = null;
     if (itemsToProcess.some(i => i.product.category === 'DATA')) {
@@ -80,8 +89,7 @@ exports.payWithWallet = async (req, res) => {
 
       if (product.category === 'DATA') {
         if (!checkout) {
-          wallet.balances.NAIRA += total;
-          await wallet.save();
+          await refundWallet();
           return res.json({ success: false, message: 'Checkout data not found, refunded' });
         }
 
@@ -89,10 +97,27 @@ exports.payWithWallet = async (req, res) => {
         if (phone.startsWith('234')) phone = '0' + phone.slice(3);
 
         if (phone.length !== 11) {
-          wallet.balances.NAIRA += total;
-          await wallet.save();
+          await refundWallet();
           return res.json({ success: false, message: 'Invalid phone number, refunded' });
         }
+
+        // Create placeholder transaction BEFORE the API call — ensures a record exists
+        // even if the server crashes or loses connection mid-request.
+        const tx = await Transaction.create({
+          user:          userId,
+          product:       product._id,
+          products:      itemsToProcess.map(i => ({ product: i.product._id, quantity: i.quantity })),
+          phone,
+          amount:        total,
+          rpEarned:      0,
+          walletType:    'NAIRA',
+          paymentMethod: 'wallet',
+          status:        'pending',
+          reference:     'PAY-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
+          balanceBefore,
+          balanceAfter:  balanceAfterDeduction,
+          apiResponse:   { _reserved: true },
+        });
 
         try {
           apiResponse = await Promise.race([
@@ -115,22 +140,8 @@ exports.payWithWallet = async (req, res) => {
         }
 
         if (apiResponse.status === 'pending') {
-          await Transaction.create({
-            user:          userId,
-            product:       product._id,
-            products:      itemsToProcess.map(i => ({ product: i.product._id, quantity: i.quantity })),
-            phone,
-            amount:        total,
-            rpEarned:      0,
-            walletType:    'NAIRA',
-            paymentMethod: 'wallet',
-            status:        'pending',
-            reference:     'PAY-' + Date.now(),
-            balanceBefore,
-            balanceAfter:  wallet.balances.NAIRA,
-            apiResponse
-          });
-
+          tx.apiResponse = apiResponse;
+          await tx.save();
           notify(userId, {
             type: 'attention',
             text: `Your data order of ₦${total.toLocaleString()} is being verified. We'll update you shortly.`,
@@ -140,25 +151,11 @@ exports.payWithWallet = async (req, res) => {
         }
 
         if (apiResponse.status !== 'success') {
-          wallet.balances.NAIRA += total;
-          await wallet.save();
-
-          await Transaction.create({
-            user:          userId,
-            product:       product._id,
-            products:      itemsToProcess.map(i => ({ product: i.product._id, quantity: i.quantity })),
-            phone,
-            amount:        total,
-            rpEarned:      0,
-            walletType:    'NAIRA',
-            paymentMethod: 'wallet',
-            status:        'failed',
-            reference:     'PAY-' + Date.now(),
-            balanceBefore,
-            balanceAfter:  wallet.balances.NAIRA,
-            apiResponse
-          });
-
+          await refundWallet();
+          tx.status       = 'failed';
+          tx.balanceAfter = balanceBefore; // wallet was refunded, so final balance is back to original
+          tx.apiResponse  = apiResponse;
+          await tx.save();
           notify(userId, {
             type: 'refund',
             text: `Your data order of ₦${total.toLocaleString()} failed. ₦${total.toLocaleString()} has been refunded to your wallet.`,
@@ -166,9 +163,31 @@ exports.payWithWallet = async (req, res) => {
           });
           return res.json({ success: false, message: userMessage(apiResponse, 'Data purchase failed, refunded') });
         }
+
+        // Success — update the placeholder record instead of creating a new transaction
+        tx.status      = 'success';
+        tx.rpEarned    = totalRP;
+        tx.markup      = total - (product.costPrice || 0);
+        tx.apiResponse = apiResponse;
+        await tx.save();
+
+        await User.findByIdAndUpdate(userId, { $inc: { rpBalance: totalRP } });
+        notify(userId, {
+          type: 'success',
+          text: `Data purchase of ₦${total.toLocaleString()} was successful. Your data is on its way.`,
+          link: '/user/transaction-history',
+        });
+        return res.json({
+          success:     true,
+          message:     'Payment successful',
+          balance:     balanceAfterDeduction,
+          rpEarned:    totalRP,
+          transaction: tx,
+        });
       }
     }
 
+    // Non-DATA products (COURSES etc.) reach here — no API call was made
     const transaction = await Transaction.create({
       user:          userId,
       product:       itemsToProcess[0]?.product?._id,
@@ -180,10 +199,10 @@ exports.payWithWallet = async (req, res) => {
       walletType:    'NAIRA',
       paymentMethod: 'wallet',
       status:        'success',
-      reference:     'PAY-' + Date.now(),
+      reference:     'PAY-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
       balanceBefore,
-      balanceAfter:  wallet.balances.NAIRA,
-      apiResponse
+      balanceAfter:  balanceAfterDeduction,
+      apiResponse,
     });
 
     await User.findByIdAndUpdate(userId, { $inc: { rpBalance: totalRP } });
@@ -195,11 +214,11 @@ exports.payWithWallet = async (req, res) => {
     });
 
     res.json({
-      success: true,
-      message: 'Payment successful',
-      balance: wallet.balances.NAIRA,
-      rpEarned: totalRP,
-      transaction
+      success:    true,
+      message:    'Payment successful',
+      balance:    balanceAfterDeduction,
+      rpEarned:   totalRP,
+      transaction,
     });
 
   } catch (error) {
@@ -525,33 +544,35 @@ exports.palmPayWebhook = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid topup record' });
     }
 
-    if (topUp.walletCredited) {
-      return res.json({ success: true, message: 'Already processed' });
-    }
-
-    topUp.webhookData     = req.body;
-    topUp.webhookVerified = true;
-    await topUp.save();
-
     if (req.body.orderStatus == 2) {
+      // Atomic compare-and-swap: claim this webhook only if the wallet hasn't been credited yet.
+      // Two simultaneous webhooks can't both pass — only one gets a non-null result.
+      const claimed = await TopUp.findOneAndUpdate(
+        { _id: topUp._id, walletCredited: { $ne: true } },
+        { $set: { walletCredited: true, webhookData: req.body, webhookVerified: true, status: 'COMPLETED' } },
+        { new: false }
+      );
+      if (!claimed) {
+        return res.json({ success: true, message: 'Already processed' });
+      }
+
       const walletField = `balances.${topUp.balanceType}`;
-      const wallet = await Wallet.findOneAndUpdate(
+      await Wallet.findOneAndUpdate(
         { user: topUp.user },
         { $inc: { [walletField]: topUp.amount / 100 } },
-        { returnDocument: 'after', upsert: true, setOnInsert: { user: topUp.user } }
+        { upsert: true, setOnInsert: { user: topUp.user } }
       );
-
-      if (!wallet) return res.status(404).json({ success: false, message: 'Wallet not found' });
-
-      topUp.status        = 'COMPLETED';
-      topUp.walletCredited = true;
-      await topUp.save();
 
       return res.json({ success: true, message: 'Wallet funded successfully' });
     }
 
-    topUp.status = 'FAILED';
-    await topUp.save();
+    // Failed payment — safe to process multiple times
+    if (!topUp.walletCredited) {
+      topUp.webhookData     = req.body;
+      topUp.webhookVerified = true;
+      topUp.status          = 'FAILED';
+      await topUp.save();
+    }
 
     return res.json({ success: false, message: 'Payment failed' });
 

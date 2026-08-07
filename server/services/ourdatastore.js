@@ -335,4 +335,57 @@ async function getTransactionStatus(requestId) {
   }
 }
 
-module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, fetchDataTransactions, getTransactionStatus };
+// Look up a data transaction on OurDataStore by phone number and approximate UTC time.
+// OurDataStore timestamps are Nigeria time (UTC+1); we adjust automatically.
+// Returns { found, planStatus, transid, odsDate, odsAmount } or { found: false }.
+// planStatus: 1 = delivered, 2 = failed, 3 = still processing
+async function lookupByPhoneAndTime(phone, txDateUtc, { maxPages = 8, perPage = 100 } = {}) {
+  if (!phone || !txDateUtc) return { found: false };
+
+  const normalise  = p => String(p).replace(/\D/g, '').replace(/^234/, '0');
+  const cleanPhone = normalise(phone);
+
+  // Search window: txDateUtc ±2 hours (in UTC).
+  // OurDataStore is UTC+1, so we add 1h when comparing their timestamps.
+  const WINDOW_MS = 2 * 60 * 60 * 1000;
+  const ODS_OFFSET_MS = 60 * 60 * 1000; // ODS is +1h vs our UTC
+  const windowStart = new Date(txDateUtc.getTime() - WINDOW_MS);
+  const windowEnd   = new Date(txDateUtc.getTime() + WINDOW_MS);
+
+  try {
+    for (let page = 1; page <= maxPages; page++) {
+      const result = await fetchDataTransactions({ page, status: 'ALL', search: '', perPage });
+      const rows   = result.data || [];
+      if (!rows.length) break;
+
+      for (const row of rows) {
+        if (normalise(row.plan_phone) !== cleanPhone) continue;
+
+        // Convert ODS date (UTC+1) → UTC
+        const odsDateUtc = new Date(new Date(row.plan_date).getTime() - ODS_OFFSET_MS);
+        if (odsDateUtc < windowStart || odsDateUtc > windowEnd) continue;
+
+        return {
+          found:      true,
+          planStatus: row.plan_status,  // 1=success, 2=fail, 3=processing
+          transid:    row.transid,
+          odsDate:    row.plan_date,
+          odsAmount:  row.amount,
+        };
+      }
+
+      // If the oldest row on this page is already before our window start, stop paging
+      const oldest = rows[rows.length - 1];
+      if (oldest?.plan_date) {
+        const oldestUtc = new Date(new Date(oldest.plan_date).getTime() - ODS_OFFSET_MS);
+        if (oldestUtc < windowStart) break;
+      }
+    }
+  } catch (_) {
+    // OurDataStore unavailable — return not found so caller can fall back safely
+  }
+
+  return { found: false };
+}
+
+module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, fetchDataTransactions, getTransactionStatus, lookupByPhoneAndTime };
