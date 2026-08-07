@@ -164,6 +164,22 @@ exports.deleteProduct = [
   },
 ];
 
+exports.toggleProduct = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id);
+      if (!product) return res.json({ success: false, error: "Product not found." });
+      product.isActive = !product.isActive;
+      await product.save();
+      res.json({ success: true, isActive: product.isActive });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, error: error.message });
+    }
+  },
+];
+
 exports.editProductGet = [
   authenticateAdminUser,
   async (req, res) => {

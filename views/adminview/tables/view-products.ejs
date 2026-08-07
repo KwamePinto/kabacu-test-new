@@ -27,13 +27,16 @@
                             <th>Details</th>
                             <th>Price</th>
                             <th>RP</th>
+                            <th>Listed</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           <% if (products.length > 0) { %>
-                          <% products.forEach(function(product, index) { %>
-                          <tr id="prod-row-<%= product._id %>">
+                          <% products.forEach(function(product, index) {
+                               var active = product.isActive !== false;
+                          %>
+                          <tr id="prod-row-<%= product._id %>" style="<%= active ? '' : 'opacity:0.6;' %>">
                             <td><%= index + 1 %></td>
                             <td>
                               <% if (product.images && product.images.length > 0) { %>
@@ -41,7 +44,12 @@
                    onerror="this.style.opacity='0.3'; this.title='Image not found'; this.onerror=null;">
                               <% } %>
                             </td>
-                            <td><b><%= product.productName %></b></td>
+                            <td>
+                              <b><%= product.productName %></b>
+                              <% if (!active) { %>
+                                <span class="badge badge-secondary ml-1" style="font-size:10px;">Unlisted</span>
+                              <% } %>
+                            </td>
                             <td>
                               <span class="badge badge-info"><%= product.category %></span>
                             </td>
@@ -49,6 +57,16 @@
                             <td>₦<%= product.productPrice.toLocaleString() %></td>
                             <td>
                               <span class="badge badge-success"><%= product.reward_point || 0 %></span>
+                            </td>
+                            <td>
+                              <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input prod-toggle"
+                                  id="toggle-<%= product._id %>"
+                                  data-id="<%= product._id %>"
+                                  data-name="<%= product.productName %>"
+                                  <%= active ? 'checked' : '' %>>
+                                <label class="custom-control-label" for="toggle-<%= product._id %>"></label>
+                              </div>
                             </td>
                             <td>
                               <div class="dropdown dropdown-action">
@@ -71,7 +89,7 @@
                           <% }) %>
                           <% } else { %>
                           <tr>
-                            <td colspan="8" class="text-center">No products found</td>
+                            <td colspan="9" class="text-center">No products found</td>
                           </tr>
                           <% } %>
                         </tbody>
@@ -145,6 +163,56 @@ Swal.fire({ icon: 'success', title: 'Updated!', text: 'Product updated successfu
 <% if (typeof query !== 'undefined' && query.deleted == '1') { %>
 Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Product removed successfully.', timer: 2000, showConfirmButton: false });
 <% } %>
+
+document.querySelectorAll('.prod-toggle').forEach(function(checkbox) {
+  checkbox.addEventListener('change', function() {
+    var id      = this.dataset.id;
+    var name    = this.dataset.name;
+    var checked = this.checked;
+    var row     = document.getElementById('prod-row-' + id);
+    var badge   = row ? row.querySelector('.badge.badge-secondary') : null;
+    var self    = this;
+
+    fetch('/admin/product/toggle-product/' + id, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          var nowActive = data.isActive;
+          if (row) row.style.opacity = nowActive ? '' : '0.6';
+          var nameCell = row ? row.querySelector('td:nth-child(3)') : null;
+          if (nameCell) {
+            var existing = nameCell.querySelector('.badge.badge-secondary');
+            if (!nowActive && !existing) {
+              var b = document.createElement('span');
+              b.className = 'badge badge-secondary ml-1';
+              b.style.fontSize = '10px';
+              b.textContent = 'Unlisted';
+              nameCell.appendChild(b);
+            } else if (nowActive && existing) {
+              existing.remove();
+            }
+          }
+          Swal.fire({
+            icon: 'success',
+            title: nowActive ? 'Product Listed' : 'Product Unlisted',
+            text: '"' + name + '" is now ' + (nowActive ? 'visible to users.' : 'hidden from users.'),
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else {
+          self.checked = !checked;
+          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Could not update product.' });
+        }
+      })
+      .catch(function() {
+        self.checked = !checked;
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Network error. Please try again.' });
+      });
+  });
+});
 
 document.querySelectorAll('.prod-delete-btn').forEach(function(btn) {
   btn.addEventListener('click', function(e) {

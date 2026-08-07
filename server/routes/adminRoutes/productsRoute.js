@@ -16,7 +16,8 @@ router.get('/view-topUps',       getProducts.viewTopUps);
 
 router.get('/edit-product/:id',  getProducts.editProductGet);
 router.post('/edit-product/:id', upload.array('images', 3), getProducts.editProductPost);
-router.post('/delete-product/:id', getProducts.deleteProduct);
+router.post('/delete-product/:id',  getProducts.deleteProduct);
+router.post('/toggle-product/:id',  getProducts.toggleProduct);
 
 router.get('/payment-methods',          getProducts.viewPaymentMethods);
 router.post('/payment-methods/add',     getProducts.addPaymentMethod);
