@@ -106,11 +106,14 @@ const transactionSchema = new mongoose.Schema({
     timestamps: true
 });
 
+transactionSchema.index({ createdAt: -1 });
 transactionSchema.index({ status: 1, createdAt: -1 });
 transactionSchema.index({ user: 1, createdAt: -1 });
 transactionSchema.index({ paymentMethod: 1, status: 1 });
 transactionSchema.index({ adminCleared: 1 });
 transactionSchema.index({ phone: 1, createdAt: -1 });
+transactionSchema.index({ 'apiResponse.adminDeducted': 1 });
+transactionSchema.index({ 'apiResponse.refundPending': 1 });
 
 module.exports = mongoose.model(
     'Transaction',

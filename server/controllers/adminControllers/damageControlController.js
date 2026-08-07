@@ -44,29 +44,46 @@ const ODS_DAMAGE_FILTER = {
 exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
   try {
     const [oldFlagged, newFlagged, pollerFailed, odsDamage] = await Promise.all([
-      Transaction.find(OLD_FLAGGED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
-      Transaction.find(NEW_FLAGGED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
-      Transaction.find(POLLER_FAILED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
-      Transaction.find(ODS_DAMAGE_FILTER).populate('user', 'username email').sort({ createdAt: -1 }),
+      Transaction.find(OLD_FLAGGED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }).lean(),
+      Transaction.find(NEW_FLAGGED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }).lean(),
+      Transaction.find(POLLER_FAILED_FILTER).populate('user', 'username email').sort({ createdAt: -1 }).lean(),
+      Transaction.find(ODS_DAMAGE_FILTER).populate('user', 'username email').sort({ createdAt: -1 }).lean(),
     ]);
 
     // Merge and sort by date descending
     const allFlagged = [...oldFlagged, ...newFlagged, ...pollerFailed, ...odsDamage]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // For each, check if a successful retry exists within 24 h
-    const rows = await Promise.all(allFlagged.map(async tx => {
-      const windowEnd = new Date(tx.createdAt.getTime() + 24 * 60 * 60 * 1000);
-      const successRetry = await Transaction.findOne({
-        user:   tx.user,
-        phone:  tx.phone,
-        amount: tx.amount,
-        status: 'success',
-        createdAt: { $gt: tx.createdAt, $lt: windowEnd },
-      }).lean();
+    // Batch retry check — one query for all users instead of one per flagged item
+    let rows = allFlagged.map(tx => ({ ...tx, hasSuccessRetry: false }));
+    if (allFlagged.length > 0) {
+      const since = new Date(Math.min(...allFlagged.map(tx => new Date(tx.createdAt).getTime())));
+      const userIds = [...new Set(allFlagged.map(tx => tx.user?._id?.toString() || tx.user?.toString()).filter(Boolean))];
+      const recentSuccesses = await Transaction.find({
+        user:      { $in: userIds },
+        status:    'success',
+        createdAt: { $gte: since },
+      }).select('user phone amount createdAt').lean();
 
-      return { ...tx.toObject(), hasSuccessRetry: !!successRetry };
-    }));
+      const successesByUser = {};
+      recentSuccesses.forEach(s => {
+        const uid = s.user.toString();
+        if (!successesByUser[uid]) successesByUser[uid] = [];
+        successesByUser[uid].push(s);
+      });
+
+      rows = allFlagged.map(tx => {
+        const uid       = tx.user?._id?.toString() || tx.user?.toString();
+        const windowEnd = new Date(new Date(tx.createdAt).getTime() + 24 * 60 * 60 * 1000);
+        const hasSuccessRetry = (successesByUser[uid] || []).some(s =>
+          s.phone === tx.phone &&
+          s.amount === tx.amount &&
+          new Date(s.createdAt) > new Date(tx.createdAt) &&
+          new Date(s.createdAt) < windowEnd
+        );
+        return { ...tx, hasSuccessRetry };
+      });
+    }
 
     const totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
 

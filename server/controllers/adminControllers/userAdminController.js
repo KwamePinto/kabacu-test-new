@@ -8,7 +8,7 @@ const User = require("../../models/UserModel");
 const sendEmail = require("../../utils/emailService");
 const adminLayouts = "layouts/adminLayout";
 const { generateUserAdminToken } = require("../../config/authUtils");
-const { authenticateAdminUser } = require("../../config/authMiddleware");
+const { authenticateAdminUser, invalidateAdminCache } = require("../../config/authMiddleware");
 
 /* ── helpers ────────────────────────────────────────────── */
 function generateAdminPassword() {
@@ -288,6 +288,7 @@ exports.toggleAdminStatus = [
 
       target.isActive = !target.isActive;
       await target.save();
+      invalidateAdminCache(target._id);
 
       res.json({
         success: true,
@@ -694,10 +695,19 @@ exports.resetPasswordPost = async (req, res) => {
 };
 
 /* ── Notifications (JSON) ───────────────────────────────── */
+// 30-second in-memory cache — notifications don't need sub-second freshness
+let _notifCache = null;
+let _notifCacheAt = 0;
+const NOTIF_TTL_MS = 30_000;
+
 exports.getNotifications = [
   authenticateAdminUser,
   async (req, res) => {
     try {
+      if (_notifCache && Date.now() - _notifCacheAt < NOTIF_TTL_MS) {
+        return res.json(_notifCache);
+      }
+
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       const [newUsers, pendingTopUps, recentFailedTx, recentPurchases, pendingRefunds] =
@@ -705,16 +715,19 @@ exports.getNotifications = [
           User.find({ createdAt: { $gte: since24h } })
             .select("username email createdAt")
             .sort({ createdAt: -1 })
-            .limit(5),
+            .limit(5)
+            .lean(),
           TopUp.countDocuments({ status: "PENDING" }),
           Transaction.find({ status: "failed", createdAt: { $gte: since24h } })
             .select("amount reference createdAt")
             .sort({ createdAt: -1 })
-            .limit(3),
+            .limit(3)
+            .lean(),
           Transaction.find({ status: "success", createdAt: { $gte: since24h } })
             .select("amount createdAt")
             .sort({ createdAt: -1 })
-            .limit(5),
+            .limit(5)
+            .lean(),
           Transaction.countDocuments({
             "apiResponse.adminDeducted": true,
             "apiResponse.refundPending": true,
@@ -772,7 +785,10 @@ exports.getNotifications = [
       // Sort by time descending, cap at 10
       notifications.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-      res.json({ success: true, notifications: notifications.slice(0, 10) });
+      const payload = { success: true, notifications: notifications.slice(0, 10) };
+      _notifCache   = payload;
+      _notifCacheAt = Date.now();
+      res.json(payload);
     } catch (error) {
       console.log("NOTIFICATIONS ERROR:", error);
       res.json({ success: false, notifications: [] });

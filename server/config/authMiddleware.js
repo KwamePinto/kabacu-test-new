@@ -1,6 +1,21 @@
 const { verifyUserToken, verifyUserAdminToken } = require('./authUtils');
 const UserAdminModel = require('../models/UserAdminModel');
 
+// Cache admin isActive status for 5 minutes — avoids a DB round-trip on every request.
+// Cleared immediately when an admin is deactivated via the UI.
+const _adminActiveCache = new Map();
+const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
+function _isAdminActive(adminId) {
+  const cached = _adminActiveCache.get(adminId);
+  if (cached && Date.now() - cached.at < ADMIN_CACHE_TTL_MS) return Promise.resolve(cached.active);
+  return UserAdminModel.findById(adminId).select('isActive').lean().then(admin => {
+    const active = !!(admin && admin.isActive !== false);
+    _adminActiveCache.set(adminId, { active, at: Date.now() });
+    return active;
+  });
+}
+exports.invalidateAdminCache = adminId => _adminActiveCache.delete(adminId?.toString());
+
 function authenticateUser(req, res, next) {
   const token = req.cookies.user_token;
 
@@ -49,10 +64,11 @@ function authenticateAdminUser(req, res, next) {
 
     res.locals.user = req.user;
 
-    // Async check: if account has been deactivated since token was issued, kick them out
-    UserAdminModel.findById(decoded.userId).select('isActive').lean()
-      .then(function (admin) {
-        if (!admin || admin.isActive === false) {
+    // Async check: if account has been deactivated since token was issued, kick them out.
+    // Result is cached for 5 min to avoid a DB round-trip on every single request.
+    _isAdminActive(decoded.userId)
+      .then(function (active) {
+        if (!active) {
           res.clearCookie('admin_token');
           return res.redirect('/command');
         }

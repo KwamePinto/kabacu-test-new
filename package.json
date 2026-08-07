@@ -20,6 +20,7 @@
     "axios-cookiejar-support": "^7.0.0",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.2",
+    "compression": "^1.8.1",
     "connect-flash": "^0.1.1",
     "connect-mongo": "^6.0.0",
     "cookie-parser": "^1.4.7",

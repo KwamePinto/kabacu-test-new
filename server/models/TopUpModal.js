@@ -79,6 +79,7 @@ const topupSchema = new mongoose.Schema({
     timestamps: true
 });
 
+topupSchema.index({ createdAt: -1 });
 topupSchema.index({ user: 1, createdAt: -1 });
 topupSchema.index({ status: 1 });
 

@@ -10,6 +10,7 @@ const flash = require('connect-flash');
 const morgan = require('morgan');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const csrf = require('csurf');
 
 const connectDB = require('./server/config/db');
@@ -27,6 +28,9 @@ const PORT = process.env.PORT;
 app.set('trust proxy', 1);
 
 connectDB();
+
+// ── Compression ───────────────────────────────────────────────────────────────
+app.use(compression());
 
 // ── Security headers ──────────────────────────────────────────────────────────
 // CSP disabled: app uses CDN scripts + inline scripts/styles.
@@ -65,6 +69,7 @@ app.use(session({
     mongoUrl: process.env.MONGO_URI,
     collectionName: 'sessions',
     ttl: 14 * 24 * 60 * 60,
+    touchAfter: 3 * 60 * 60, // only re-save session to DB if it changed, max once per 3h
   }),
   cookie: {
     httpOnly: true,
