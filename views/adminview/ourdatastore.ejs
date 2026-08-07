@@ -135,6 +135,7 @@
                                   <th>Plan</th>
                                   <th class="text-right">Amount</th>
                                   <th>Trans ID</th>
+                                  <th>API Response</th>
                                   <th>Status</th>
                                 </tr>
                               </thead>
@@ -167,6 +168,23 @@
                                       </td>
                                       <td class="text-right"><strong>₦<%= amount %></strong></td>
                                       <td><code style="font-size:11px;"><%= transid %></code></td>
+                                      <td style="max-width:220px;">
+                                        <% var apiResp = t.api_response; %>
+                                        <% if (!apiResp) { %>
+                                          <span class="text-muted" style="font-size:12px;">—</span>
+                                        <% } else if (typeof apiResp === 'string') { %>
+                                          <small class="api-resp-cell" style="cursor:pointer;word-break:break-word;" title="<%= apiResp %>">
+                                            <%= apiResp.length > 80 ? apiResp.slice(0, 80) + '…' : apiResp %>
+                                          </small>
+                                        <% } else { %>
+                                          <small class="api-resp-cell" style="cursor:pointer;word-break:break-word;"
+                                            title="<%= JSON.stringify(apiResp).replace(/"/g, '&quot;') %>">
+                                            <%= JSON.stringify(apiResp).length > 80
+                                                ? JSON.stringify(apiResp).slice(0, 80) + '…'
+                                                : JSON.stringify(apiResp) %>
+                                          </small>
+                                        <% } %>
+                                      </td>
                                       <td>
                                         <span class="badge <%= t.statusInfo.cls %>">
                                           <%= t.statusInfo.label %>
@@ -176,7 +194,7 @@
                                   <% }) %>
                                 <% } else { %>
                                   <tr>
-                                    <td colspan="8" class="text-center py-4 text-muted">
+                                    <td colspan="9" class="text-center py-4 text-muted">
                                       No data transactions found.
                                     </td>
                                   </tr>
@@ -238,4 +256,15 @@
 </div>
 <script src="/admin/assets/js/app.min.js"></script>
 <script src="/admin/assets/js/scripts.js"></script>
-<script></script>
+<script>
+document.querySelectorAll('.api-resp-cell').forEach(function(el) {
+  var full = el.getAttribute('title');
+  if (!full || el.textContent.trim() === full.trim()) return;
+  var short = el.textContent.trim();
+  var expanded = false;
+  el.addEventListener('click', function() {
+    expanded = !expanded;
+    el.textContent = expanded ? full : short;
+  });
+});
+</script>
