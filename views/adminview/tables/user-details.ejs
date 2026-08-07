@@ -289,6 +289,7 @@
                           <thead>
                             <tr>
                               <th>#</th>
+                              <th>Type</th>
                               <th>Reference</th>
                               <th>Product</th>
                               <th>Qty</th>
@@ -321,11 +322,29 @@
                                    qty = tx.products.reduce(function(s, p){ return s + (p.quantity || 1); }, 0);
                                  }
 
-                                 var prevBal = tx.balanceBefore != null ? '₦' + Number(tx.balanceBefore).toLocaleString() : '—';
-                                 var newBal  = tx.balanceAfter  != null ? '₦' + Number(tx.balanceAfter).toLocaleString()  : '—';
+                                 var apiBefore = tx.apiResponse && tx.apiResponse.balanceBefore != null ? tx.apiResponse.balanceBefore
+                                                 : (tx.apiResponse && tx.apiResponse.refundBalBefore != null ? tx.apiResponse.refundBalBefore : null);
+                                 var apiAfter  = tx.apiResponse && tx.apiResponse.balanceAfter  != null ? tx.apiResponse.balanceAfter
+                                                 : (tx.apiResponse && tx.apiResponse.refundBalAfter  != null ? tx.apiResponse.refundBalAfter  : null);
+                                 var prevBalNum = tx.balanceBefore != null ? tx.balanceBefore : apiBefore;
+                                 var newBalNum  = tx.balanceAfter  != null ? tx.balanceAfter  : apiAfter;
+                                 var prevBal = prevBalNum != null ? '₦' + Number(prevBalNum).toLocaleString() : '—';
+                                 var newBal  = newBalNum  != null ? '₦' + Number(newBalNum).toLocaleString()  : '—';
+
+                                 var isRefund    = tx.status === 'refunded' || !!(tx.apiResponse && tx.apiResponse.adminRefunded);
+                                 var isDeduction = !isRefund && !!(tx.apiResponse && tx.apiResponse.adminDeducted);
                             %>
                             <tr>
                               <td><%= index + 1 %></td>
+                              <td>
+                                <% if (isRefund) { %>
+                                  <span class="badge" style="background:#17a2b8;color:#fff;">Refund</span>
+                                <% } else if (isDeduction) { %>
+                                  <span class="badge badge-warning" style="color:#fff;">Deduction</span>
+                                <% } else { %>
+                                  <span class="badge badge-primary">Payment</span>
+                                <% } %>
+                              </td>
                               <td><small><%= tx.reference %></small></td>
                               <td><%= productName %></td>
                               <td><%= qty %></td>
@@ -348,7 +367,7 @@
                             <% }) %>
                             <% } else { %>
                             <tr>
-                              <td colspan="11" class="text-center">No transactions found</td>
+                              <td colspan="12" class="text-center">No transactions found</td>
                             </tr>
                             <% } %>
                           </tbody>

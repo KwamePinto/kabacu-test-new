@@ -112,6 +112,8 @@ exports.deductWallet = [authenticateAdminUser, async (req, res) => {
     wallet.balances.NAIRA -= tx.amount;
     await wallet.save();
 
+    tx.balanceBefore = before;
+    tx.balanceAfter  = wallet.balances.NAIRA;
     tx.apiResponse = {
       status: 'fail',
       adminDeducted: true,
@@ -187,6 +189,8 @@ exports.adminRefundDeduction = [authenticateAdminUser, async (req, res) => {
       wallet.balances.NAIRA += tx.amount;
       await wallet.save();
 
+      tx.balanceBefore = before;
+      tx.balanceAfter  = wallet.balances.NAIRA;
       tx.apiResponse = {
         ...tx.apiResponse,
         adminRefunded:    true,
@@ -194,6 +198,8 @@ exports.adminRefundDeduction = [authenticateAdminUser, async (req, res) => {
         refundReason:     reason.trim(),
         refundApprovedBy: req.user.username,
         refundPending:    false,
+        refundBalBefore:  before,
+        refundBalAfter:   wallet.balances.NAIRA,
       };
       tx.markModified('apiResponse');
       await tx.save();
@@ -249,12 +255,16 @@ exports.approveRefundRequest = [authenticateAdminUser, async (req, res) => {
 
     const reason = tx.apiResponse.refundReason;
 
+    tx.balanceBefore = before;
+    tx.balanceAfter  = wallet.balances.NAIRA;
     tx.apiResponse = {
       ...tx.apiResponse,
       adminRefunded:    true,
       adminRefundedAt:  new Date().toISOString(),
       refundApprovedBy: req.user.username,
       refundPending:    false,
+      refundBalBefore:  before,
+      refundBalAfter:   wallet.balances.NAIRA,
     };
     tx.markModified('apiResponse');
     await tx.save();
@@ -304,7 +314,9 @@ exports.resolveTransaction = [authenticateAdminUser, async (req, res) => {
     wallet.balances.NAIRA += tx.amount;
     await wallet.save();
 
-    tx.status = 'refunded';
+    tx.status       = 'refunded';
+    tx.balanceBefore = before;
+    tx.balanceAfter  = wallet.balances.NAIRA;
     tx.apiResponse = {
       status: 'fail',
       _resolvedByAdmin: true,
