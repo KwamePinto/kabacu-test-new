@@ -77,11 +77,6 @@
                                   <a class="dropdown-item" href="/admin/product/edit-product/<%= product._id %>">
                                     <i class="fa fa-pencil m-r-5"></i> Edit
                                   </a>
-                                  <a class="dropdown-item text-danger prod-delete-btn" href="#"
-                                     data-id="<%= product._id %>"
-                                     data-name="<%= product.productName %>">
-                                    <i class="fa fa-trash-o m-r-5"></i> Delete
-                                  </a>
                                 </div>
                               </div>
                             </td>
@@ -214,41 +209,4 @@ document.querySelectorAll('.prod-toggle').forEach(function(checkbox) {
   });
 });
 
-document.querySelectorAll('.prod-delete-btn').forEach(function(btn) {
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    var id   = this.dataset.id;
-    var name = this.dataset.name;
-
-    Swal.fire({
-      title: 'Delete Product?',
-      text: 'Are you sure you want to delete "' + name + '"? This cannot be undone.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, Delete',
-      confirmButtonColor: '#e74c3c',
-      cancelButtonText: 'Cancel',
-    }).then(function(result) {
-      if (!result.isConfirmed) return;
-
-      fetch('/admin/product/delete-product/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
-      })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.success) {
-            var row = document.getElementById('prod-row-' + id);
-            if (row) row.remove();
-            Swal.fire({ icon: 'success', title: 'Deleted!', text: '"' + name + '" has been removed.', timer: 2000, showConfirmButton: false });
-          } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Could not delete product.' });
-          }
-        })
-        .catch(function() {
-          Swal.fire({ icon: 'error', title: 'Error', text: 'Network error. Please try again.' });
-        });
-    });
-  });
-});
 </script>

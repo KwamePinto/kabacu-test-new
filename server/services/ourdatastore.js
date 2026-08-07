@@ -277,6 +277,53 @@ async function fetchHistory({ page = 1, status = 'ALL', search = '', perPage = 2
   }
 }
 
+async function fetchDataTransactions({ page = 1, status = 'ALL', search = '', perPage = 20 } = {}) {
+  async function attempt() {
+    const cookies = await getSession();
+    const adexId  = await getAdexId();
+    const url     = `https://ourdatastore.com/api/system/all/datatrans/adex/${adexId}/secure`;
+    const r = await axios.get(url, {
+      // API uses 0-based page index
+      params:  { page: page - 1, adex: perPage, status, search },
+      headers: {
+        Cookie:       cookies,
+        Accept:       'application/json',
+        Origin:       'https://app.ourdatastore.com',
+        Referer:      'https://app.ourdatastore.com/',
+        'User-Agent': 'Mozilla/5.0',
+      },
+    });
+
+    // Extract ADEX ID from response path if available and keep it current
+    const payload = r.data?.all_datatrans || r.data?.all_summary || r.data;
+    const pathUrl = payload?.path || '';
+    const match   = pathUrl.match(/\/adex\/([^/]+)\/secure/);
+    if (match && match[1] !== adexId) saveAdexId(match[1]);
+
+    // Normalise: return a pagination envelope identical in shape to fetchHistory
+    if (payload && Array.isArray(payload.data)) return payload;
+
+    // Some API versions wrap differently — handle flat array fallback
+    const items = Array.isArray(r.data) ? r.data : [];
+    return { data: items, current_page: page, last_page: 1, total: items.length, from: 1, to: items.length };
+  }
+
+  try {
+    return await attempt();
+  } catch (firstErr) {
+    if (firstErr.response?.status !== 403) throw firstErr;
+    logger.warn('[OURDATASTORE] 403 on datatrans — forcing fresh login');
+    sessionCookies = null;
+    try {
+      await loginSession();
+      return await attempt();
+    } catch (retryErr) {
+      logger.error('[OURDATASTORE] datatrans ADEX recovery failed: %s', retryErr.message);
+      throw new Error('ADEX_ID_STALE');
+    }
+  }
+}
+
 async function getTransactionStatus(requestId) {
   if (!requestId) return null;
   try {
@@ -288,4 +335,4 @@ async function getTransactionStatus(requestId) {
   }
 }
 
-module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, getTransactionStatus };
+module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, fetchDataTransactions, getTransactionStatus };

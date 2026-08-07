@@ -91,7 +91,7 @@
                       <div class="card">
                         <div class="card-header d-flex align-items-center justify-content-between flex-wrap"
                           style="gap:10px;">
-                          <h4 class="mb-0">Transaction History</h4>
+                          <h4 class="mb-0">Data Transactions</h4>
                           <!-- Search form -->
                           <form method="GET" action="/admin/ourdatastore" class="d-flex"
                             style="gap:8px;flex-wrap:wrap;">
@@ -130,61 +130,52 @@
                                 <tr>
                                   <th style="width:48px;">#</th>
                                   <th>Date</th>
+                                  <th>Phone</th>
+                                  <th>Network</th>
+                                  <th>Plan</th>
+                                  <th class="text-right">Amount</th>
                                   <th>Trans ID</th>
-                                  <th class="text-right">Deducted</th>
-                                  <th class="text-right">Old Bal</th>
-                                  <th class="text-right">New Bal</th>
-                                  <th>Message</th>
                                   <th>Status</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                <% if (transactions && transactions.length> 0) { %>
-                                  <% transactions.forEach((t, i)=> { %>
+                                <% if (transactions && transactions.length > 0) { %>
+                                  <% transactions.forEach(function(t, i) {
+                                       var txDate  = t.date || t.created_at || t.adex_date || t.updated_at || null;
+                                       var phone   = t.phone || t.mobile || t.recipient || '—';
+                                       var network = t.network || t.network_name || '—';
+                                       var plan    = t.plan_name || t.package || t.plan || t.data_plan || '—';
+                                       var amount  = t.amount != null ? Number(t.amount).toLocaleString() : '—';
+                                       var transid = t.transid || t.ident || t.transaction_id || t.id || '—';
+                                  %>
                                     <tr>
-                                      <td>
-                                        <%= pagination.from + i %>
-                                      </td>
+                                      <td><%= pagination.from + i %></td>
                                       <td>
                                         <small>
-                                          <%= new Date(t.adex_date).toLocaleString('en-GB', { day:'2-digit',
-                                            month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
+                                          <% if (txDate) { %>
+                                            <%= new Date(txDate).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
+                                          <% } else { %>—<% } %>
                                         </small>
                                       </td>
-                                      <td>
-                                        <code style="font-size:11px;"><%= t.transid %></code>
-                                      </td>
-                                      <td class="text-right">
-                                        <strong>
-                                          <%= Number(t.amount).toLocaleString() %>
-                                        </strong>
-                                      </td>
-                                      <td class="text-right text-muted"><small>
-                                          <%= Number(t.oldbal).toLocaleString() %>
-                                        </small></td>
-                                      <td class="text-right text-muted"><small>
-                                          <%= Number(t.newbal).toLocaleString() %>
-                                        </small></td>
-                                      <td style="max-width:260px;">
-                                        <span class="msg-preview" title="<%= t.message %>">
-                                          <%= t.message && t.message.length> 60 ? t.message.slice(0, 60) + '…' :
-                                            t.message %>
-                                        </span>
-                                      </td>
+                                      <td><code style="font-size:12px;"><%= phone %></code></td>
+                                      <td><%= network %></td>
+                                      <td style="max-width:180px;word-break:break-word;"><small><%= plan %></small></td>
+                                      <td class="text-right"><strong>₦<%= amount %></strong></td>
+                                      <td><code style="font-size:11px;"><%= transid %></code></td>
                                       <td>
                                         <span class="badge <%= t.statusInfo.cls %>">
                                           <%= t.statusInfo.label %>
                                         </span>
                                       </td>
                                     </tr>
-                                    <% }) %>
-                                      <% } else { %>
-                                        <tr>
-                                          <td colspan="8" class="text-center py-4 text-muted">
-                                            No transactions found.
-                                          </td>
-                                        </tr>
-                                        <% } %>
+                                  <% }) %>
+                                <% } else { %>
+                                  <tr>
+                                    <td colspan="8" class="text-center py-4 text-muted">
+                                      No data transactions found.
+                                    </td>
+                                  </tr>
+                                <% } %>
                               </tbody>
                             </table>
                           </div>
@@ -242,17 +233,4 @@
 </div>
 <script src="/admin/assets/js/app.min.js"></script>
 <script src="/admin/assets/js/scripts.js"></script>
-<script>
-  // Show full message in tooltip on hover via title attribute — already set.
-  // Clicking the row expands the message inline.
-  document.querySelectorAll('.msg-preview').forEach(el => {
-    const full = el.getAttribute('title');
-    if (!full || el.textContent.trim() === full.trim()) return;
-    el.style.cursor = 'pointer';
-    let expanded = false;
-    el.addEventListener('click', () => {
-      expanded = !expanded;
-      el.textContent = expanded ? full : full.slice(0, 60) + '…';
-    });
-  });
-</script>
+<script></script>

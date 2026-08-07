@@ -81,7 +81,7 @@
 
           <!-- Search -->
           <div class="mb-3">
-            <input type="text" id="flaggedSearch" class="form-control" placeholder="Search by user, phone, or amount…" style="max-width:360px;">
+            <input type="text" id="flaggedSearch" class="form-control" placeholder="Search by user, phone, amount, or reason…" style="max-width:360px;">
           </div>
 
           <!-- Tabs -->
@@ -566,12 +566,24 @@ document.querySelectorAll('.resolve-btn').forEach(function (btn) {
   });
 });
 
-// ── Live search (Flagged tab only) ───────────────────────────────
-document.getElementById('flaggedSearch').addEventListener('input', function () {
-  var q = this.value.toLowerCase().trim();
-  document.querySelectorAll('#tab-flagged tbody tr').forEach(function (row) {
+// ── Live search (searches whichever tab is active) ───────────────
+function applySearch(q) {
+  var activePane = document.querySelector('#flaggedTabs + .tab-content .tab-pane.active');
+  if (!activePane) return;
+  activePane.querySelectorAll('tbody tr').forEach(function (row) {
     var text = row.textContent.toLowerCase();
     row.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+}
+
+document.getElementById('flaggedSearch').addEventListener('input', function () {
+  applySearch(this.value.toLowerCase().trim());
+});
+
+// Re-apply (or clear) search when the admin switches tabs
+document.querySelectorAll('#flaggedTabs a[data-toggle="tab"]').forEach(function (tab) {
+  tab.addEventListener('shown.bs.tab', function () {
+    applySearch(document.getElementById('flaggedSearch').value.toLowerCase().trim());
   });
 });
 

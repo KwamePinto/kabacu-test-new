@@ -1,5 +1,5 @@
 const { authenticateAdminUser } = require('../../config/authMiddleware');
-const { getAccountInfo, fetchHistory } = require('../../services/ourdatastore');
+const { getAccountInfo, fetchDataTransactions } = require('../../services/ourdatastore');
 
 const STATUS_OPTIONS = [
   { value: 'ALL', label: 'All' },
@@ -29,7 +29,7 @@ exports.viewDashboard = [
     try {
       const [info, history] = await Promise.all([
         getAccountInfo(),
-        fetchHistory({ page, status, search, perPage: 20 }),
+        fetchDataTransactions({ page, status, search, perPage: 20 }),
       ]);
 
       accountInfo  = info;
