@@ -141,8 +141,8 @@
                               <tbody>
                                 <% if (transactions && transactions.length > 0) { %>
                                   <% transactions.forEach(function(t, i) {
-                                       var txDate  = t.date || t.created_at || t.adex_date || t.updated_at || null;
-                                       var phone   = t.phone || t.mobile || t.recipient || '—';
+                                       var txDate  = t.plan_date || t.date || t.created_at || t.adex_date || null;
+                                       var phone   = t.plan_phone || t.phone || t.mobile || '—';
                                        var network = t.network || t.network_name || '—';
                                        var plan    = t.plan_name || t.package || t.plan || t.data_plan || '—';
                                        var amount  = t.amount != null ? Number(t.amount).toLocaleString() : '—';
@@ -159,7 +159,12 @@
                                       </td>
                                       <td><code style="font-size:12px;"><%= phone %></code></td>
                                       <td><%= network %></td>
-                                      <td style="max-width:180px;word-break:break-word;"><small><%= plan %></small></td>
+                                      <td style="max-width:180px;word-break:break-word;">
+                                        <small><%= plan %></small>
+                                        <% if (t.network_type) { %>
+                                          <br><small class="text-muted" style="font-size:11px;"><%= t.network_type %></small>
+                                        <% } %>
+                                      </td>
                                       <td class="text-right"><strong>₦<%= amount %></strong></td>
                                       <td><code style="font-size:11px;"><%= transid %></code></td>
                                       <td>

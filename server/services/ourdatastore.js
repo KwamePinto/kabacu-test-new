@@ -295,7 +295,7 @@ async function fetchDataTransactions({ page = 1, status = 'ALL', search = '', pe
     });
 
     // Extract ADEX ID from response path if available and keep it current
-    const payload = r.data?.all_datatrans || r.data?.all_summary || r.data;
+    const payload = r.data?.data_trans || r.data?.all_datatrans || r.data?.all_summary || r.data;
     const pathUrl = payload?.path || '';
     const match   = pathUrl.match(/\/adex\/([^/]+)\/secure/);
     if (match && match[1] !== adexId) saveAdexId(match[1]);
