@@ -5,7 +5,7 @@ const adminLayout = 'layouts/adminLayout';
 const PROVIDER_LABELS = { 1: 'MTN', 2: 'GLO', 3: 'Airtel', 4: '9mobile' };
 
 exports.viewNetworks = [authenticateAdminUser, async (req, res) => {
-  const networks = await Network.find({ is_deleted: { $ne: 1 } }).sort({ apiCode: 1, name: 1 });
+  const networks = await Network.find({ is_deleted: { $ne: 1 } }).sort({ apiCode: 1, name: 1 }).lean();
   res.render('adminview/networks', {
     layout: adminLayout,
     networks,

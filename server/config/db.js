@@ -5,7 +5,11 @@ const connectMongoDB = async () => {
 	try{
 		mongoose.set('strictQuery', false)
 
-		const conn = await mongoose.connect(process.env.MONGO_URI)
+		const conn = await mongoose.connect(process.env.MONGO_URI, {
+			maxPoolSize: 20,
+			serverSelectionTimeoutMS: 5000,
+			socketTimeoutMS: 45000,
+		})
 		console.log(`Database connected: ${conn.connection.host}`)
 
 		// Drop non-sparse unique indexes so Mongoose recreates them as sparse

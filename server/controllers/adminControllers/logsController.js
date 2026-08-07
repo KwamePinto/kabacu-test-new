@@ -7,19 +7,21 @@ const adminLayout = 'layouts/adminLayout';
 const LINES_PER_PAGE = 200;
 
 function getLogFiles() {
-  return fs.readdirSync(LOG_DIR)
-    .filter(f => f.endsWith('.log'))
-    .sort()
-    .reverse(); // newest first
+  try {
+    return fs.readdirSync(LOG_DIR)
+      .filter(f => f.endsWith('.log'))
+      .sort()
+      .reverse();
+  } catch { return []; }
 }
 
-function readTailLines(filePath, n) {
-  const content = fs.readFileSync(filePath, 'utf8');
+async function readTailLines(filePath, n) {
+  const content = await fs.promises.readFile(filePath, 'utf8');
   const lines   = content.split('\n').filter(Boolean);
-  return lines.slice(-n).reverse(); // most recent at top
+  return lines.slice(-n).reverse();
 }
 
-exports.viewLogs = [authenticateAdminUser, (req, res) => {
+exports.viewLogs = [authenticateAdminUser, async (req, res) => {
   const files   = getLogFiles();
   const file    = req.query.file || (files[0] || '');
   const filter  = (req.query.filter || '').trim().toLowerCase();
@@ -29,13 +31,13 @@ exports.viewLogs = [authenticateAdminUser, (req, res) => {
   let error = null;
 
   if (file) {
-    const safe = path.basename(file); // prevent path traversal
+    const safe = path.basename(file);
     const full = path.join(LOG_DIR, safe);
     if (!fs.existsSync(full) || !full.startsWith(LOG_DIR)) {
       error = 'Log file not found.';
     } else {
       try {
-        lines = readTailLines(full, 5000);
+        lines = await readTailLines(full, 5000);
         if (filter) lines = lines.filter(l => l.toLowerCase().includes(filter));
       } catch (e) {
         error = 'Could not read log file.';

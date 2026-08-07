@@ -14,8 +14,6 @@ function _isAdminActive(adminId) {
     return active;
   });
 }
-exports.invalidateAdminCache = adminId => _adminActiveCache.delete(adminId?.toString());
-
 function authenticateUser(req, res, next) {
   const token = req.cookies.user_token;
 
@@ -115,5 +113,6 @@ function optionalUser(req, res, next) {
 module.exports = {
   authenticateAdminUser,
   authenticateUser,
-  optionalUser
+  optionalUser,
+  invalidateAdminCache: id => _adminActiveCache.delete(id?.toString()),
 };

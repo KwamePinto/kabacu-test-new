@@ -3,7 +3,7 @@ const Wallet = require('../models/WalletModal');
 
 async function loadWallet(req, res, next) {
   try {
-    if (!req.user) {
+    if (!req.user || req.originalUrl.startsWith('/admin') || req.originalUrl.startsWith('/api')) {
       res.locals.wallet = null;
       return next();
     }

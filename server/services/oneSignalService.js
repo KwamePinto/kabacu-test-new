@@ -1,7 +1,7 @@
 const axios = require('axios');
 const logger = require('../config/logger');
 
-const BASE_URL = 'https://onesignal.com/api/v1/notifications';
+const BASE_URL = 'https://api.onesignal.com/notifications';
 
 function headers() {
   return {
@@ -10,12 +10,16 @@ function headers() {
   };
 }
 
-async function sendToPlayers(playerIds, title, body, data = {}) {
+async function sendToPlayers(playerIds, title, body, data = {}, { badge = 1 } = {}) {
   const payload = {
-    app_id:            process.env.ONESIGNAL_APP_ID,
+    app_id:             process.env.ONESIGNAL_APP_ID,
     include_player_ids: playerIds,
-    headings:          { en: title },
-    contents:          { en: body },
+    headings:           { en: title },
+    contents:           { en: body },
+    android_badgeType:  'Increase',
+    android_badgeCount: badge,
+    ios_badgeType:      'Increase',
+    ios_badgeCount:     badge,
     data,
   };
   try {
@@ -27,12 +31,16 @@ async function sendToPlayers(playerIds, title, body, data = {}) {
   }
 }
 
-async function sendToAll(title, body, data = {}) {
+async function sendToAll(title, body, data = {}, { badge = 1 } = {}) {
   const payload = {
-    app_id:           process.env.ONESIGNAL_APP_ID,
-    included_segments: ['All'],
-    headings:         { en: title },
-    contents:         { en: body },
+    app_id:             process.env.ONESIGNAL_APP_ID,
+    included_segments:  ['All'],
+    headings:           { en: title },
+    contents:           { en: body },
+    android_badgeType:  'Increase',
+    android_badgeCount: badge,
+    ios_badgeType:      'Increase',
+    ios_badgeCount:     badge,
     data,
   };
   try {

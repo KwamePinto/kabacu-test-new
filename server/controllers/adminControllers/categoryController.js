@@ -4,7 +4,7 @@ const Category = require('../../models/CategoryModal');
 
 exports.viewCategory = [authenticateAdminUser, async (req, res) => {
   try {
-    const category = await Category.find({ is_deleted: { $ne: 1 } }).sort({ createdAt: -1 });
+    const category = await Category.find({ is_deleted: { $ne: 1 } }).sort({ createdAt: -1 }).lean();
     res.render('adminview/tables/category', {
       layout: adminLayouts,
       category,

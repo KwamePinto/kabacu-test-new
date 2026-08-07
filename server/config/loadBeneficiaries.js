@@ -3,7 +3,7 @@ const Beneficiary = require('../models/BeneficiaryModel');
 
 async function loadBeneficiaries(req, res, next) {
   try {
-    if (!req.user) {
+    if (!req.user || req.originalUrl.startsWith('/admin') || req.originalUrl.startsWith('/api')) {
       res.locals.beneficiaries = [];
       return next();
     }

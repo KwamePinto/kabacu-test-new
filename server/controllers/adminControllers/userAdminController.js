@@ -167,10 +167,12 @@ exports.viewAdmins = [
       const [admins, pendingResets] = await Promise.all([
         UserAdminModel.find()
           .populate("addedBy", "username email")
-          .sort({ createdAt: -1 }),
+          .sort({ createdAt: -1 })
+          .lean(),
         UserAdminModel.find({ resetPasswordRequested: true })
           .select("username email role resetPasswordRequestedAt")
-          .sort({ resetPasswordRequestedAt: -1 }),
+          .sort({ resetPasswordRequestedAt: -1 })
+          .lean(),
       ]);
       res.render("adminview/users/view-admins", {
         admins,
