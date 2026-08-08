@@ -26,7 +26,6 @@
       <th>Amount</th>
       <th>Status</th>
       <th>Date</th>
-      <th>Action</th>
     </tr>
   </thead>
 
@@ -97,18 +96,6 @@
             </small>
           </td>
 
-          <td data-label="Action">
-            <% if (tx.status === 'failed') { %>
-              <button
-                class="btn btn--outline btn--sm retry-btn"
-                data-id="<%= tx._id %>">
-                <i data-lucide="refresh-cw"></i>
-                Retry
-              </button>
-            <% } else { %>
-              <span style="color:var(--muted);">—</span>
-            <% } %>
-          </td>
         </tr>
       <% }) %>
 
@@ -192,52 +179,5 @@
   </div>
 </section>
 
-<script>
-document.addEventListener('click', async function (e) {
-  const btn = e.target.closest('.retry-btn');
-  if (!btn) return;
-
-  const txId = btn.dataset.id;
-
-  const confirm = await Swal.fire({
-    title: 'Retry Purchase?',
-    text: 'This will attempt to buy the data again',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, Retry'
-  });
-
-  if (!confirm.isConfirmed) return;
-
-  btn.disabled = true;
-  btn.innerHTML = 'Processing...';
-
-  try {
-    const res = await fetch('/retry-transaction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-      body: JSON.stringify({ transactionId: txId })
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      Swal.fire('Success', 'Transaction completed!', 'success')
-        .then(() => location.reload());
-    } else if (data.insufficientBalance) {
-      showTopupModal({ requiredAmount: data.requiredAmount, currentBalance: data.currentBalance });
-    } else {
-      Swal.fire('Error', data.message, 'error');
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="refresh-cw"></i> Retry';
-    }
-
-  } catch (err) {
-    Swal.fire('Error', 'Something went wrong', 'error');
-    btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="refresh-cw"></i> Retry';
-  }
-});
-</script>
 
 <%- include('../partials/topupModal.ejs') %>
