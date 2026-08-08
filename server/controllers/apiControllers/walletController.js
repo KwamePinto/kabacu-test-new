@@ -109,7 +109,7 @@ exports.payWithWallet = async (req, res) => {
           products:      itemsToProcess.map(i => ({ product: i.product._id, quantity: i.quantity })),
           phone,
           amount:        total,
-          rpEarned:      0,
+          rpEarned:      totalRP,
           walletType:    'NAIRA',
           paymentMethod: 'wallet',
           status:        'pending',

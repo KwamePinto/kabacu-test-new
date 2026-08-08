@@ -392,7 +392,23 @@
     const closeClaimBtn   = document.getElementById('closeClaimModal');
     const confirmClaimBtn = document.getElementById('confirmClaimBtn');
 
-    if (openClaimBtn)  openClaimBtn.addEventListener('click',  function(e) { e.preventDefault(); claimModal.classList.add('open'); });
+    var rpAmountEl = claimModal ? claimModal.querySelector('.claim-rp-modal__amount') : null;
+
+    function openClaimRpModal() {
+      if (!claimModal) return;
+      claimModal.classList.add('open');
+      // Fetch live rpBalance so stale JWT value never shows
+      fetch('/user/rp-balance', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (rpAmountEl && typeof d.rpBalance === 'number') {
+            rpAmountEl.innerHTML = d.rpBalance + ' <span class="claim-rp-modal__unit">RP</span>';
+          }
+        })
+        .catch(function() {});
+    }
+
+    if (openClaimBtn)  openClaimBtn.addEventListener('click',  function(e) { e.preventDefault(); openClaimRpModal(); });
     if (closeClaimBtn) closeClaimBtn.addEventListener('click', function()   { claimModal.classList.remove('open'); });
     if (claimModal)    claimModal.addEventListener('click',    function(e)  { if (e.target === claimModal) claimModal.classList.remove('open'); });
 

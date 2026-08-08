@@ -920,7 +920,7 @@ exports.payWithWallet = async (req, res) => {
           })),
           phone,
           amount:        total,
-          rpEarned:      0,
+          rpEarned:      totalRP,
           walletType:    "NAIRA",
           paymentMethod: "wallet",
           status:        "pending",

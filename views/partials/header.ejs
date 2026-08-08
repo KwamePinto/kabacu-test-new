@@ -184,10 +184,12 @@
       e.preventDefault();
       panel.style.display = 'none';
       open = false;
-      var modal = document.getElementById('claimRPModal');
-      if (modal) modal.style.display = 'flex';
-      var openBtn = document.getElementById('openClaimModal');
-      if (openBtn) openBtn.click();
+      if (typeof openClaimRpModal === 'function') {
+        openClaimRpModal();
+      } else {
+        var modal = document.getElementById('claimRpModal');
+        if (modal) modal.classList.add('open');
+      }
     });
   }
 

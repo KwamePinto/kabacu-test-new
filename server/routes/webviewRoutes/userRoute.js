@@ -114,4 +114,14 @@ router.post('/notifications/read-all', optionalUser, async (req, res) => {
   }
 });
 
+router.get('/rp-balance', authenticateUser, async (req, res) => {
+  try {
+    const User = require('../../models/UserModel');
+    const user = await User.findById(req.user.id).select('rpBalance').lean();
+    res.json({ success: true, rpBalance: user?.rpBalance || 0 });
+  } catch (err) {
+    res.json({ success: true, rpBalance: 0 });
+  }
+});
+
 module.exports = router;
