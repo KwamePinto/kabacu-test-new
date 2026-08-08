@@ -1806,8 +1806,26 @@ exports.conversionHistory = async (req, res) => {
   }
 };
 
-exports.faqPage = (req, res) => {
-  res.render("webview/faq");
+exports.faqPage = async (req, res) => {
+  try {
+    const Faq = require('../models/FaqModel');
+    const CATEGORY_ORDER = ['getting-started', 'wallet', 'data', 'courses', 'account', 'rewards'];
+    const faqs = await Faq.find({ isActive: true }).sort({ category: 1, order: 1 }).lean();
+
+    const faqsByCategory = {};
+    CATEGORY_ORDER.forEach(function(cat) { faqsByCategory[cat] = []; });
+    faqs.forEach(function(faq) {
+      if (faqsByCategory[faq.category]) faqsByCategory[faq.category].push(faq);
+    });
+
+    res.render('webview/faq', { faqsByCategory, CATEGORY_ORDER });
+  } catch (err) {
+    console.error('[faqPage]', err);
+    res.render('webview/faq', {
+      faqsByCategory: { 'getting-started': [], wallet: [], data: [], courses: [], account: [], rewards: [] },
+      CATEGORY_ORDER: ['getting-started', 'wallet', 'data', 'courses', 'account', 'rewards'],
+    });
+  }
 };
 
 exports.privacyPolicy = (req, res) => {

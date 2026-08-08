@@ -89,7 +89,7 @@
   padding: 0 18px;
 }
 .faq-item.open .faq-item__body {
-  max-height: 400px;
+  max-height: 600px;
   padding: 0 18px 18px;
 }
 
@@ -104,6 +104,8 @@
 }
 .faq-item__ans a:hover { text-decoration: underline; }
 .faq-item__ans strong { color: var(--text); }
+.faq-item__ans p { margin: 0 0 10px; }
+.faq-item__ans p:last-child { margin-bottom: 0; }
 
 /* ── Still need help ─────────────────────────────────────── */
 .faq-help {
@@ -119,6 +121,22 @@
 .faq-help p  { font-size: 13px; color: var(--muted); margin-bottom: 0; }
 </style>
 
+<%
+var CATEGORY_META = {
+  'getting-started': { label: 'Getting Started',    icon: 'rocket' },
+  'wallet':          { label: 'Wallet & Payments',  icon: 'wallet' },
+  'data':            { label: 'Data Bundles',        icon: 'wifi' },
+  'courses':         { label: 'Courses',             icon: 'graduation-cap' },
+  'account':         { label: 'Account & Profile',  icon: 'user' },
+  'rewards':         { label: 'Reward Points',       icon: 'star' },
+};
+
+// Only show categories that have at least one active FAQ
+var visibleCategories = CATEGORY_ORDER.filter(function(cat) {
+  return faqsByCategory[cat] && faqsByCategory[cat].length > 0;
+});
+%>
+
 <section class="faq-page">
   <div class="container">
 
@@ -130,393 +148,50 @@
       <p class="page-hero__sub">Everything you need to know about using Kabacu. Can't find your answer? Reach out to our support team.</p>
     </div>
 
+    <% if (visibleCategories.length > 0) { %>
+
     <!-- Category nav -->
     <nav class="faq-nav">
-      <a href="#getting-started" class="faq-nav__btn"><i data-lucide="rocket"></i> Getting Started</a>
-      <a href="#wallet"          class="faq-nav__btn"><i data-lucide="wallet"></i> Wallet &amp; Payments</a>
-      <a href="#data"            class="faq-nav__btn"><i data-lucide="wifi"></i> Data Bundles</a>
-      <a href="#courses"         class="faq-nav__btn"><i data-lucide="graduation-cap"></i> Courses</a>
-      <a href="#account"         class="faq-nav__btn"><i data-lucide="user"></i> Account &amp; Profile</a>
-      <a href="#rewards"         class="faq-nav__btn"><i data-lucide="star"></i> Reward Points</a>
+      <% visibleCategories.forEach(function(cat) { var m = CATEGORY_META[cat]; %>
+      <a href="#<%= cat %>" class="faq-nav__btn">
+        <i data-lucide="<%= m.icon %>"></i> <%= m.label %>
+      </a>
+      <% }) %>
     </nav>
 
-    <!-- ══════════════════════════════════════════════════════ -->
-    <!-- GETTING STARTED -->
-    <!-- ══════════════════════════════════════════════════════ -->
-    <div class="faq-section" id="getting-started">
+    <!-- FAQ sections -->
+    <% visibleCategories.forEach(function(cat) { %>
+    <%   var m = CATEGORY_META[cat]; %>
+    <%   var items = faqsByCategory[cat]; %>
+    <div class="faq-section" id="<%= cat %>">
       <div class="faq-section__header">
-        <i data-lucide="rocket"></i>
-        <span class="faq-section__title">Getting Started</span>
+        <i data-lucide="<%= m.icon %>"></i>
+        <span class="faq-section__title"><%= m.label %></span>
       </div>
 
+      <% items.forEach(function(faq) { %>
       <div class="faq-item">
         <button class="faq-item__q" onclick="toggleFaq(this)">
-          What is Kabacu?
+          <%= faq.question %>
           <i data-lucide="chevron-down" class="faq-item__icon"></i>
         </button>
         <div class="faq-item__body">
           <div class="faq-item__ans">
-            Kabacu is an all-in-one digital marketplace where you can purchase data bundles, enrol in online courses, and manage your digital wallet — all in one place. We offer competitive pricing and a seamless purchasing experience.
+            <%- faq.answer %>
           </div>
         </div>
       </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I create an account?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Visit the <a href="/user/signup">Sign Up page</a> and fill in your username, email address, and password. After submitting, you will receive a one-time password (OTP) to your email address to verify your account. Enter the OTP on the <a href="/user/verify-otp">verification page</a> to activate your account.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I verify my account after signing up?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            After registration, check your inbox for an email containing your OTP code. Enter it on the <a href="/user/verify-otp">OTP verification page</a>. If you didn't receive the email, click <strong>Resend OTP</strong> on that page. Be sure to check your spam/junk folder as well.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I log in to my account?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Go to the <a href="/user/login">Login page</a>, enter your registered email address and password, complete the CAPTCHA, and click <strong>Sign In</strong>. For security, your account will be temporarily locked after 10 failed login attempts within 15 minutes.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          I forgot my password. How do I reset it?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Go to the <a href="/user/forgot-password">Forgot Password page</a> and enter your registered email address. You will receive an OTP by email. Enter the OTP to verify your identity, then set a new password. The entire flow takes less than two minutes.
-          </div>
-        </div>
-      </div>
+      <% }) %>
 
     </div>
+    <% }) %>
 
-    <!-- ══════════════════════════════════════════════════════ -->
-    <!-- WALLET & PAYMENTS -->
-    <!-- ══════════════════════════════════════════════════════ -->
-    <div class="faq-section" id="wallet">
-      <div class="faq-section__header">
-        <i data-lucide="wallet"></i>
-        <span class="faq-section__title">Wallet &amp; Payments</span>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          What is the Kabacu Wallet?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            The Kabacu Wallet is a digital balance you fund once and use to pay for purchases instantly — no need to enter card details every time. Your wallet holds a <strong>Naira (₦)</strong> balance for regular purchases and a <strong>USDT</strong> balance for crypto-to-naira conversions. View your wallet at <a href="/my-wallet">My Wallet</a>.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I top up my wallet?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Go to <a href="/my-wallet">My Wallet</a>, click <strong>Top Up</strong>, and choose PalmPay as your payment method. Enter the amount you wish to add, complete the PalmPay checkout, and your wallet will be credited automatically once the payment is confirmed.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          What payment method is accepted for wallet top-ups?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Currently, wallet top-ups are processed via <strong>PalmPay</strong>. PalmPay supports debit cards, bank transfers, and PalmPay account balances. Once your wallet is funded, you can use it to pay for all purchases on Kabacu instantly.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I pay for an order using my wallet?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Once you have a sufficient Naira balance in your wallet, add the item you want to your <a href="/checkout">checkout</a>, then select <strong>Pay with Wallet</strong>. The amount will be deducted from your Naira balance instantly and your order will be processed immediately.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          What is USDT and how do I convert it to Naira?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            USDT (Tether) is a stablecoin cryptocurrency pegged to the US Dollar. If you hold USDT, you can convert it to Naira through your <a href="/my-wallet">wallet</a>. Use the <strong>Convert USDT → Naira</strong> option to preview the current exchange rate before confirming. Converted Naira is credited to your wallet balance immediately. View your conversion history at <a href="/conversion-history">Conversion History</a>.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          Where can I view my top-up history?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            All your wallet top-up transactions are available on the <a href="/my-topUps">My Top-Ups</a> page. For a full record of all purchases and transactions, visit the <a href="/history">Transaction History</a> page.
-          </div>
-        </div>
-      </div>
-
+    <% } else { %>
+    <div style="text-align:center;padding:48px 0;color:var(--muted);">
+      <i data-lucide="help-circle" style="width:40px;height:40px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;"></i>
+      <p>No FAQs available yet.</p>
     </div>
-
-    <!-- ══════════════════════════════════════════════════════ -->
-    <!-- DATA BUNDLES -->
-    <!-- ══════════════════════════════════════════════════════ -->
-    <div class="faq-section" id="data">
-      <div class="faq-section__header">
-        <i data-lucide="wifi"></i>
-        <span class="faq-section__title">Data Bundles</span>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I buy a data bundle?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Browse available data bundles on the <a href="/category/data-category">Data Bundles page</a>. Select the bundle you want, enter the phone number it should be activated on, then proceed to <a href="/checkout">checkout</a>. Pay using your wallet balance. Your bundle will be activated within minutes of a successful payment.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          Can I purchase a data bundle for someone else's phone number?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Yes. During checkout on the <a href="/data-form">data form</a>, simply enter the recipient's phone number rather than your own. Make sure the number matches the correct network for the bundle you are purchasing.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          What happens if my transaction fails?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            If a transaction fails, your wallet balance is automatically refunded within minutes. You can also view the failed transaction on your <a href="/history">Transaction History</a> page and use the <strong>Retry</strong> option to attempt the purchase again without re-entering your details.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          Where can I view my purchase history?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Visit the <a href="/history">Transaction History</a> page to see a complete record of all your purchases, including their status (success, pending, or failed). Each entry shows the date, amount, product, and payment method used.
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════ -->
-    <!-- COURSES -->
-    <!-- ══════════════════════════════════════════════════════ -->
-    <div class="faq-section" id="courses">
-      <div class="faq-section__header">
-        <i data-lucide="graduation-cap"></i>
-        <span class="faq-section__title">Courses</span>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I browse available courses?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Visit the <a href="/category/course-category">Courses page</a>. You can filter courses by category using the pills at the top, or search for a specific course or topic using the search bar. Click any course card to view its full details, including curriculum overview, instructor, and pricing.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I purchase a course?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Open the course detail page from the <a href="/category/course-category">Courses page</a>, then click <strong>Buy Now</strong>. You must be <a href="/user/login">logged in</a> to purchase. Payment is made directly from your Naira wallet balance. Make sure your wallet is funded before purchasing — you can top it up at <a href="/my-wallet">My Wallet</a>.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          Are there free courses available?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Yes. Courses listed as <strong>Free</strong> on the <a href="/category/course-category">Courses page</a> require no payment. Simply click <strong>Enrol for Free</strong> on the course detail page while logged in and you will be granted immediate access.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I access a course after purchasing it?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            After a successful enrolment, a confirmation prompt will appear with a <strong>Start Learning Now</strong> button. Click it to be taken to <strong>CSkillsHub</strong> — our dedicated learning platform. Log in there using the same email address you registered with on Kabacu, and all your purchased courses will appear in your dashboard.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          I already purchased a course. How do I go back to it?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Open the course on the <a href="/category/course-category">Courses page</a> — the button will show <strong>You Have Access</strong> confirming your enrolment. To resume learning, head to <strong>CSkillsHub</strong> and log in with your registered email address.
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════ -->
-    <!-- ACCOUNT & PROFILE -->
-    <!-- ══════════════════════════════════════════════════════ -->
-    <div class="faq-section" id="account">
-      <div class="faq-section__header">
-        <i data-lucide="user"></i>
-        <span class="faq-section__title">Account &amp; Profile</span>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I view or update my profile?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Visit the <a href="/user-profile">My Profile</a> page. From there you can view your username, email, phone number, and country. Click <strong>Edit Profile</strong> to update your information and save the changes.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I change my password?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Go to <a href="/user/profile-change-password">Change Password</a> while logged in. You will be sent an OTP to your registered email address to confirm the request. Once verified, enter and confirm your new password. For security, you can only request a password change 5 times per 15-minute window.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I log out?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Click the <strong>Logout</strong> option in your account menu or navigate directly to <a href="/user/logout">/user/logout</a>. Your session will be ended immediately and you will be redirected to the home page.
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════ -->
-    <!-- REWARD POINTS -->
-    <!-- ══════════════════════════════════════════════════════ -->
-    <div class="faq-section" id="rewards">
-      <div class="faq-section__header">
-        <i data-lucide="star"></i>
-        <span class="faq-section__title">Reward Points</span>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          What are Reward Points (RP)?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Reward Points (RP) are loyalty points you earn automatically on qualifying purchases made on Kabacu. The more you buy, the more points you accumulate. You can view your current RP balance in your <a href="/my-wallet">wallet</a>.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I earn Reward Points?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            RP are credited to your account automatically after a successful purchase. The number of points earned depends on the value of the transaction. Points appear in your wallet balance shortly after each successful order.
-          </div>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-item__q" onclick="toggleFaq(this)">
-          How do I claim my Reward Points?
-          <i data-lucide="chevron-down" class="faq-item__icon"></i>
-        </button>
-        <div class="faq-item__body">
-          <div class="faq-item__ans">
-            Go to your <a href="/my-wallet">Wallet</a> page and click <strong>Claim RP</strong>. Your accumulated Reward Points will be converted to Naira and added to your wallet balance, which you can then use immediately for purchases.
-          </div>
-        </div>
-      </div>
-
-    </div>
+    <% } %>
 
     <!-- Still need help -->
     <div class="faq-help">
