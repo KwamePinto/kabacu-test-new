@@ -704,16 +704,9 @@ exports.payWithWallet = async (req, res) => {
 
     const { productId } = req.body;
 
-    const wallet = await Wallet.findOne({
+    let wallet = await Wallet.findOne({
       user: userId,
     });
-
-    if (!wallet) {
-      return res.json({
-        success: false,
-        message: "Wallet not funded",
-      });
-    }
 
     let total = 0;
     let totalCost = 0;
@@ -831,8 +824,21 @@ exports.payWithWallet = async (req, res) => {
     // =====================================
     // ✅ DEDUCT WALLET
     // =====================================
-    if (wallet.balances.NAIRA < total) {
-      return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
+    const currentBalance = wallet ? wallet.balances.NAIRA : 0;
+    if (currentBalance < total) {
+      return res.json({
+        success: false,
+        insufficientBalance: true,
+        message: 'Insufficient wallet balance. Please top up your wallet to continue.',
+        requiredAmount: total,
+        currentBalance,
+      });
+    }
+
+    // Balance was sufficient, so a wallet must exist (currentBalance would've been 0 otherwise) —
+    // this only guards the edge case of a free item (total === 0) purchased with no wallet yet.
+    if (!wallet) {
+      wallet = await Wallet.create({ user: userId, balances: { NAIRA: 0 } });
     }
 
     const balanceBefore = wallet.balances.NAIRA;

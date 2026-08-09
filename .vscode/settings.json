@@ -1,1 +1,6 @@
-{}
+{
+  "files.associations": {
+    "*.ejs": "ejs"
+  },
+  "htmlhint.enable": false
+}

@@ -4,6 +4,7 @@ npm-debug.log*
 node_modules/
 pnpm-*
 .env
+/.vscode
 BittokenApiService.php
 Kabacu_Development_Tasks.md
 create-test-user.js

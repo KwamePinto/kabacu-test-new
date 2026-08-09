@@ -385,6 +385,7 @@
 /* ── Tabs ───────────────────────────────────────────────── */
 .tabs-bar {
   display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

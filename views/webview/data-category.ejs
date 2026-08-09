@@ -4,41 +4,80 @@
     <!-- Page header -->
     <div class="page-hero">
       <h1 class="page-hero__title">
-        <i data-lucide="wifi"></i>
         Data Bundles
       </h1>
       <p class="page-hero__sub">Instant delivery to any number</p>
     </div>
 
-    <!-- Network tabs -->
-    <div class="tabs-bar network-tabs" id="networkTabs">
-      <% let tabIdx = 0; %>
-      <% for (let network in groupedProducts) { %>
-      <button
-        class="tab-btn network-tab-btn <%= network === activeNetwork ? 'active' : '' %>"
-        data-tab="net_<%= tabIdx %>"
-      >
-        <%= network %>
-      </button>
-      <% tabIdx++; %>
-      <% } %>
+    <!-- Network provider dropdown + quick phone entry -->
+    <div class="category-controls">
+      <div class="network-select-wrap" id="networkSelectWrap">
+        <i data-lucide="wifi" class="network-select__icon"></i>
+        <select class="form-select network-select" id="networkSelect">
+          <% let tabIdx = 0; %>
+          <% for (let provider in groupedProducts) { %>
+          <option value="net_<%= tabIdx %>" <%= provider === activeNetwork ? 'selected' : '' %>>
+            <%= provider %>
+          </option>
+          <% tabIdx++; %>
+          <% } %>
+        </select>
+      </div>
+
+      <div class="quick-phone-wrap" id="quickPhoneWrap">
+        <div class="quick-phone-input-group">
+          <div class="phone-field quick-phone-field">
+            <input type="tel" id="quickPhoneInput" class="phone-field__num" placeholder="Enter phone number" maxlength="11" inputmode="numeric" autocomplete="off">
+          </div>
+          <% if (beneficiaries && beneficiaries.length > 0) { %>
+          <div class="quick-phone-suggestions" id="quickPhoneSuggestions">
+            <% beneficiaries.forEach(function(b) { %>
+            <button type="button" class="quick-phone-suggestion" data-phone="<%= b.phone %>">
+              <span class="quick-phone-suggestion__name"><%= b.nickname || b.phone %></span>
+              <% if (b.nickname) { %><span class="quick-phone-suggestion__phone"><%= b.phone %></span><% } %>
+            </button>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+        <small id="quickPhoneError" class="quick-phone-error" style="display:none;">
+          Phone number must be exactly 11 digits
+        </small>
+        <div id="quickBeneficiaryBox" class="quick-beneficiary-box" style="display:none;">
+          <label class="quick-beneficiary-toggle">
+            <input type="checkbox" id="quickSaveBeneficiaryCheckbox" aria-label="Save this number as a beneficiary">
+            <span class="quick-beneficiary-toggle__icon"><i data-lucide="bookmark-plus"></i></span>
+            <span>Save this number as a beneficiary</span>
+          </label>
+          <input type="text" id="quickBeneficiaryNicknameInput" class="form-input form-input--plain quick-phone-nickname" placeholder="Nickname (optional)" style="display:none;" maxlength="30">
+        </div>
+      </div>
     </div>
 
     <!-- Network panels — each has its own pagination if needed -->
     <% let panelIdx = 0; %>
-    <% for (let network in groupedProducts) { %>
-    <% const npag = netPagination[network]; %>
-    <div id="net_<%= panelIdx %>" class="tab-panel network-panel <%= network === activeNetwork ? 'active' : '' %>">
+    <% for (let provider in groupedProducts) { %>
+    <% const npag = netPagination[provider]; %>
+    <div id="net_<%= panelIdx %>" class="tab-panel network-panel <%= provider === activeNetwork ? 'active' : '' %>">
+      <% const planTypes = [...new Set(groupedProducts[provider].map(function(p) { return p.dataDetails.plan_type; }).filter(Boolean))]; %>
+      <% if (planTypes.length > 1) { %>
+      <div class="tabs-bar plan-tabs-bar">
+        <button class="tab-btn plan-tab-btn active" data-plan="all">All</button>
+        <% planTypes.forEach(function(pt) { %>
+        <button class="tab-btn plan-tab-btn" data-plan="<%= pt %>"><%= pt %></button>
+        <% }) %>
+      </div>
+      <% } %>
       <div class="bundle-grid">
-        <% groupedProducts[network].forEach(function(product) { %>
-        <div class="bundle-card">
+        <% groupedProducts[provider].forEach(function(product) { %>
+        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>">
           <div class="bundle-card__img">
             <% if (product.images && product.images.length > 0) { %>
-            <img src="<%= product.images[0] %>" alt="<%= network %>">
+            <img src="<%= product.images[0] %>" alt="<%= product.dataDetails.network %>">
             <% } %>
           </div>
           <div class="bundle-card__body">
-            <span class="bundle-card__network" style="width: fit-content;"><%= network %></span>
+            <span class="bundle-card__network" style="width: fit-content;"><%= product.dataDetails.network %></span>
             <h4 class="bundle-card__name">
               <%= product.dataDetails.plan_type %> · <%= product.dataDetails.validate_period %>
             </h4>
@@ -49,7 +88,7 @@
             <div class="bundle-card__footer">
               <span class="bundle-card__price">₦<%= product.dataDetails.amount %></span>
               <% if (user) { %>
-              <button class="btn btn--primary btn--sm buy-btn" data-id="<%= product._id %>" data-network="<%= network %>">
+              <button class="btn btn--primary btn--sm buy-btn" data-id="<%= product._id %>" data-network="<%= provider %>">
                 <i data-lucide="shopping-cart"></i>
                 Buy
               </button>
@@ -65,18 +104,17 @@
       <% if (npag && npag.pages > 1) { %>
       <div class="pagination">
         <% if (npag.hasPrev) { %>
-        <a href="/category/data-category?network=<%= network %>&page=<%= npag.current - 1 %>" class="pagination__btn">
+        <a href="/category/data-category?network=<%= provider %>&page=<%= npag.current - 1 %>" class="pagination__btn">
           <i data-lucide="chevron-left"></i>
         </a>
         <% } %>
         <% for (let i = 1; i <= npag.pages; i++) { %>
-        <a href="/category/data-category?network=<%= network %>&page=<%= i %>"
-           class="pagination__page <%= i === npag.current ? 'active' : '' %>">
+        <a href="/category/data-category?network=<%= provider %>&page=<%= i %>" class="pagination__page <%= i === npag.current ? 'active' : '' %>">
           <%= i %>
         </a>
         <% } %>
         <% if (npag.hasNext) { %>
-        <a href="/category/data-category?network=<%= network %>&page=<%= npag.current + 1 %>" class="pagination__btn">
+        <a href="/category/data-category?network=<%= provider %>&page=<%= npag.current + 1 %>" class="pagination__btn">
           <i data-lucide="chevron-right"></i>
         </a>
         <% } %>
@@ -120,9 +158,7 @@
         <select class="phone-field__code" id="countryCode">
           <option value="+234">🇳🇬 +234</option>
         </select>
-        <input type="tel" id="phoneInput" class="phone-field__num"
-               placeholder="XXX XXX XXXX" maxlength="11" inputmode="numeric"
-               autocomplete="tel-national">
+        <input type="tel" id="phoneInput" class="phone-field__num" placeholder="XXX XXX XXXX" maxlength="11" inputmode="numeric" autocomplete="tel-national">
       </div>
       <small id="phoneError" style="color:var(--error);display:none;margin-top:6px;">
         Phone number must be exactly 11 digits
@@ -134,8 +170,7 @@
         <input type="checkbox" id="saveBeneficiaryCheckbox" aria-label="Save this number as a beneficiary">
         Save this number as a beneficiary
       </label>
-      <input type="text" id="beneficiaryNicknameInput" class="form-input form-input--plain"
-             placeholder="Nickname (optional)" style="display:none;margin-top:8px;" maxlength="30">
+      <input type="text" id="beneficiaryNicknameInput" class="form-input form-input--plain" placeholder="Nickname (optional)" style="display:none;margin-top:8px;" maxlength="30">
     </div>
 
     <div class="modal-actions">
@@ -148,158 +183,339 @@
 </div>
 
 <script>
-// ── Tab switching ──
-document.querySelectorAll('.network-tab-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.network-tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.network-panel').forEach(p => p.classList.remove('active'));
-    this.classList.add('active');
-    document.getElementById(this.dataset.tab).classList.add('active');
+  // ── Network dropdown switching ──
+  const networkSelect = document.getElementById('networkSelect');
+  if (networkSelect) {
+    networkSelect.addEventListener('change', function() {
+      document.querySelectorAll('.network-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(this.value).classList.add('active');
+    });
+  }
+
+  // ── Plan-type sub-tabs (per network panel) ──
+  document.querySelectorAll('.plan-tabs-bar').forEach(bar => {
+    const panel = bar.closest('.network-panel');
+    bar.querySelectorAll('.plan-tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        bar.querySelectorAll('.plan-tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const plan = this.dataset.plan;
+        panel.querySelectorAll('.bundle-card').forEach(card => {
+          card.style.display = (plan === 'all' || card.dataset.planType === plan) ? '' : 'none';
+        });
+      });
+    });
   });
-});
 
-// ── Buy modal ──
-let selectedPackageId = null;
-let selectedNetwork   = null;
+  // ── Buy modal ──
+  let selectedPackageId = null;
+  let selectedNetwork = null;
 
-// Nigerian network prefixes — used to catch a phone number that clearly
-// belongs to a different network than the bundle being purchased.
-const NETWORK_PREFIXES = {
-  MTN:    ['0803','0806','0703','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
-  AIRTEL: ['0802','0808','0701','0708','0812','0901','0902','0904','0907','0912'],
-  GLO:    ['0805','0807','0705','0811','0815','0905','0915']
-};
+  // Nigerian network prefixes — used to catch a phone number that clearly
+  // belongs to a different network than the bundle being purchased.
+  const NETWORK_PREFIXES = {
+    MTN: ['0803', '0806', '0703', '0706', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916'],
+    AIRTEL: ['0802', '0808', '0701', '0708', '0812', '0901', '0902', '0904', '0907', '0912'],
+    GLO: ['0805', '0807', '0705', '0811', '0815', '0905', '0915']
+  };
 
-function detectNetworkKey(name) {
-  const n = (name || '').toUpperCase();
-  if (n.indexOf('MTN') !== -1)    return 'MTN';
-  if (n.indexOf('AIRTEL') !== -1) return 'AIRTEL';
-  if (n.indexOf('GLO') !== -1)    return 'GLO';
-  return null;
-}
-
-function phoneMatchesNetwork(phone, networkName) {
-  const key = detectNetworkKey(networkName);
-  if (!key) return true; // e.g. 9mobile — no prefix list to check against
-  return NETWORK_PREFIXES[key].indexOf(phone.slice(0, 4)) !== -1;
-}
-
-document.querySelectorAll('.buy-btn').forEach(btn => {
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    selectedPackageId = this.dataset.id;
-    selectedNetwork   = this.dataset.network || null;
-    resetBuyModalForm();
-    document.getElementById('buyModal').classList.add('open');
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
-  });
-});
-
-document.getElementById('cancelBtn').addEventListener('click', () => {
-  document.getElementById('buyModal').classList.remove('open');
-  document.documentElement.style.overflow = '';
-  document.body.style.overflow = '';
-});
-
-document.getElementById('buyModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    this.classList.remove('open');
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
+  function detectNetworkKey(name) {
+    const n = (name || '').toUpperCase();
+    if (n.indexOf('MTN') !== -1) return 'MTN';
+    if (n.indexOf('AIRTEL') !== -1) return 'AIRTEL';
+    if (n.indexOf('GLO') !== -1) return 'GLO';
+    return null;
   }
-});
 
-const phoneInput  = document.getElementById('phoneInput');
-const phoneError  = document.getElementById('phoneError');
-const beneficiaryChips           = document.getElementById('beneficiaryChips');
-const saveBeneficiaryCheckbox    = document.getElementById('saveBeneficiaryCheckbox');
-const beneficiaryNicknameInput   = document.getElementById('beneficiaryNicknameInput');
+  function phoneMatchesNetwork(phone, networkName) {
+    const key = detectNetworkKey(networkName);
+    if (!key) return true; // e.g. 9mobile — no prefix list to check against
+    return NETWORK_PREFIXES[key].indexOf(phone.slice(0, 4)) !== -1;
+  }
 
-function resetBuyModalForm() {
-  phoneInput.value = '';
-  phoneError.style.display = 'none';
-  if (beneficiaryChips) {
-    beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
-  }
-  if (saveBeneficiaryCheckbox) {
-    saveBeneficiaryCheckbox.checked = false;
-    saveBeneficiaryCheckbox.disabled = false;
-  }
-  if (beneficiaryNicknameInput) {
-    beneficiaryNicknameInput.value = '';
-    beneficiaryNicknameInput.style.display = 'none';
-  }
-}
+  // Reverse lookup — given a phone number, guess which provider it belongs to
+  // so we can auto-switch the network dropdown as the user types.
+  const NETWORK_KEY_TO_PROVIDER_LABEL = {
+    MTN: 'MTN',
+    AIRTEL: 'Airtel',
+    GLO: 'GLO'
+  };
 
-phoneInput.addEventListener('input', function() {
-  this.value = this.value.replace(/\D/g, '').slice(0, 11);
-  if (beneficiaryChips) {
-    beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
+  function detectProviderFromPhone(phone) {
+    const prefix = phone.slice(0, 4);
+    for (const key in NETWORK_PREFIXES) {
+      if (NETWORK_PREFIXES[key].indexOf(prefix) !== -1) return NETWORK_KEY_TO_PROVIDER_LABEL[key];
+    }
+    return null;
   }
-  if (saveBeneficiaryCheckbox) saveBeneficiaryCheckbox.disabled = false;
-});
 
-if (beneficiaryChips) {
-  beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(chip) {
-    chip.addEventListener('click', function() {
-      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
-      this.classList.add('active');
-      phoneInput.value = this.dataset.phone;
-      phoneError.style.display = 'none';
-      // Already saved — no need to save it again.
-      if (saveBeneficiaryCheckbox) {
-        saveBeneficiaryCheckbox.checked = false;
-        saveBeneficiaryCheckbox.disabled = true;
+  function selectNetworkByLabel(label) {
+    if (!networkSelect) return;
+    const match = Array.from(networkSelect.options)
+      .find(o => o.textContent.trim().toUpperCase() === label.toUpperCase());
+    if (match && networkSelect.value !== match.value) {
+      networkSelect.value = match.value;
+      networkSelect.dispatchEvent(new Event('change'));
+    }
+  }
+
+  // ── Quick phone entry (beside the network dropdown) ──
+  const quickPhoneInput = document.getElementById('quickPhoneInput');
+  const quickPhoneError = document.getElementById('quickPhoneError');
+  const quickBeneficiaryBox = document.getElementById('quickBeneficiaryBox');
+  const quickSaveBeneficiaryCheckbox = document.getElementById('quickSaveBeneficiaryCheckbox');
+  const quickBeneficiaryNicknameInput = document.getElementById('quickBeneficiaryNicknameInput');
+  const quickPhoneSuggestions = document.getElementById('quickPhoneSuggestions');
+  const quickPhoneSuggestionBtns = quickPhoneSuggestions ?
+    Array.from(quickPhoneSuggestions.querySelectorAll('.quick-phone-suggestion')) : [];
+  const quickSavedPhones = new Set(quickPhoneSuggestionBtns.map(function(btn) {
+    return btn.dataset.phone;
+  }));
+
+  // Shows saved-beneficiary suggestions that start with what's been typed so far;
+  // hides the dropdown entirely once nothing matches.
+  function refreshQuickPhoneSuggestions() {
+    if (!quickPhoneSuggestions) return;
+    const typed = quickPhoneInput.value;
+    let anyVisible = false;
+    quickPhoneSuggestionBtns.forEach(function(btn) {
+      const isMatch = btn.dataset.phone.indexOf(typed) === 0;
+      btn.style.display = isMatch ? '' : 'none';
+      if (isMatch) anyVisible = true;
+    });
+    quickPhoneSuggestions.classList.toggle('open', anyVisible);
+  }
+
+  if (quickPhoneInput) {
+    quickPhoneInput.addEventListener('focus', refreshQuickPhoneSuggestions);
+
+    quickPhoneInput.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(0, 11);
+      quickPhoneError.style.display = 'none';
+      if (quickSaveBeneficiaryCheckbox) quickSaveBeneficiaryCheckbox.disabled = false;
+      refreshQuickPhoneSuggestions();
+
+      const isComplete = this.value.length === 11;
+      const alreadySaved = isComplete && quickSavedPhones.has(this.value);
+
+      if (quickBeneficiaryBox) quickBeneficiaryBox.style.display = (isComplete && !alreadySaved) ? 'block' : 'none';
+      if (!isComplete || alreadySaved) {
+        if (quickSaveBeneficiaryCheckbox) quickSaveBeneficiaryCheckbox.checked = false;
+        if (quickBeneficiaryNicknameInput) {
+          quickBeneficiaryNicknameInput.value = '';
+          quickBeneficiaryNicknameInput.style.display = 'none';
+        }
+      }
+
+      if (isComplete) {
+        if (quickPhoneSuggestions) quickPhoneSuggestions.classList.remove('open');
+        const label = detectProviderFromPhone(this.value);
+        if (label) selectNetworkByLabel(label);
       }
     });
-  });
-}
 
-if (saveBeneficiaryCheckbox) {
-  saveBeneficiaryCheckbox.addEventListener('change', function() {
-    beneficiaryNicknameInput.style.display = this.checked ? 'block' : 'none';
-  });
-}
-
-document.getElementById('checkoutBtn').addEventListener('click', async () => {
-  const phone = phoneInput.value.trim();
-  if (!/^\d{11}$/.test(phone)) {
-    phoneError.textContent = 'Phone number must be exactly 11 digits';
-    phoneError.style.display = 'block';
-    return;
-  }
-  if (!phoneMatchesNetwork(phone, selectedNetwork)) {
-    phoneError.textContent = 'This number doesn\'t look like a ' + selectedNetwork + ' number';
-    phoneError.style.display = 'block';
-    return;
-  }
-  phoneError.style.display = 'none';
-
-  if (saveBeneficiaryCheckbox && saveBeneficiaryCheckbox.checked) {
-    fetch('/beneficiaries/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-      body: JSON.stringify({ phone, network: selectedNetwork, nickname: beneficiaryNicknameInput.value.trim() })
-    }).catch(() => {});
-  }
-
-  const productId = selectedPackageId;
-  if (!productId) { Swal.fire({ icon: 'error', text: 'No product selected' }); return; }
-  try {
-    const res = await fetch('/checkout/initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-      body: JSON.stringify({ packageId: productId, phone })
+    quickPhoneInput.addEventListener('blur', function() {
+      if (this.value && !/^\d{11}$/.test(this.value)) {
+        quickPhoneError.style.display = 'block';
+      }
+      // Delay so a click on a suggestion registers before the dropdown disappears.
+      setTimeout(function() {
+        if (quickPhoneSuggestions) quickPhoneSuggestions.classList.remove('open');
+      }, 150);
     });
-    const data = await res.json();
-    if (data.success) {
-      window.location.href = '/checkout';
-    } else {
-      Swal.fire({ icon: 'error', text: data.message || 'Something went wrong' });
-    }
-  } catch (err) {
-    Swal.fire({ icon: 'error', text: 'Network error' });
+
+    quickPhoneSuggestionBtns.forEach(function(btn) {
+      btn.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        quickPhoneInput.value = this.dataset.phone;
+        // Triggers the same input handling as manual typing — since this number is
+        // in quickSavedPhones, it hides the "save as beneficiary" box automatically.
+        quickPhoneInput.dispatchEvent(new Event('input'));
+        if (quickPhoneSuggestions) quickPhoneSuggestions.classList.remove('open');
+        quickPhoneInput.focus();
+      });
+    });
   }
-});
+
+  if (quickSaveBeneficiaryCheckbox) {
+    quickSaveBeneficiaryCheckbox.addEventListener('change', function() {
+      quickBeneficiaryNicknameInput.style.display = this.checked ? 'block' : 'none';
+    });
+  }
+
+  // Shared by both the quick input and the modal — saves the beneficiary
+  // (if requested) then initiates checkout for the selected package.
+  async function proceedToCheckout(phone, saveBeneficiary, nickname) {
+    if (saveBeneficiary) {
+      fetch('/beneficiaries/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          phone,
+          network: selectedNetwork,
+          nickname
+        })
+      }).catch(() => {});
+    }
+
+    const productId = selectedPackageId;
+    if (!productId) {
+      Swal.fire({
+        icon: 'error',
+        text: 'No product selected'
+      });
+      return;
+    }
+    try {
+      const res = await fetch('/checkout/initiate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          packageId: productId,
+          phone
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = '/checkout';
+      } else {
+        Swal.fire({
+          icon: 'error',
+          text: data.message || 'Something went wrong'
+        });
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        text: 'Network error'
+      });
+    }
+  }
+
+  document.querySelectorAll('.buy-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      selectedPackageId = this.dataset.id;
+      selectedNetwork = this.dataset.network || null;
+
+      const quickPhone = quickPhoneInput ? quickPhoneInput.value.trim() : '';
+      if (quickPhone) {
+        if (!/^\d{11}$/.test(quickPhone)) {
+          quickPhoneError.style.display = 'block';
+          return;
+        }
+        if (!phoneMatchesNetwork(quickPhone, selectedNetwork)) {
+          Swal.fire({
+            icon: 'error',
+            text: 'This number doesn\'t look like a ' + selectedNetwork + ' number'
+          });
+          return;
+        }
+        proceedToCheckout(
+          quickPhone,
+          quickSaveBeneficiaryCheckbox && quickSaveBeneficiaryCheckbox.checked,
+          quickBeneficiaryNicknameInput ? quickBeneficiaryNicknameInput.value.trim() : ''
+        );
+        return;
+      }
+
+      resetBuyModalForm();
+      document.getElementById('buyModal').classList.add('open');
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    });
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', () => {
+    document.getElementById('buyModal').classList.remove('open');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  });
+
+  document.getElementById('buyModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      this.classList.remove('open');
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+  });
+
+  const phoneInput = document.getElementById('phoneInput');
+  const phoneError = document.getElementById('phoneError');
+  const beneficiaryChips = document.getElementById('beneficiaryChips');
+  const saveBeneficiaryCheckbox = document.getElementById('saveBeneficiaryCheckbox');
+  const beneficiaryNicknameInput = document.getElementById('beneficiaryNicknameInput');
+
+  function resetBuyModalForm() {
+    phoneInput.value = '';
+    phoneError.style.display = 'none';
+    if (beneficiaryChips) {
+      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
+    }
+    if (saveBeneficiaryCheckbox) {
+      saveBeneficiaryCheckbox.checked = false;
+      saveBeneficiaryCheckbox.disabled = false;
+    }
+    if (beneficiaryNicknameInput) {
+      beneficiaryNicknameInput.value = '';
+      beneficiaryNicknameInput.style.display = 'none';
+    }
+  }
+
+  phoneInput.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    if (beneficiaryChips) {
+      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
+    }
+    if (saveBeneficiaryCheckbox) saveBeneficiaryCheckbox.disabled = false;
+  });
+
+  if (beneficiaryChips) {
+    beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        phoneInput.value = this.dataset.phone;
+        phoneError.style.display = 'none';
+        // Already saved — no need to save it again.
+        if (saveBeneficiaryCheckbox) {
+          saveBeneficiaryCheckbox.checked = false;
+          saveBeneficiaryCheckbox.disabled = true;
+        }
+      });
+    });
+  }
+
+  if (saveBeneficiaryCheckbox) {
+    saveBeneficiaryCheckbox.addEventListener('change', function() {
+      beneficiaryNicknameInput.style.display = this.checked ? 'block' : 'none';
+    });
+  }
+
+  document.getElementById('checkoutBtn').addEventListener('click', async () => {
+    const phone = phoneInput.value.trim();
+    if (!/^\d{11}$/.test(phone)) {
+      phoneError.textContent = 'Phone number must be exactly 11 digits';
+      phoneError.style.display = 'block';
+      return;
+    }
+    if (!phoneMatchesNetwork(phone, selectedNetwork)) {
+      phoneError.textContent = 'This number doesn\'t look like a ' + selectedNetwork + ' number';
+      phoneError.style.display = 'block';
+      return;
+    }
+    phoneError.style.display = 'none';
+
+    await proceedToCheckout(
+      phone,
+      saveBeneficiaryCheckbox && saveBeneficiaryCheckbox.checked,
+      beneficiaryNicknameInput ? beneficiaryNicknameInput.value.trim() : ''
+    );
+  });
 </script>

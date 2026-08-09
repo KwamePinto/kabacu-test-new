@@ -1,4 +1,5 @@
 const Product = require('../../models/ProductsModal')
+const Network = require('../../models/NetworkModel')
 const Checkout = require('../../models/CheckoutModal')
 const User = require('../../models/UserModel')
 const Cart = require('../../models/CartModal')
@@ -103,34 +104,60 @@ exports.dataCategory = async (req, res) => {
     const reqNet   = (req.query.network || '').toUpperCase();
     const reqPage  = parseInt(req.query.page) || 1;
 
-    /* Fetch all DATA products sorted: network A-Z, lowest price first within each */
-    const all = await Product.find({ category: 'DATA' })
-      .sort({ 'dataDetails.network': 1, 'dataDetails.amount': 1 });
+    /* Fetch all DATA products sorted: network A-Z, lowest price first within each,
+       alongside every Network (including soft-deleted ones) so we can resolve each
+       product's API provider — a network removed from the admin list must still
+       correctly link any existing products carrying its name */
+    const [all, networkDocs] = await Promise.all([
+      Product.find({ category: 'DATA' }).sort({ 'dataDetails.network': 1, 'dataDetails.amount': 1 }),
+      Network.find({}),
+    ]);
 
-    /* Group every product by network */
+    /* Map each configured network name -> its provider's display label (MTN/GLO/Airtel/9mobile) */
+    const nameToProvider = new Map();
+    networkDocs.forEach(n => nameToProvider.set(n.name.toUpperCase(), Network.providerLabel(n.apiCode)));
+
+    /* Falls back to substring matching for products whose network name isn't a configured Network */
+    function resolveProvider(rawName) {
+      const upper = (rawName || '').toUpperCase();
+      if (nameToProvider.has(upper)) return nameToProvider.get(upper);
+      if (upper.indexOf('MTN') !== -1)    return 'MTN';
+      if (upper.indexOf('GLO') !== -1)    return 'GLO';
+      if (upper.indexOf('AIRTEL') !== -1) return 'Airtel';
+      if (upper.indexOf('9MOBILE') !== -1 || upper.indexOf('ETISALAT') !== -1) return '9mobile';
+      return 'Others';
+    }
+
+    /* Group every product by API provider instead of the raw network name */
     const allGrouped = {};
     all.forEach(p => {
-      const net = (p.dataDetails.network || 'OTHERS').toUpperCase();
-      if (!allGrouped[net]) allGrouped[net] = [];
-      allGrouped[net].push(p);
+      const provider = resolveProvider(p.dataDetails.network);
+      if (!allGrouped[provider]) allGrouped[provider] = [];
+      allGrouped[provider].push(p);
     });
 
-    /* Build per-network page slices + pagination metadata */
+    /* Present providers in a stable, canonical order */
+    const PROVIDER_ORDER = ['MTN', 'GLO', 'Airtel', '9mobile'];
+    const providerKeys = [
+      ...PROVIDER_ORDER.filter(p => allGrouped[p]),
+      ...Object.keys(allGrouped).filter(p => !PROVIDER_ORDER.includes(p)),
+    ];
+
+    /* Build per-provider page slices + pagination metadata */
     const groupedProducts = {};
     const netPagination   = {};
 
-    for (const net of Object.keys(allGrouped)) {
-      const items = allGrouped[net];
+    for (const provider of providerKeys) {
+      const items = allGrouped[provider];
       const pages = Math.ceil(items.length / perPage) || 1;
-      /* Only the requested network uses the requested page; others default to 1 */
-      const page  = Math.min(Math.max(reqNet === net ? reqPage : 1, 1), pages);
+      /* Only the requested provider uses the requested page; others default to 1 */
+      const page  = Math.min(Math.max(reqNet === provider.toUpperCase() ? reqPage : 1, 1), pages);
 
-      groupedProducts[net] = items.slice((page - 1) * perPage, page * perPage);
-      netPagination[net]   = { pages, current: page, hasNext: page < pages, hasPrev: page > 1 };
+      groupedProducts[provider] = items.slice((page - 1) * perPage, page * perPage);
+      netPagination[provider]   = { pages, current: page, hasNext: page < pages, hasPrev: page > 1 };
     }
 
-    const networks      = Object.keys(groupedProducts);
-    const activeNetwork = reqNet && networks.includes(reqNet) ? reqNet : (networks[0] || '');
+    const activeNetwork = providerKeys.find(p => p.toUpperCase() === reqNet) || (providerKeys[0] || '');
 
     res.render('webview/data-category', {
       groupedProducts,

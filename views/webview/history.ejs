@@ -16,7 +16,7 @@
       <p class="page-hero__sub">All your transactions in one place</p>
     </div>
 
-    <h2 style="font-size:16px;font-weight:700;color:var(--color-text);margin:32px 0 12px;">Purchases &amp; Orders</h2>
+    <h2 style="font-size:16px;font-weight:700;color:var(--text);margin:32px 0 12px;">Purchases &amp; Orders</h2>
     <div class="tx-table-wrap">
       <table class="tx-table">
   <thead>
@@ -52,7 +52,7 @@
                 (<%= product.dataDetails.plan_name %>)
               </strong>
               <br />
-              <small style="color:var(--color-muted);">
+              <small style="color:var(--muted);">
                 Phone: <%= tx.phone %>
               </small>
 
@@ -60,7 +60,7 @@
               <%= product.coursesDetails.course_title %>
 
             <% } else { %>
-              <span style="color:var(--color-muted);">—</span>
+              <span style="color:var(--muted);">—</span>
             <% } %>
           </td>
 
@@ -106,7 +106,7 @@
                 Retry
               </button>
             <% } else { %>
-              <span style="color:var(--color-muted);">—</span>
+              <span style="color:var(--muted);">—</span>
             <% } %>
           </td>
         </tr>
@@ -130,7 +130,7 @@
     </div>
 
     <!-- Course Enrolments -->
-    <h2 style="font-size:16px;font-weight:700;color:var(--color-text);margin:40px 0 12px;">
+    <h2 style="font-size:16px;font-weight:700;color:var(--text);margin:40px 0 12px;">
       <i data-lucide="book-open" style="width:16px;height:16px;vertical-align:-2px;margin-right:6px;"></i>
       Course Enrolments
     </h2>
@@ -153,7 +153,7 @@
                 </td>
                 <td data-label="Amount">
                   <% if (cp.free) { %>
-                    <span style="color:var(--color-primary);font-weight:600;">Free</span>
+                    <span style="color:var(--primary);font-weight:600;">Free</span>
                   <% } else { %>
                     ₦<%= Number(cp.price || 0).toLocaleString() %>
                   <% } %>

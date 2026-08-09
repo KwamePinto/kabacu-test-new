@@ -54,9 +54,8 @@
 <style>
 #topup-modal-overlay {
   display: none;
-  position: fixed; inset: 0; z-index: 9999;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(4px);
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.45);
   align-items: center;
   justify-content: center;
   padding: 16px;
@@ -65,13 +64,13 @@
 
 #topup-modal-card {
   position: relative;
-  background: var(--color-card, #1a1a2e);
-  color: var(--color-text, #f0f0f0);
-  border-radius: 20px;
+  background: var(--card);
+  color: var(--text);
+  border-radius: var(--r-lg);
   padding: 32px 28px 24px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+  box-shadow: var(--shadow-lg);
   animation: topupSlideIn .22s ease;
 }
 @keyframes topupSlideIn {
@@ -80,36 +79,38 @@
 }
 
 #topup-modal-close {
-  position: absolute; top: 14px; right: 16px;
-  background: none; border: none; cursor: pointer;
-  font-size: 22px; line-height: 1;
-  color: var(--color-muted, #888);
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px;
+  background: var(--input-bg); border: none; border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px; line-height: 1;
+  color: var(--muted);
   transition: color .15s;
 }
-#topup-modal-close:hover { color: var(--color-text, #f0f0f0); }
+#topup-modal-close:hover { color: var(--text); }
 
 .topup-modal-icon {
   width: 52px; height: 52px; border-radius: 14px;
-  background: var(--color-primary-alpha, rgba(255,165,0,.15));
+  background: var(--primary-light);
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 16px;
 }
-.topup-modal-icon svg { width:24px; height:24px; color: var(--color-primary, #f90); }
+.topup-modal-icon svg { width:24px; height:24px; color: var(--primary); }
 
 .topup-modal-title {
   font-size: 18px; font-weight: 700;
   margin: 0 0 6px;
-  color: var(--color-text, #f0f0f0);
+  color: var(--text);
 }
 .topup-modal-sub {
-  font-size: 13px; color: var(--color-muted, #9ca3af);
+  font-size: 13px; color: var(--muted);
   margin: 0 0 20px; line-height: 1.5;
 }
 
 .topup-modal-field { margin-bottom: 14px; }
 .topup-modal-label {
   display: block; font-size: 12px; font-weight: 600;
-  color: var(--color-muted, #9ca3af);
+  color: var(--muted);
   margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px;
 }
 .topup-modal-input-wrap {
@@ -118,28 +119,28 @@
 .topup-modal-input-wrap svg {
   position: absolute; left: 12px;
   width: 16px; height: 16px;
-  color: var(--color-muted, #9ca3af);
+  color: var(--muted);
   pointer-events: none;
 }
 .topup-modal-input {
   width: 100%; padding: 11px 14px 11px 38px;
-  background: var(--color-input-bg, rgba(255,255,255,.07));
-  border: 1.5px solid var(--color-border, rgba(255,255,255,.12));
-  border-radius: 10px;
-  color: var(--color-text, #f0f0f0);
+  background: var(--input-bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
   font-size: 14px;
   outline: none;
   transition: border-color .15s;
   -webkit-appearance: none;
   appearance: none;
 }
-.topup-modal-input:focus { border-color: var(--color-primary, #f90); }
-.topup-modal-input option { background: #1a1a2e; color: #f0f0f0; }
+.topup-modal-input:focus { border-color: var(--primary); }
+.topup-modal-input option { background: var(--white); color: var(--text); }
 
 .topup-modal-btn {
   width: 100%; padding: 13px;
-  background: var(--color-primary, #f90);
-  color: #fff; border: none; border-radius: 12px;
+  background: var(--primary);
+  color: var(--white); border: none; border-radius: var(--r-sm);
   font-size: 14px; font-weight: 700;
   cursor: pointer; display: flex; align-items: center;
   justify-content: center; gap: 8px;
@@ -152,25 +153,25 @@
 
 .topup-modal-note {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--color-muted, #9ca3af);
+  font-size: 12px; color: var(--muted);
   margin: 10px 0 0; line-height: 1.4;
 }
 .topup-modal-note svg { width:13px; height:13px; flex-shrink:0; }
 
 .topup-modal-divider {
   height: 1px;
-  background: var(--color-border, rgba(255,255,255,.1));
+  background: var(--border);
   margin: 18px 0 14px;
 }
 
 .topup-modal-more {
   display: flex; align-items: center; justify-content: center;
   gap: 6px; font-size: 13px; font-weight: 600;
-  color: var(--color-primary, #f90);
+  color: var(--primary);
   text-decoration: none;
   transition: opacity .15s;
 }
-.topup-modal-more:hover { opacity: .75; text-decoration: none; color: var(--color-primary, #f90); }
+.topup-modal-more:hover { opacity: .75; text-decoration: none; color: var(--primary); }
 .topup-modal-more svg { width:14px; height:14px; }
 </style>
 

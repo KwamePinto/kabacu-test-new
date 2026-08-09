@@ -192,9 +192,10 @@
       <a href="/category/data-category" class="sec-link">See All</a>
     </div>
 
-    <% if (dataProducts && dataProducts.length > 0) { %>
+    <% var arrivalProducts = (dataProducts || []).filter(function(product) { return product.images && product.images[0]; }); %>
+    <% if (arrivalProducts.length > 0) { %>
     <div class="product-grid" id="homeProductGrid">
-      <% dataProducts.slice(0, 8).forEach(function(product) { %>
+      <% arrivalProducts.slice(0, 8).forEach(function(product) { %>
       <div class="product-card" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>">
         <div class="product-card__img">
           <img src="<%= product.images[0] %>" alt="<%= product.dataDetails.plan_type %>">

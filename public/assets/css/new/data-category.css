@@ -4,39 +4,161 @@
 
 .category-page { padding: 32px 0 64px; }
 
-/* Network tab bar */
-.network-tabs {
+/* Network dropdown + quick phone entry */
+.category-controls {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 28px;
-  flex-wrap: nowrap;
 }
 
-.network-tabs::-webkit-scrollbar { display: none; }
+.network-select-wrap {
+  position: relative;
+  width: 100%;
+}
 
-.network-tab-btn {
+@media (min-width: 640px) {
+  .network-select-wrap { max-width: 260px; }
+}
+
+.network-select-wrap .network-select__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 17px;
+  height: 17px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.network-select {
+  height: 44px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.quick-phone-wrap {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .quick-phone-wrap { max-width: 320px; }
+}
+
+.quick-phone-input-group { position: relative; }
+
+.quick-phone-field { height: 44px; }
+.quick-phone-field .phone-field__num { font-size: 14px; }
+
+.quick-phone-suggestions {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.quick-phone-suggestions.open { display: block; }
+
+.quick-phone-suggestion {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--r-xs);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+
+.quick-phone-suggestion:hover { background: var(--input-bg); }
+
+.quick-phone-suggestion__name { font-size: 13px; font-weight: 700; color: var(--text); }
+.quick-phone-suggestion__phone { font-size: 11px; color: var(--muted); }
+
+.quick-phone-error {
+  display: block;
+  color: var(--error);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.quick-beneficiary-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--primary-light);
+  animation: quickBeneficiaryIn .18s ease-out;
+}
+
+@keyframes quickBeneficiaryIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.quick-beneficiary-toggle {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 9px 20px;
-  border-radius: var(--r-pill);
-  font-size: 14px;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--muted);
-  background: var(--input-bg);
-  border: none;
+  color: var(--primary);
   cursor: pointer;
-  white-space: nowrap;
-  transition: all .18s;
+}
+
+.quick-beneficiary-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.quick-beneficiary-toggle__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--primary);
   flex-shrink: 0;
 }
 
-.network-tab-btn:hover { color: var(--primary); }
-.network-tab-btn.active { background: var(--primary); color: var(--white); }
-.network-tab-btn svg { width: 15px; height: 15px; }
+.quick-beneficiary-toggle__icon svg { width: 13px; height: 13px; }
+
+.quick-phone-nickname { height: 40px; margin-top: 8px; }
+
+/* Plan-type sub-tabs (within a network panel) */
+.plan-tabs-bar {
+  margin-bottom: 16px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.plan-tabs-bar::-webkit-scrollbar { display: none; }
+
+.plan-tab-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* Bundle cards grid */
 .bundle-grid {
@@ -123,9 +245,13 @@
 }
 
 .bundle-card__price {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--text);
+}
+
+@media (min-width: 640px) {
+  .bundle-card__price { font-size: 18px; }
 }
 
 .bundle-card__price-old {
