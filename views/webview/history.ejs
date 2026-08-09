@@ -96,6 +96,18 @@
             </small>
           </td>
 
+          <td data-label="Action">
+            <% if (tx.status === 'failed') { %>
+              <button
+                class="btn btn--outline btn--sm retry-btn"
+                data-id="<%= tx._id %>">
+                <i data-lucide="refresh-cw"></i>
+                Retry
+              </button>
+            <% } else { %>
+              <span style="color:var(--muted);">—</span>
+            <% } %>
+          </td>
         </tr>
       <% }) %>
 
