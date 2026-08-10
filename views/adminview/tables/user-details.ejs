@@ -97,6 +97,9 @@
               <button id="deduct-wallet-btn" class="btn btn-danger btn-sm">
                 <i class="fas fa-minus-circle"></i> Deduct Wallet
               </button>
+              <button id="refund-deduction-btn" class="btn btn-success btn-sm ml-2">
+                <i class="fas fa-undo-alt"></i> Refund Deduction
+              </button>
             </div>
           </div>
 
@@ -461,6 +464,126 @@
           Swal.fire({ icon: 'error', title: 'Error', text: 'Request failed. Please try again.' });
         });
     });
+  });
+
+  // ── Refund Deduction ──────────────────────────────────────────────────────────
+  document.getElementById('refund-deduction-btn').addEventListener('click', async function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+
+    try {
+      var res  = await fetch('/admin/product/user-details/' + userId + '/available-refunds', {
+        headers: { 'X-CSRF-Token': csrfToken },
+      });
+      var data = await res.json();
+
+      if (!data.success) {
+        Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+        return;
+      }
+
+      if (!data.deductions || data.deductions.length === 0) {
+        Swal.fire({
+          icon: 'info',
+          title: 'No deductions available',
+          text: 'There are no unrefunded deductions recorded for this user.',
+        });
+        return;
+      }
+
+      var rows = data.deductions.map(function (d, i) {
+        var date    = new Date(d.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        var reason  = (d.apiResponse && d.apiResponse.adminDeductReason) ? d.apiResponse.adminDeductReason : '—';
+        var by      = (d.apiResponse && d.apiResponse.adminDeductedBy)   ? d.apiResponse.adminDeductedBy   : 'admin';
+        return '<tr class="deduct-row" style="cursor:pointer;" data-id="' + d._id + '">' +
+          '<td style="padding:8px 10px;width:36px;"><input type="radio" name="txSelect" value="' + d._id + '" id="swal-tx-' + i + '"></td>' +
+          '<td style="padding:8px 10px;white-space:nowrap;font-size:13px;">' + date + '</td>' +
+          '<td style="padding:8px 10px;font-weight:700;font-size:13px;">₦' + Number(d.amount).toLocaleString() + '</td>' +
+          '<td style="padding:8px 10px;font-size:12px;max-width:180px;word-break:break-word;">' + reason + '</td>' +
+          '<td style="padding:8px 10px;font-size:11px;color:#888;">' + by + '</td>' +
+        '</tr>';
+      }).join('');
+
+      var tableHtml =
+        '<p class="text-muted mb-3" style="font-size:13px;">Select a deduction to refund for <strong>' + username + '</strong>:</p>' +
+        '<div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #dee2e6;border-radius:4px;margin-bottom:16px;">' +
+          '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead style="background:#f8f9fc;position:sticky;top:0;">' +
+              '<tr>' +
+                '<th style="padding:8px 10px;text-align:left;font-size:12px;"></th>' +
+                '<th style="padding:8px 10px;text-align:left;font-size:12px;">Date</th>' +
+                '<th style="padding:8px 10px;text-align:left;font-size:12px;">Amount</th>' +
+                '<th style="padding:8px 10px;text-align:left;font-size:12px;">Deduction Reason</th>' +
+                '<th style="padding:8px 10px;text-align:left;font-size:12px;">By</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody id="deductions-tbody">' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="form-group text-left mb-0">' +
+          '<label style="font-weight:600;font-size:13px;">Refund Reason <span style="color:#dc3545;">*</span></label>' +
+          '<input id="swal-refund-reason" type="text" class="form-control" placeholder="e.g. Accidental deduction">' +
+        '</div>';
+
+      Swal.fire({
+        title: 'Refund a Deduction',
+        width: 680,
+        html: tableHtml,
+        showCancelButton: true,
+        confirmButtonText: 'Proceed with Refund',
+        confirmButtonColor: '#28a745',
+        didOpen: function () {
+          document.querySelectorAll('.deduct-row').forEach(function (row) {
+            row.addEventListener('click', function () {
+              document.querySelectorAll('.deduct-row').forEach(function (r) { r.style.background = ''; });
+              this.style.background = '#e8f5e9';
+              var radio = this.querySelector('input[type="radio"]');
+              if (radio) radio.checked = true;
+            });
+          });
+        },
+        preConfirm: function () {
+          var selected = document.querySelector('input[name="txSelect"]:checked');
+          if (!selected) {
+            Swal.showValidationMessage('Please select a deduction to refund.');
+            return false;
+          }
+          var reason = document.getElementById('swal-refund-reason').value.trim();
+          if (!reason) {
+            Swal.showValidationMessage('A refund reason is required.');
+            return false;
+          }
+          return { transactionId: selected.value, reason: reason };
+        },
+      }).then(function (result) {
+        if (!result.isConfirmed) return;
+
+        fetch('/admin/product/user-details/' + userId + '/refund-deduction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify(result.value),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d.success) {
+              Swal.fire({ icon: 'success', title: 'Refunded', text: d.message })
+                .then(function () { location.reload(); });
+            } else {
+              Swal.fire({ icon: 'error', title: 'Failed', text: d.message });
+            }
+          })
+          .catch(function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Request failed. Please try again.' });
+          });
+      });
+
+    } catch (e) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Could not load deductions. Please try again.' });
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-undo-alt"></i> Refund Deduction';
+    }
   });
 })();
 </script>

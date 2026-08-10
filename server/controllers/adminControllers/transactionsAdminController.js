@@ -61,45 +61,90 @@ function suspiciousReasons(tx, allTxForUser) {
   return reasons;
 }
 
-// ── View all transactions ──────────────────────────────────────────────────────
-exports.viewTransactions = [authenticateAdminUser, async (req, res) => {
+// ── View all transactions (page shell — data loaded via AJAX) ─────────────────
+exports.viewTransactions = [authenticateAdminUser, (req, res) => {
+  res.render('adminview/tables/transactions', {
+    layout: 'layouts/adminLayout',
+  });
+}];
+
+// ── DataTables server-side data endpoint ──────────────────────────────────────
+exports.getTransactionsData = [authenticateAdminUser, async (req, res) => {
   try {
-    const transactions = await Transaction.find()
-      .populate('user', 'username email firstname')
-      .populate('product', 'item_name category dataDetails costPrice')
-      .populate('products.product', 'item_name category')
-      .sort({ createdAt: -1 })
-      .limit(1000)
-      .lean();
+    const draw   = parseInt(req.query.draw)   || 1;
+    const start  = parseInt(req.query.start)  || 0;
+    const length = Math.min(parseInt(req.query.length) || 50, 500);
+    const search = req.query.search?.value?.trim() || '';
 
-    // Group by user for suspicious-rule checks
-    const byUser = {};
-    transactions.forEach(tx => {
-      const uid = tx.user?._id?.toString() || 'unknown';
-      if (!byUser[uid]) byUser[uid] = [];
-      byUser[uid].push(tx);
-    });
+    // Sortable column map (index matches thead order)
+    const SORT_COLS = {
+      1: 'reference',
+      3: 'phone',
+      5: 'amount',
+      6: 'walletType',
+      7: 'rpEarned',
+      8: 'status',
+      9: 'createdAt',
+    };
+    const orderColIdx = parseInt(req.query['order[0][column]'] ?? req.query.order?.[0]?.column) || 9;
+    const orderDir    = (req.query['order[0][dir]'] ?? req.query.order?.[0]?.dir) === 'asc' ? 1 : -1;
+    const sortField   = SORT_COLS[orderColIdx] || 'createdAt';
 
-    const enriched = transactions.map(tx => {
-      const uid = tx.user?._id?.toString() || 'unknown';
-      return {
-        ...tx,
-        _isAttention: isAttention(tx),
-        _suspicious:  suspiciousReasons(tx, byUser[uid] || []),
+    // Build filter — search across reference, phone, status, and user name/email
+    let filter = {};
+    if (search) {
+      const User = require('../../models/UserModel');
+      const matchingUsers = await User.find({
+        $or: [
+          { username: { $regex: search, $options: 'i' } },
+          { email:    { $regex: search, $options: 'i' } },
+          { firstname: { $regex: search, $options: 'i' } },
+        ],
+      }).select('_id').lean();
+
+      const userIds = matchingUsers.map(u => u._id);
+      filter = {
+        $or: [
+          { reference: { $regex: search, $options: 'i' } },
+          { phone:     { $regex: search, $options: 'i' } },
+          { status:    { $regex: search, $options: 'i' } },
+          ...(userIds.length ? [{ user: { $in: userIds } }] : []),
+        ],
       };
-    });
+    }
 
-    res.render('adminview/tables/transactions', {
-      layout: 'layouts/adminLayout',
-      transactions: enriched,
-    });
+    const [totalCount, filteredCount, rows] = await Promise.all([
+      Transaction.countDocuments(),
+      Transaction.countDocuments(filter),
+      Transaction.find(filter)
+        .populate('user', 'username email firstname')
+        .populate('product', 'item_name dataDetails')
+        .sort({ [sortField]: orderDir })
+        .skip(start)
+        .limit(length)
+        .lean(),
+    ]);
+
+    const data = rows.map((tx, i) => ({
+      rowNum:    start + i + 1,
+      reference: tx.reference || '—',
+      user:      tx.user ? { id: tx.user._id, name: tx.user.firstname || tx.user.username || tx.user.email } : null,
+      phone:     tx.phone || 'N/A',
+      product:   tx.product?.item_name || tx.product?.dataDetails?.plan_name || 'N/A',
+      amount:    tx.amount,
+      walletType: tx.walletType || '—',
+      rpEarned:  tx.rpEarned || 0,
+      status:    tx.status,
+      createdAt: new Date(tx.createdAt).toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      }),
+    }));
+
+    res.json({ draw, recordsTotal: totalCount, recordsFiltered: filteredCount, data });
   } catch (err) {
-    console.error('[viewTransactions]', err);
-    res.render('adminview/tables/transactions', {
-      layout: 'layouts/adminLayout',
-      transactions: [],
-      error: 'Failed to load transactions',
-    });
+    console.error('[getTransactionsData]', err);
+    res.json({ draw: 1, recordsTotal: 0, recordsFiltered: 0, data: [] });
   }
 }];
 

@@ -514,6 +514,22 @@ exports.adminDeductWallet = [
 
       const balanceAfter = wallet.balances.NAIRA;
 
+      // Create an auditable Transaction record so this deduction can be refunded later
+      await Transaction.create({
+        user:          userId,
+        amount:        parsed,
+        walletType:    'NAIRA',
+        paymentMethod: 'Admin',
+        status:        'success',
+        reference:     'ADMIN-DEDUCT-' + Date.now(),
+        apiResponse: {
+          adminDeducted:      true,
+          adminDeductedBy:    req.user?.username || 'admin',
+          adminDeductedAt:    new Date().toISOString(),
+          adminDeductReason:  reason || '',
+        },
+      });
+
       if (balanceAfter < 0) {
         notify(userId, {
           type: 'info',
@@ -531,6 +547,80 @@ exports.adminDeductWallet = [
     } catch (err) {
       console.log('ADMIN DEDUCT WALLET ERROR:', err);
       return res.json({ success: false, message: 'An error occurred. Please try again.' });
+    }
+  },
+];
+
+// Returns all unrefunded deductions for a user (for the refund modal)
+exports.getAvailableRefunds = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const deductions = await Transaction.find({
+        user: req.params.id,
+        'apiResponse.adminDeducted': true,
+        'apiResponse.adminRefunded': { $ne: true },
+        'apiResponse.refundPending': { $ne: true },
+      }).sort({ createdAt: -1 }).lean();
+
+      res.json({ success: true, deductions });
+    } catch (err) {
+      console.error('[getAvailableRefunds]', err);
+      res.json({ success: false, message: 'Failed to load deductions.' });
+    }
+  },
+];
+
+// Refund a specific admin deduction from the user detail page
+exports.adminRefundDeduction = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const { transactionId, reason } = req.body;
+      const userId = req.params.id;
+
+      if (!transactionId) return res.json({ success: false, message: 'No deduction selected.' });
+      if (!reason || !reason.trim()) return res.json({ success: false, message: 'A refund reason is required.' });
+
+      const tx = await Transaction.findOne({
+        _id: transactionId,
+        user: userId,
+        'apiResponse.adminDeducted': true,
+        'apiResponse.adminRefunded': { $ne: true },
+        'apiResponse.refundPending': { $ne: true },
+      });
+      if (!tx) return res.json({ success: false, message: 'Deduction not found or already refunded.' });
+
+      const wallet = await Wallet.findOne({ user: userId });
+      if (!wallet) return res.json({ success: false, message: 'User wallet not found.' });
+
+      const balanceBefore = wallet.balances.NAIRA;
+      wallet.balances.NAIRA += tx.amount;
+      await wallet.save();
+
+      tx.apiResponse.adminRefunded    = true;
+      tx.apiResponse.adminRefundedAt  = new Date().toISOString();
+      tx.apiResponse.refundReason     = reason.trim();
+      tx.apiResponse.refundApprovedBy = req.user?.username || 'admin';
+      tx.apiResponse.refundPending    = false;
+      tx.apiResponse.refundBalBefore  = balanceBefore;
+      tx.apiResponse.refundBalAfter   = wallet.balances.NAIRA;
+      tx.markModified('apiResponse');
+      await tx.save();
+
+      notify(userId, {
+        type: 'success',
+        text: `A refund of ₦${tx.amount.toLocaleString()} has been issued to your wallet by admin.`,
+        link: '/user/transaction-history',
+      });
+
+      return res.json({
+        success: true,
+        message: `₦${tx.amount.toLocaleString()} refunded. New balance: ₦${wallet.balances.NAIRA.toLocaleString()}`,
+      });
+    } catch (err) {
+      console.error('[adminRefundDeduction]', err);
+      return res.json({ success: false, message: 'Server error. Please try again.' });
     }
   },
 ];

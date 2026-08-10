@@ -37,12 +37,19 @@ exports.viewDashboard = [
         ...t,
         statusInfo: PLAN_STATUS[t.plan_status] || { label: 'Unknown', cls: 'badge-secondary' },
       }));
+
+      // The OurDataStore API uses 0-based page numbers internally (sends page-1 to API).
+      // Normalise current_page to 1-based so the view's prev/next links work correctly.
+      const normalizedPage = (history.current_page != null ? history.current_page + 1 : page);
+      const fromRow = history.from != null ? history.from : (page - 1) * 20 + 1;
+      const toRow   = history.to   != null ? history.to   : fromRow + transactions.length - 1;
+
       pagination = {
-        currentPage: history.current_page,
-        lastPage:    history.last_page,
-        total:       history.total,
-        from:        history.from,
-        to:          history.to,
+        currentPage: normalizedPage,
+        lastPage:    history.last_page || 1,
+        total:       history.total     || transactions.length,
+        from:        fromRow,
+        to:          toRow,
       };
     } catch (err) {
       error = err.message === 'ADEX_ID_STALE'
