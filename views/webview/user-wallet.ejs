@@ -66,172 +66,192 @@
     <!-- Action cards -->
     <div class="wallet-actions">
 
+      <!-- Fund Naira Wallet -->
+      <div class="action-card is-open">
+        <button type="button" class="accordion-header" aria-expanded="true">
+          <i data-lucide="credit-card"></i>
+          <span class="accordion-header__title">Fund Naira Wallet</span>
+          <i data-lucide="chevron-down" class="accordion-chevron"></i>
+        </button>
+        <div class="accordion-body">
+          <div class="accordion-body__inner">
+            <p class="action-card__desc">Choose a payment method and fund your Naira balance</p>
+
+            <div class="form-group">
+              <label class="form-label">Payment Method</label>
+              <div class="input-wrapper">
+                <i data-lucide="credit-card"></i>
+                <select id="paymentMethod" class="form-input form-select">
+                  <option value="">Select payment method</option>
+                  <% if (paymentMethods && paymentMethods.length > 0) { %>
+                    <% paymentMethods.forEach(function(m) { %>
+                      <option value="<%= m.name %>"><%= m.name %><%= m.description ? ' - (' + m.description + ')' : '' %></option>
+                    <% }) %>
+                  <% } %>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Amount (₦)</label>
+              <div class="input-wrapper">
+                <i data-lucide="hash"></i>
+                <input type="number" id="palmpayAmount" class="form-input" placeholder="Enter amount" min="100">
+              </div>
+            </div>
+
+            <button id="palmpayBtn" class="btn btn--primary btn--full" disabled>
+              <i data-lucide="external-link"></i>
+              <span id="palmpayBtnText">Select a payment method</span>
+            </button>
+
+            <p class="action-note">
+              <i data-lucide="info"></i>
+              You will be redirected to the secure payment checkout
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- BTT/RP/USDT Top-up via OTP -->
       <div class="action-card">
-        <h3 class="action-card__title">
+        <button type="button" class="accordion-header" aria-expanded="false">
           <i data-lucide="arrow-up-circle"></i>
-          Top-Up Wallet
-        </h3>
-        <p class="action-card__desc">Fund BTT, or USDT via BitToken App</p>
-
-        <div class="form-group">
-          <label class="form-label">Wallet Type</label>
-          <div class="input-wrapper">
-            <i data-lucide="layers"></i>
-            <select id="walletType" class="form-input form-select">
-              <option value="">Select wallet type</option>
-              <!-- <option value="BTT">BTT</option> -->
-              <!-- <option value="RP">RP</option> -->
-              <option value="USDT">USDT</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Amount</label>
-          <div class="input-wrapper">
-            <i data-lucide="hash"></i>
-            <input type="number" id="amount" class="form-input" placeholder="Enter amount" step="0.01">
-          </div>
-        </div>
-
-        <button id="startTopup" class="btn btn--primary btn--full">
-          <i data-lucide="send"></i>
-          Request OTP
+          <span class="accordion-header__title">Top-Up Wallet</span>
+          <i data-lucide="chevron-down" class="accordion-chevron"></i>
         </button>
+        <div class="accordion-body">
+          <div class="accordion-body__inner">
+            <p class="action-card__desc">Fund BTT, or USDT via BitToken App</p>
 
-        <div id="otpBox" class="otp-section" style="display:none;">
-          <div class="form-group" style="margin-top:16px;">
-            <label class="form-label">OTP Code</label>
-            <div class="input-wrapper">
-              <i data-lucide="shield"></i>
-              <input type="text" id="otp" class="form-input" placeholder="Enter OTP code">
+            <div class="form-group">
+              <label class="form-label">Wallet Type</label>
+              <div class="input-wrapper">
+                <i data-lucide="layers"></i>
+                <select id="walletType" class="form-input form-select">
+                  <option value="">Select wallet type</option>
+                  <!-- <option value="BTT">BTT</option> -->
+                  <!-- <option value="RP">RP</option> -->
+                  <option value="USDT">USDT</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <button id="confirmTopup" class="btn btn--primary btn--full">
-            <i data-lucide="check"></i>
-            Confirm Top-Up
-          </button>
-        </div>
 
-        <p class="action-note" id="otpDeliveryNote">
-          <i data-lucide="info"></i>
-          OTP is sent to your Telegram bot or WhatsApp
-        </p>
+            <div class="form-group">
+              <label class="form-label">Amount</label>
+              <div class="input-wrapper">
+                <i data-lucide="hash"></i>
+                <input type="number" id="amount" class="form-input" placeholder="Enter amount" step="0.01">
+              </div>
+            </div>
+
+            <button id="startTopup" class="btn btn--primary btn--full">
+              <i data-lucide="send"></i>
+              Request OTP
+            </button>
+
+            <div id="otpBox" class="otp-section" style="display:none;">
+              <div class="form-group" style="margin-top:16px;">
+                <label class="form-label">OTP Code</label>
+                <div class="input-wrapper">
+                  <i data-lucide="shield"></i>
+                  <input type="text" id="otp" class="form-input" placeholder="Enter OTP code">
+                </div>
+              </div>
+              <button id="confirmTopup" class="btn btn--primary btn--full">
+                <i data-lucide="check"></i>
+                Confirm Top-Up
+              </button>
+            </div>
+
+            <p class="action-note" id="otpDeliveryNote">
+              <i data-lucide="info"></i>
+              OTP is sent to your Telegram bot or WhatsApp
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- USDT to Naira conversion -->
       <div class="action-card">
-        <h3 class="action-card__title">
+        <button type="button" class="accordion-header" aria-expanded="false">
           <i data-lucide="refresh-cw"></i>
-          Convert USDT to Naira
-        </h3>
-        <p class="action-card__desc">Instantly convert your USDT balance to NGN</p>
-
-        <div class="form-group">
-          <label class="form-label">Amount (USDT)</label>
-          <div class="input-wrapper">
-            <i data-lucide="hash"></i>
-            <input type="number" id="usdtAmount" class="form-input" placeholder="Enter USDT amount">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">You will receive (₦)</label>
-          <div class="input-wrapper">
-            <i data-lucide="banknote"></i>
-            <input type="text" id="nairaAmount" class="form-input" placeholder="₦0.00" readonly>
-          </div>
-        </div>
-
-        <button id="convertBtn" class="btn btn--primary btn--full">
-          <i data-lucide="arrow-right"></i>
-          Convert Now
+          <span class="accordion-header__title">Convert USDT to Naira</span>
+          <i data-lucide="chevron-down" class="accordion-chevron"></i>
         </button>
-      </div>
+        <div class="accordion-body">
+          <div class="accordion-body__inner">
+            <p class="action-card__desc">Instantly convert your USDT balance to NGN</p>
 
-      <!-- Fund Naira Wallet -->
-      <div class="action-card">
-        <h3 class="action-card__title">
-          <i data-lucide="credit-card"></i>
-          Fund Naira Wallet
-        </h3>
-        <p class="action-card__desc">Choose a payment method and fund your Naira balance</p>
+            <div class="form-group">
+              <label class="form-label">Amount (USDT)</label>
+              <div class="input-wrapper">
+                <i data-lucide="hash"></i>
+                <input type="number" id="usdtAmount" class="form-input" placeholder="Enter USDT amount">
+              </div>
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">Payment Method</label>
-          <div class="input-wrapper">
-            <i data-lucide="credit-card"></i>
-            <select id="paymentMethod" class="form-input form-select">
-              <option value="">Select payment method</option>
-              <% if (paymentMethods && paymentMethods.length > 0) { %>
-                <% paymentMethods.forEach(function(m) { %>
-                  <option value="<%= m.name %>"><%= m.name %><%= m.description ? ' - (' + m.description + ')' : '' %></option>
-                <% }) %>
-              <% } %>
-            </select>
+            <div class="form-group">
+              <label class="form-label">You will receive (₦)</label>
+              <div class="input-wrapper">
+                <i data-lucide="banknote"></i>
+                <input type="text" id="nairaAmount" class="form-input" placeholder="₦0.00" readonly>
+              </div>
+            </div>
+
+            <button id="convertBtn" class="btn btn--primary btn--full">
+              <i data-lucide="arrow-right"></i>
+              Convert Now
+            </button>
           </div>
         </div>
-
-        <div class="form-group">
-          <label class="form-label">Amount (₦)</label>
-          <div class="input-wrapper">
-            <i data-lucide="hash"></i>
-            <input type="number" id="palmpayAmount" class="form-input" placeholder="Enter amount" min="100">
-          </div>
-        </div>
-
-        <button id="palmpayBtn" class="btn btn--primary btn--full" disabled>
-          <i data-lucide="external-link"></i>
-          <span id="palmpayBtnText">Select a payment method</span>
-        </button>
-
-        <p class="action-note">
-          <i data-lucide="info"></i>
-          You will be redirected to the secure payment checkout
-        </p>
       </div>
 
       <!-- Transfer RP to BitToken -->
       <div class="action-card">
-        <h3 class="action-card__title">
+        <button type="button" class="accordion-header" aria-expanded="false">
           <i data-lucide="send"></i>
-          Transfer RP to BitToken
-        </h3>
-        <p class="action-card__desc">Send your Reward Points to your BitToken account</p>
-
-        <% if (user && !user.minerId) { %>
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;">
-          <i data-lucide="alert-triangle" style="color:#f97316;flex-shrink:0;margin-top:2px;"></i>
-          <div style="font-size:13px;color:#7c2d12;line-height:1.5;">
-            <strong>Miner ID not set.</strong> You need to add your BitToken Miner ID to your profile before you can transfer RP.
-            <br><a href="/user-profile" style="color:#f97316;font-weight:600;text-decoration:underline;">Go to Profile →</a>
-          </div>
-        </div>
-        <% } %>
-
-        <div class="form-group">
-          <label class="form-label">RP Amount</label>
-          <div class="input-wrapper">
-            <i data-lucide="star"></i>
-            <input type="number" id="rpTransferAmount" class="form-input" placeholder="Enter RP amount" min="1" step="1"
-              <%= user && !user.minerId ? 'disabled' : '' %>>
-          </div>
-        </div>
-
-        <p style="font-size:12px;color:#6b7280;margin:-8px 0 14px;">
-          Available: <strong><%= wallet && wallet.balances ? wallet.balances.RP.toFixed(2) : '0.00' %> RP</strong>
-        </p>
-
-        <button id="transferRpBtn" class="btn btn--primary btn--full" <%= user && !user.minerId ? 'disabled' : '' %>>
-          <i data-lucide="send"></i>
-          Transfer to BitToken
+          <span class="accordion-header__title">Transfer RP to BitToken</span>
+          <i data-lucide="chevron-down" class="accordion-chevron"></i>
         </button>
+        <div class="accordion-body">
+          <div class="accordion-body__inner">
+            <p class="action-card__desc">Send your Reward Points to your BitToken account</p>
 
-        <p class="action-note">
-          <i data-lucide="info"></i>
-          RP will be deducted from your wallet and credited to your BitToken account
-        </p>
+            <% if (user && !user.minerId) { %>
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;">
+              <i data-lucide="alert-triangle" style="color:#f97316;flex-shrink:0;margin-top:2px;"></i>
+              <div style="font-size:13px;color:#7c2d12;line-height:1.5;">
+                <strong>Miner ID not set.</strong> You need to add your BitToken Miner ID to your profile before you can transfer RP.
+                <br><a href="/user-profile" style="color:#f97316;font-weight:600;text-decoration:underline;">Go to Profile →</a>
+              </div>
+            </div>
+            <% } %>
+
+            <div class="form-group">
+              <label class="form-label">RP Amount</label>
+              <div class="input-wrapper">
+                <i data-lucide="star"></i>
+                <input type="number" id="rpTransferAmount" class="form-input" placeholder="Enter RP amount" min="1" step="1"
+                  <%= user && !user.minerId ? 'disabled' : '' %>>
+              </div>
+            </div>
+
+            <p style="font-size:12px;color:#6b7280;margin:-8px 0 14px;">
+              Available: <strong><%= wallet && wallet.balances ? wallet.balances.RP.toFixed(2) : '0.00' %> RP</strong>
+            </p>
+
+            <button id="transferRpBtn" class="btn btn--primary btn--full" <%= user && !user.minerId ? 'disabled' : '' %>>
+              <i data-lucide="send"></i>
+              Transfer to BitToken
+            </button>
+
+            <p class="action-note">
+              <i data-lucide="info"></i>
+              RP will be deducted from your wallet and credited to your BitToken account
+            </p>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -239,6 +259,24 @@
 </section>
 
 <script>
+  // ── Wallet actions accordion ─────────────────────────────
+  document.querySelectorAll('.wallet-actions .accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const item = header.closest('.action-card');
+      const wasOpen = item.classList.contains('is-open');
+
+      document.querySelectorAll('.wallet-actions .action-card.is-open').forEach(openItem => {
+        openItem.classList.remove('is-open');
+        openItem.querySelector('.accordion-header').setAttribute('aria-expanded', 'false');
+      });
+
+      if (!wasOpen) {
+        item.classList.add('is-open');
+        header.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+
   let topupId = null;
 
   const USDT_MIN = 0.50;

@@ -87,42 +87,71 @@
 .balance-card--usdt .balance-card__icon { background: #e0f2fe; }
 .balance-card--usdt .balance-card__icon svg { color: #0ea5e9; }
 
-/* Action panels grid */
+/* Action panels — accordion */
 .wallet-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-
-@media (min-width: 768px) { .wallet-actions { grid-template-columns: repeat(3, 1fr); } }
 
 .action-card {
   background: var(--white);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
-  padding: 22px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  overflow: hidden;
 }
 
-.action-card__title {
+.accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  font: inherit;
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  text-align: left;
 }
 
-.action-card__title svg { width: 18px; height: 18px; color: var(--primary); }
+.accordion-header svg { width: 18px; height: 18px; color: var(--primary); flex-shrink: 0; }
+
+.accordion-header__title { flex: 1; }
+
+.accordion-chevron {
+  margin-left: auto;
+  color: var(--muted) !important;
+  transition: transform 200ms ease;
+}
+
+.action-card.is-open .accordion-header { border-bottom-color: var(--border); }
+.action-card.is-open .accordion-chevron { transform: rotate(180deg); }
+
+.accordion-body {
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  transition: grid-template-rows 280ms ease;
+}
+
+.action-card.is-open .accordion-body { grid-template-rows: minmax(0, 1fr); }
+
+.accordion-body__inner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
 
 .action-card__desc {
   font-size: 14px;
   color: var(--muted);
-  margin-top: -8px;
+  margin-top: -4px;
 }
 
 .action-note {
