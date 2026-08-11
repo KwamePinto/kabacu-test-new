@@ -19,7 +19,7 @@
                 </div>
                 <div class="card-body">
                   <div class="table-responsive">
-                    <table class="table table-striped" id="table-1" style="width:100%">
+                    <table class="table table-striped" id="admin-tx-server" style="width:100%">
                       <thead>
                         <tr>
                           <th>#</th>
@@ -40,10 +40,12 @@
                 </div>
 
                 <script>
-                $(document).ready(function () {
-                  $('#table-1').DataTable({
+                // Use window load so jQuery + DataTables from the layout are guaranteed ready
+                window.addEventListener('load', function () {
+                  $('#admin-tx-server').DataTable({
                     serverSide: true,
                     processing: true,
+                    destroy:    true,
                     ajax: {
                       url:  '/admin/transactions/data',
                       type: 'GET',
