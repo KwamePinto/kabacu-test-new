@@ -1,8 +1,14 @@
 <script>
   const successMsg = <% - JSON.stringify(success_msg) %>;
   const errorMsg = <% - JSON.stringify(error_msg) %>;
-  if (successMsg.length > 0) Swal.fire({ icon: 'success', text: successMsg[0] });
-  if (errorMsg.length > 0) Swal.fire({ icon: 'error', text: errorMsg[0] });
+  if (successMsg.length > 0) Swal.fire({
+    icon: 'success',
+    text: successMsg[0]
+  });
+  if (errorMsg.length > 0) Swal.fire({
+    icon: 'error',
+    text: errorMsg[0]
+  });
 </script>
 
 <section class="wallet-page">
@@ -75,8 +81,6 @@
         </button>
         <div class="accordion-body">
           <div class="accordion-body__inner">
-           2
-
             <div class="form-group">
               <label class="form-label">Payment Method</label>
               <div class="input-wrapper">
@@ -84,9 +88,9 @@
                 <select id="paymentMethod" class="form-input form-select">
                   <option value="">Select payment method</option>
                   <% if (paymentMethods && paymentMethods.length > 0) { %>
-                    <% paymentMethods.forEach(function(m) { %>
-                      <option value="<%= m.name %>"><%= m.name %><%= m.description ? ' - (' + m.description + ')' : '' %></option>
-                    <% }) %>
+                  <% paymentMethods.forEach(function(m) { %>
+                  <option value="<%= m.name %>"><%= m.name %><%= m.description ? ' - (' + m.description + ')' : '' %></option>
+                  <% }) %>
                   <% } %>
                 </select>
               </div>
@@ -232,8 +236,7 @@
               <label class="form-label">RP Amount</label>
               <div class="input-wrapper">
                 <i data-lucide="star"></i>
-                <input type="number" id="rpTransferAmount" class="form-input" placeholder="Enter RP amount" min="1" step="1"
-                  <%= user && !user.minerId ? 'disabled' : '' %>>
+                <input type="number" id="rpTransferAmount" class="form-input" placeholder="Enter RP amount" min="1" step="1" <%= user && !user.minerId ? 'disabled' : '' %>>
               </div>
             </div>
 
@@ -282,7 +285,7 @@
   const USDT_MIN = 0.50;
 
   // ── Wallet type selector: update amount constraints ─────
-  document.getElementById('walletType').addEventListener('change', function () {
+  document.getElementById('walletType').addEventListener('change', function() {
     const amountInput = document.getElementById('amount');
     if (this.value === 'USDT') {
       amountInput.min = USDT_MIN;
@@ -296,7 +299,7 @@
   });
 
   // ── Real-time USDT minimum enforcement ──────────────────
-  document.getElementById('amount').addEventListener('input', function () {
+  document.getElementById('amount').addEventListener('input', function() {
     const balanceType = document.getElementById('walletType').value;
     if (balanceType !== 'USDT') return;
     const val = parseFloat(this.value);
@@ -315,15 +318,25 @@
     const balanceType = document.getElementById('walletType').value;
 
     if (!balanceType) {
-      return Swal.fire({ icon: 'warning', text: 'Please select a wallet type.' });
+      return Swal.fire({
+        icon: 'warning',
+        text: 'Please select a wallet type.'
+      });
     }
 
     if (isNaN(amount) || amount <= 0) {
-      return Swal.fire({ icon: 'warning', text: 'Please enter a valid amount.' });
+      return Swal.fire({
+        icon: 'warning',
+        text: 'Please enter a valid amount.'
+      });
     }
 
     if (balanceType === 'USDT' && amount < USDT_MIN) {
-      return Swal.fire({ icon: 'error', title: 'Amount too low', text: 'Minimum USDT top-up is 0.50.' });
+      return Swal.fire({
+        icon: 'error',
+        title: 'Amount too low',
+        text: 'Minimum USDT top-up is 0.50.'
+      });
     }
 
     const btn = document.getElementById('startTopup');
@@ -334,8 +347,14 @@
     try {
       const res = await fetch('/wallet/start-topup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ amount, balanceType })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          amount,
+          balanceType
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -346,18 +365,27 @@
           note.innerHTML = '<i data-lucide="info"></i> ' + data.message;
           if (window.lucide) lucide.createIcons();
         }
-        Swal.fire({ icon: 'success', text: data.message });
+        Swal.fire({
+          icon: 'success',
+          text: data.message
+        });
       } else {
         btn.disabled = false;
         btn.innerHTML = '<i data-lucide="send"></i> Request OTP';
         if (window.lucide) lucide.createIcons();
-        Swal.fire({ icon: 'error', text: data.message });
+        Swal.fire({
+          icon: 'error',
+          text: data.message
+        });
       }
     } catch (err) {
       btn.disabled = false;
       btn.innerHTML = '<i data-lucide="send"></i> Request OTP';
       if (window.lucide) lucide.createIcons();
-      Swal.fire({ icon: 'error', text: 'Something went wrong. Please try again.' });
+      Swal.fire({
+        icon: 'error',
+        text: 'Something went wrong. Please try again.'
+      });
     }
   });
 
@@ -365,22 +393,34 @@
     const otp = document.getElementById('otp').value;
     const res = await fetch('/wallet/confirm-topup', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-      body: JSON.stringify({ otp, topupId })
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': '<%= csrfToken %>'
+      },
+      body: JSON.stringify({
+        otp,
+        topupId
+      })
     });
     const data = await res.json();
     if (data.success) {
-      Swal.fire({ icon: 'success', text: data.message });
+      Swal.fire({
+        icon: 'success',
+        text: data.message
+      });
       setTimeout(() => location.reload(), 1500);
     } else {
-      Swal.fire({ icon: 'error', text: data.message });
+      Swal.fire({
+        icon: 'error',
+        text: data.message
+      });
     }
   });
 
   // ── USDT preview ──────────────────────────────────────────
   let conversionController = null;
 
-  document.getElementById('usdtAmount').addEventListener('input', async function () {
+  document.getElementById('usdtAmount').addEventListener('input', async function() {
     const amount = this.value;
 
     if (conversionController) conversionController.abort();
@@ -394,8 +434,13 @@
     try {
       const res = await fetch('/wallet/preview-conversion', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ amount }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          amount
+        }),
         signal: conversionController.signal
       });
       const data = await res.json();
@@ -411,38 +456,55 @@
   document.getElementById('convertBtn').addEventListener('click', async () => {
     const amount = document.getElementById('usdtAmount').value;
     if (!amount || amount <= 0) {
-      Swal.fire({ icon: 'warning', text: 'Enter valid amount' });
+      Swal.fire({
+        icon: 'warning',
+        text: 'Enter valid amount'
+      });
       return;
     }
     try {
       const res = await fetch('/wallet/convert-usdt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ amount })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          amount
+        })
       });
       const data = await res.json();
       if (data.success) {
         document.getElementById('nairaAmount').value = '₦' + data.nairaAmount.toLocaleString();
-        Swal.fire({ icon: 'success', text: 'Conversion successful' });
+        Swal.fire({
+          icon: 'success',
+          text: 'Conversion successful'
+        });
         setTimeout(() => location.reload(), 1500);
       } else {
-        Swal.fire({ icon: 'error', text: data.message });
+        Swal.fire({
+          icon: 'error',
+          text: data.message
+        });
       }
     } catch (err) {
-      Swal.fire({ icon: 'warning', text: 'Something went wrong' });
+      Swal.fire({
+        icon: 'warning',
+        text: 'Something went wrong'
+      });
     }
   });
 
   // ── Payment method selector ───────────────────────────────
-  document.getElementById('paymentMethod').addEventListener('change', function () {
+  document.getElementById('paymentMethod').addEventListener('change', function() {
     var method = this.value;
-    var btn     = document.getElementById('palmpayBtn');
+    var btn = document.getElementById('palmpayBtn');
     var btnText = document.getElementById('palmpayBtnText');
     if (method) {
-      btn.disabled    = false;
+      btn.disabled = false;
       btnText.textContent = 'Pay';
     } else {
-      btn.disabled    = true;
+      btn.disabled = true;
       btnText.textContent = 'Select a payment method';
     }
   });
@@ -451,10 +513,15 @@
   document.getElementById('transferRpBtn').addEventListener('click', async () => {
     const amount = parseFloat(document.getElementById('rpTransferAmount').value);
     if (isNaN(amount) || amount <= 0) {
-      return Swal.fire({ icon: 'warning', text: 'Enter a valid RP amount.' });
+      return Swal.fire({
+        icon: 'warning',
+        text: 'Enter a valid RP amount.'
+      });
     }
 
-    const { isConfirmed } = await Swal.fire({
+    const {
+      isConfirmed
+    } = await Swal.fire({
       title: 'Confirm Transfer',
       html: `Transfer <strong>${amount} RP</strong> to your BitToken account?`,
       icon: 'question',
@@ -473,13 +540,21 @@
     try {
       const res = await fetch('/wallet/transfer-rp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ rpAmount: amount }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          rpAmount: amount
+        }),
       });
       const data = await res.json();
 
       if (data.success) {
-        await Swal.fire({ icon: 'success', text: data.message });
+        await Swal.fire({
+          icon: 'success',
+          text: data.message
+        });
         location.reload();
       } else if (data.noMinerId) {
         btn.disabled = false;
@@ -491,18 +566,26 @@
           text: data.message,
           confirmButtonText: 'Go to Profile',
           confirmButtonColor: '#47c363',
-        }).then(r => { if (r.isConfirmed) window.location.href = '/user-profile'; });
+        }).then(r => {
+          if (r.isConfirmed) window.location.href = '/user-profile';
+        });
       } else {
         btn.disabled = false;
         btn.innerHTML = '<i data-lucide="send"></i> Transfer to BitToken';
         if (window.lucide) lucide.createIcons();
-        Swal.fire({ icon: 'error', text: data.message });
+        Swal.fire({
+          icon: 'error',
+          text: data.message
+        });
       }
     } catch (err) {
       btn.disabled = false;
       btn.innerHTML = '<i data-lucide="send"></i> Transfer to BitToken';
       if (window.lucide) lucide.createIcons();
-      Swal.fire({ icon: 'error', text: 'Something went wrong. Please try again.' });
+      Swal.fire({
+        icon: 'error',
+        text: 'Something went wrong. Please try again.'
+      });
     }
   });
 
@@ -511,27 +594,45 @@
     const method = document.getElementById('paymentMethod').value;
     const amount = document.getElementById('palmpayAmount').value;
     if (!method) {
-      Swal.fire({ icon: 'warning', text: 'Please select a payment method' });
+      Swal.fire({
+        icon: 'warning',
+        text: 'Please select a payment method'
+      });
       return;
     }
     if (!amount || amount < 100) {
-      Swal.fire({ icon: 'warning', text: 'Enter a valid amount (minimum ₦100)' });
+      Swal.fire({
+        icon: 'warning',
+        text: 'Enter a valid amount (minimum ₦100)'
+      });
       return;
     }
     try {
       const response = await fetch('/palmpay/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ amount, paymentMethod: method })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          amount,
+          paymentMethod: method
+        })
       });
       const data = await response.json();
       if (data.success) {
         window.location.href = data.paymentUrl;
       } else {
-        Swal.fire({ icon: 'warning', text: data.message || 'Payment failed' });
+        Swal.fire({
+          icon: 'warning',
+          text: data.message || 'Payment failed'
+        });
       }
     } catch (error) {
-      Swal.fire({ icon: 'warning', text: 'Something went wrong' });
+      Swal.fire({
+        icon: 'warning',
+        text: 'Something went wrong'
+      });
     }
   });
 </script>
