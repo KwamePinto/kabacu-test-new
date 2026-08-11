@@ -459,6 +459,9 @@ exports.adminProfilePost = [
         department: department || "",
         profileCompleted: true,
       });
+      if (req.body.firstLogin === '1') {
+        return res.redirect("/admin/main/dashboard");
+      }
       res.redirect("/admin/profile?saved=1");
     } catch (error) {
       console.log("PROFILE SAVE ERROR:", error);

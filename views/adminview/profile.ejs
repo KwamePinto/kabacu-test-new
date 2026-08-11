@@ -91,8 +91,9 @@
                     <h4>Profile Details</h4>
                   </div>
                   <div class="card-body">
-                    <form method="post" action="/admin/user/profile">
+                    <form method="post" action="/admin/profile">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="firstLogin" value="<%= firstLogin ? '1' : '' %>">
 
                       <div class="form-group">
                         <label>Phone Number</label>
