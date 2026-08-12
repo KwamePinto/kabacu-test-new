@@ -74,7 +74,7 @@ exports.getTransactionsData = [authenticateAdminUser, async (req, res) => {
     const draw   = parseInt(req.query.draw)   || 1;
     const start  = parseInt(req.query.start)  || 0;
     const length = Math.min(parseInt(req.query.length) || 50, 500);
-    const search = req.query.search?.value?.trim() || '';
+    const search = (req.query['search[value]'] ?? req.query.search?.value)?.trim() || '';
 
     // Sortable column map (index matches thead order)
     const SORT_COLS = {
@@ -93,21 +93,23 @@ exports.getTransactionsData = [authenticateAdminUser, async (req, res) => {
     // Build filter — search across reference, phone, status, and user name/email
     let filter = {};
     if (search) {
+      // Escape regex special characters so e.g. "+" in phone numbers doesn't throw
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const User = require('../../models/UserModel');
       const matchingUsers = await User.find({
         $or: [
-          { username: { $regex: search, $options: 'i' } },
-          { email:    { $regex: search, $options: 'i' } },
-          { firstname: { $regex: search, $options: 'i' } },
+          { username:  { $regex: safeSearch, $options: 'i' } },
+          { email:     { $regex: safeSearch, $options: 'i' } },
+          { firstname: { $regex: safeSearch, $options: 'i' } },
         ],
       }).select('_id').lean();
 
       const userIds = matchingUsers.map(u => u._id);
       filter = {
         $or: [
-          { reference: { $regex: search, $options: 'i' } },
-          { phone:     { $regex: search, $options: 'i' } },
-          { status:    { $regex: search, $options: 'i' } },
+          { reference: { $regex: safeSearch, $options: 'i' } },
+          { phone:     { $regex: safeSearch, $options: 'i' } },
+          { status:    { $regex: safeSearch, $options: 'i' } },
           ...(userIds.length ? [{ user: { $in: userIds } }] : []),
         ],
       };
@@ -189,6 +191,28 @@ exports.resolveAttention = [authenticateAdminUser, async (req, res) => {
     tx.refundedAt = new Date();
     await tx.save();
 
+    // Create a separate ledger entry so the refund appears as its own statement row
+    await Transaction.create({
+      user:          tx.user,
+      amount:        tx.amount,
+      walletType:    tx.walletType || 'NAIRA',
+      paymentMethod: 'Admin',
+      status:        'success',
+      reference:     'ADMIN-REFUND-' + Date.now(),
+      balanceBefore: before,
+      balanceAfter:  wallet.balances.NAIRA,
+      apiResponse: {
+        adminRefund:     true,
+        adminRefundOf:   tx._id.toString(),
+        originalRef:     tx.reference,
+        refundReason:    'Order not delivered — refunded by admin',
+        refundBy:        req.user?.username || 'admin',
+        adminRefundedAt: new Date().toISOString(),
+        balanceBefore:   before,
+        balanceAfter:    wallet.balances.NAIRA,
+      },
+    });
+
     notify(tx.user, {
       type: 'refund',
       text: `Your data order of ₦${(tx.amount || 0).toLocaleString()} was not delivered. ₦${(tx.amount || 0).toLocaleString()} has been refunded to your wallet.`,
@@ -224,6 +248,28 @@ exports.forceRefund = [authenticateAdminUser, async (req, res) => {
     tx.markModified('apiResponse');
     tx.refundedAt = new Date();
     await tx.save();
+
+    // Create a separate ledger entry so the refund appears as its own statement row
+    await Transaction.create({
+      user:          tx.user,
+      amount:        tx.amount,
+      walletType:    tx.walletType || 'NAIRA',
+      paymentMethod: 'Admin',
+      status:        'success',
+      reference:     'ADMIN-REFUND-' + Date.now(),
+      balanceBefore: before,
+      balanceAfter:  wallet.balances.NAIRA,
+      apiResponse: {
+        adminRefund:     true,
+        adminRefundOf:   tx._id.toString(),
+        originalRef:     tx.reference,
+        refundReason:    'Force-refunded by admin',
+        refundBy:        req.user?.username || 'admin',
+        adminRefundedAt: new Date().toISOString(),
+        balanceBefore:   before,
+        balanceAfter:    wallet.balances.NAIRA,
+      },
+    });
 
     notify(tx.user, {
       type: 'refund',

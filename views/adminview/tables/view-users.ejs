@@ -16,10 +16,8 @@
               <div class="card card-statistic-1">
                 <div class="card-icon bg-primary"><i class="fas fa-users"></i></div>
                 <div class="card-wrap">
-                  <div class="card-header">
-                    <h4>Total Users</h4>
-                  </div>
-                  <div class="card-body"><%= users.length %></div>
+                  <div class="card-header"><h4>Total Users</h4></div>
+                  <div class="card-body"><%= stats.total %></div>
                 </div>
               </div>
             </div>
@@ -27,10 +25,8 @@
               <div class="card card-statistic-1">
                 <div class="card-icon bg-success"><i class="fas fa-user-check"></i></div>
                 <div class="card-wrap">
-                  <div class="card-header">
-                    <h4>Verified</h4>
-                  </div>
-                  <div class="card-body"><%= users.filter(u => u.isVerified).length %></div>
+                  <div class="card-header"><h4>Verified</h4></div>
+                  <div class="card-body"><%= stats.verified %></div>
                 </div>
               </div>
             </div>
@@ -38,10 +34,8 @@
               <div class="card card-statistic-1">
                 <div class="card-icon bg-warning"><i class="fas fa-user-clock"></i></div>
                 <div class="card-wrap">
-                  <div class="card-header">
-                    <h4>Unverified</h4>
-                  </div>
-                  <div class="card-body"><%= users.filter(u => !u.isVerified).length %></div>
+                  <div class="card-header"><h4>Unverified</h4></div>
+                  <div class="card-body"><%= stats.unverified %></div>
                 </div>
               </div>
             </div>
@@ -49,10 +43,8 @@
               <div class="card card-statistic-1">
                 <div class="card-icon bg-info"><i class="fas fa-id-card"></i></div>
                 <div class="card-wrap">
-                  <div class="card-header">
-                    <h4>With Miner ID</h4>
-                  </div>
-                  <div class="card-body"><%= users.filter(u => u.minerId).length %></div>
+                  <div class="card-header"><h4>With Miner ID</h4></div>
+                  <div class="card-body"><%= stats.withMinerId %></div>
                 </div>
               </div>
             </div>
@@ -61,12 +53,14 @@
           <div class="row">
             <div class="col-12">
               <div class="card">
-                <div class="card-header">
-                  <h4>All Users</h4>
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                  <h4 class="mb-0">All Users</h4>
+                  <input type="text" id="users-search-input" class="form-control"
+                         placeholder="Search name, email, phone…" style="max-width:300px;">
                 </div>
                 <div class="card-body">
                   <div class="table-responsive">
-                    <table class="table table-striped" id="table-1">
+                    <table class="table table-striped" id="admin-users-server" style="width:100%">
                       <thead>
                         <tr>
                           <th>#</th>
@@ -80,59 +74,61 @@
                           <th></th>
                         </tr>
                       </thead>
-                      <tbody>
-                        <% if (users.length > 0) { %>
-                        <% users.forEach((user, index) => { %>
-                        <tr>
-                          <td><%= index + 1 %></td>
-                          <td>
-                            <b><%= user.username %></b><br>
-                            <small class="text-muted"><%= user.email %></small>
-                          </td>
-                          <td><%= user.phone_number || '—' %></td>
-                          <td><%= user.country || '—' %></td>
-                          <td>
-                            <% if (user.minerId) { %>
-                            <span class="badge badge-info"><%= user.minerId %></span>
-                            <% } else { %>
-                            <span class="text-muted">—</span>
-                            <% } %>
-                          </td>
-                          <td>
-                            <% if ((user.rpBalance || 0) > 0) { %>
-                            <span class="badge badge-success"><%= user.rpBalance %> RP</span>
-                            <% } else { %>
-                            <span class="text-muted">0</span>
-                            <% } %>
-                          </td>
-                          <td>
-                            <% if (user.isVerified) { %>
-                            <span class="badge badge-success">Verified</span>
-                            <% } else { %>
-                            <span class="badge badge-danger">Unverified</span>
-                            <% } %>
-                          </td>
-                          <td>
-                            <%
-                              var _reg = user._id.getTimestamp();
-                              var _regDate = _reg.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-                              var _regTime = _reg.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-                            %>
-                            <span style="font-size:12px;white-space:nowrap;"><%= _regDate %></span><br>
-                            <small class="text-muted"><%= _regTime %></small>
-                          </td>
-                          <td><a href="/admin/product/user-details/<%= user._id %>" class="btn btn-sm btn-primary" style="border-radius: 20px;">View Details</a></td>
-                        </tr>
-                        <% }) %>
-                        <% } else { %>
-                        <tr>
-                          <td colspan="8" class="text-center">No users found</td>
-                        </tr>
-                        <% } %>
-                      </tbody>
+                      <tbody></tbody>
                     </table>
                   </div>
                 </div>
+
+                <script>
+                window.addEventListener('load', function () {
+                  var dt = $('#admin-users-server').DataTable({
+                    serverSide: true,
+                    processing: true,
+                    destroy:    true,
+                    ajax: { url: '/admin/product/view-users/data', type: 'GET' },
+                    dom: 'lrtip',
+                    columns: [
+                      { data: 'rowNum', orderable: false },
+                      { data: 'username', render: function(d, t, row) {
+                          return '<b>' + d + '</b><br><small class="text-muted">' + row.email + '</small>';
+                        }
+                      },
+                      { data: 'phone' },
+                      { data: 'country' },
+                      { data: 'minerId', orderable: false, render: function(d) {
+                          return d ? '<span class="badge badge-info">' + d + '</span>' : '<span class="text-muted">—</span>';
+                        }
+                      },
+                      { data: null, orderable: false, render: function() { return '<span class="text-muted">—</span>'; } },
+                      { data: 'isVerified', orderable: false, render: function(d) {
+                          return d
+                            ? '<span class="badge badge-success">Verified</span>'
+                            : '<span class="badge badge-danger">Unverified</span>';
+                        }
+                      },
+                      { data: 'createdAt' },
+                      { data: 'id', orderable: false, render: function(d) {
+                          return '<a href="/admin/product/user-details/' + d + '" class="btn btn-sm btn-primary" style="border-radius:20px;">View Details</a>';
+                        }
+                      },
+                    ],
+                    order:      [[7, 'desc']],
+                    pageLength: 25,
+                    lengthMenu: [[25, 50, 100, 250], [25, 50, 100, 250]],
+                    language: {
+                      processing: 'Loading users…',
+                      emptyTable:  'No users found',
+                    },
+                  });
+
+                  var searchTimer;
+                  document.getElementById('users-search-input').addEventListener('input', function () {
+                    var q = this.value;
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () { dt.search(q).draw(); }, 400);
+                  });
+                });
+                </script>
               </div>
             </div>
           </div>

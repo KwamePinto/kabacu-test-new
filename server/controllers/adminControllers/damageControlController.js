@@ -87,37 +87,19 @@ exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
 
     const totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
 
-    const [deductedHistory, clearedRows, refundedHistory] = await Promise.all([
-      Transaction.find({
-        paymentMethod: 'wallet',
-        'apiResponse.adminDeducted': true,
-        'apiResponse.adminRefunded': { $ne: true },
-        'apiResponse.refundPending':  { $ne: true },
-      }).populate('user', 'username email').sort({ 'apiResponse.adminDeductedAt': -1 }).lean(),
-      Transaction.find({
-        adminCleared: true,
-        adminClearedAt: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
-      }).populate('user', 'username email').sort({ adminClearedAt: -1 }).limit(500).lean(),
-      Transaction.find({
-        paymentMethod: 'wallet',
-        'apiResponse.adminDeducted': true,
-        $or: [
-          { 'apiResponse.adminRefunded': true },
-          { 'apiResponse.refundPending': true },
-        ],
-      }).populate('user', 'username email').sort({ createdAt: -1 }).lean(),
-    ]);
-
-    const alreadyDeducted = deductedHistory.length;
+    // Count only — full lists are loaded lazily per tab
+    const alreadyDeducted = await Transaction.countDocuments({
+      paymentMethod: 'wallet',
+      'apiResponse.adminDeducted': true,
+      'apiResponse.adminRefunded': { $ne: true },
+      'apiResponse.refundPending': { $ne: true },
+    });
 
     res.render('adminview/flagged-transactions', {
       layout: 'layouts/adminLayout',
       rows,
       totalAmount,
       alreadyDeducted,
-      deductedHistory,
-      clearedRows,
-      refundedHistory,
     });
   } catch (err) {
     console.error('[damageControl]', err);
@@ -126,11 +108,47 @@ exports.viewDamageControl = [authenticateAdminUser, async (req, res) => {
       rows: [],
       totalAmount: 0,
       alreadyDeducted: 0,
-      deductedHistory: [],
-      clearedRows: [],
-      refundedHistory: [],
       error: 'Failed to load data',
     });
+  }
+}];
+
+// GET /tab-data?tab=deducted|cleared|refunded — lazy-loads secondary tab content
+exports.getTabData = [authenticateAdminUser, async (req, res) => {
+  try {
+    const { tab } = req.query;
+
+    if (tab === 'deducted') {
+      const rows = await Transaction.find({
+        paymentMethod: 'wallet',
+        'apiResponse.adminDeducted': true,
+        'apiResponse.adminRefunded': { $ne: true },
+        'apiResponse.refundPending': { $ne: true },
+      }).populate('user', 'username email').sort({ 'apiResponse.adminDeductedAt': -1 }).lean();
+      return res.json({ rows });
+    }
+
+    if (tab === 'cleared') {
+      const rows = await Transaction.find({
+        adminCleared: true,
+        adminClearedAt: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+      }).populate('user', 'username email').sort({ adminClearedAt: -1 }).limit(500).lean();
+      return res.json({ rows });
+    }
+
+    if (tab === 'refunded') {
+      const rows = await Transaction.find({
+        paymentMethod: 'wallet',
+        'apiResponse.adminDeducted': true,
+        $or: [{ 'apiResponse.adminRefunded': true }, { 'apiResponse.refundPending': true }],
+      }).populate('user', 'username email').sort({ createdAt: -1 }).lean();
+      return res.json({ rows, isSuperAdmin: req.user.role === 'super_admin' });
+    }
+
+    return res.status(400).json({ error: 'Invalid tab' });
+  } catch (err) {
+    console.error('[getTabData]', err);
+    res.status(500).json({ error: 'Server error' });
   }
 }];
 
@@ -250,6 +268,28 @@ exports.adminRefundDeduction = [authenticateAdminUser, async (req, res) => {
       tx.markModified('apiResponse');
       await tx.save();
 
+      // Create a separate ledger entry so the refund appears as its own statement row
+      await Transaction.create({
+        user:          tx.user._id || tx.user,
+        amount:        tx.amount,
+        walletType:    tx.walletType || 'NAIRA',
+        paymentMethod: 'Admin',
+        status:        'success',
+        reference:     'ADMIN-REFUND-' + Date.now(),
+        balanceBefore: before,
+        balanceAfter:  wallet.balances.NAIRA,
+        apiResponse: {
+          adminRefund:     true,
+          adminRefundOf:   tx._id.toString(),
+          originalRef:     tx.reference,
+          refundReason:    reason.trim(),
+          refundBy:        req.user.username,
+          adminRefundedAt: new Date().toISOString(),
+          balanceBefore:   before,
+          balanceAfter:    wallet.balances.NAIRA,
+        },
+      });
+
       notify(tx.user._id || tx.user, {
         type: 'info',
         text: `Your wallet has been credited with ₦${tx.amount.toLocaleString()}. Reason: ${reason.trim()}`,
@@ -315,6 +355,28 @@ exports.approveRefundRequest = [authenticateAdminUser, async (req, res) => {
     tx.markModified('apiResponse');
     await tx.save();
 
+    // Create a separate ledger entry so the refund appears as its own statement row
+    await Transaction.create({
+      user:          tx.user._id || tx.user,
+      amount:        tx.amount,
+      walletType:    tx.walletType || 'NAIRA',
+      paymentMethod: 'Admin',
+      status:        'success',
+      reference:     'ADMIN-REFUND-' + Date.now(),
+      balanceBefore: before,
+      balanceAfter:  wallet.balances.NAIRA,
+      apiResponse: {
+        adminRefund:     true,
+        adminRefundOf:   tx._id.toString(),
+        originalRef:     tx.reference,
+        refundReason:    reason || 'Admin refund approved',
+        refundBy:        req.user.username,
+        adminRefundedAt: new Date().toISOString(),
+        balanceBefore:   before,
+        balanceAfter:    wallet.balances.NAIRA,
+      },
+    });
+
     notify(tx.user._id || tx.user, {
       type: 'info',
       text: `Your wallet has been credited with ₦${tx.amount.toLocaleString()}. Reason: ${reason || 'Admin refund approved'}`,
@@ -373,6 +435,28 @@ exports.resolveTransaction = [authenticateAdminUser, async (req, res) => {
     };
     tx.markModified('apiResponse');
     await tx.save();
+
+    // Create a separate ledger entry so the refund appears as its own statement row
+    await Transaction.create({
+      user:          tx.user,
+      amount:        tx.amount,
+      walletType:    tx.walletType || 'NAIRA',
+      paymentMethod: 'Admin',
+      status:        'success',
+      reference:     'ADMIN-REFUND-' + Date.now(),
+      balanceBefore: before,
+      balanceAfter:  wallet.balances.NAIRA,
+      apiResponse: {
+        adminRefund:     true,
+        adminRefundOf:   tx._id.toString(),
+        originalRef:     tx.reference,
+        refundReason:    'Flagged transaction resolved — refunded by admin',
+        refundBy:        req.user?.username || 'admin',
+        adminRefundedAt: new Date().toISOString(),
+        balanceBefore:   before,
+        balanceAfter:    wallet.balances.NAIRA,
+      },
+    });
 
     return res.json({
       success: true,

@@ -12,8 +12,10 @@
             <div class="row">
               <div class="col-12">
                 <div class="card">
-                  <div class="card-header">
-                    <h4>All Products</h4>
+                  <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                    <h4 class="mb-0">All Products</h4>
+                    <input type="text" id="products-search-input" class="form-control"
+                           placeholder="Search product name, category…" style="max-width:300px;">
                   </div>
                   <div class="card-body">
                     <div class="table-responsive">
@@ -148,6 +150,16 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 var CSRF_TOKEN = '<%= csrfToken %>';
+
+window.addEventListener('load', function () {
+  var dt = $('#table-1').DataTable();
+  var timer;
+  document.getElementById('products-search-input').addEventListener('input', function () {
+    var q = this.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () { dt.search(q).draw(); }, 300);
+  });
+});
 
 <% if (typeof query !== 'undefined' && query.added == '1') { %>
 Swal.fire({ icon: 'success', title: 'Product Added!', text: 'New product has been added successfully.', timer: 2500, showConfirmButton: false });

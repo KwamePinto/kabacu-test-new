@@ -104,12 +104,13 @@ exports.dataCategory = async (req, res) => {
     const reqNet   = (req.query.network || '').toUpperCase();
     const reqPage  = parseInt(req.query.page) || 1;
 
-    /* Fetch all DATA products sorted: network A-Z, lowest price first within each,
+    /* Fetch active DATA products sorted: network A-Z, lowest price first within each,
        alongside every Network (including soft-deleted ones) so we can resolve each
        product's API provider — a network removed from the admin list must still
        correctly link any existing products carrying its name */
     const [all, networkDocs] = await Promise.all([
-      Product.find({ category: 'DATA' }).sort({ 'dataDetails.network': 1, 'dataDetails.amount': 1 }),
+      Product.find({ category: 'DATA', isActive: { $ne: false } })
+        .sort({ 'dataDetails.network': 1, 'dataDetails.amount': 1 }),
       Network.find({}),
     ]);
 

@@ -826,6 +826,38 @@ exports.payWithWallet = async (req, res) => {
     }
 
     // =====================================
+    // ✅ RATE LIMIT — block rapid retries
+    // =====================================
+    // For direct DATA purchases only: if the same user has a failed or still-pending
+    // transaction for this product in the last 3 minutes, reject immediately.
+    // This stops the "keep clicking buy" loop that floods OurDataStore with rejected calls.
+    if (productId && itemsToProcess[0]?.product?.category === 'DATA') {
+      const COOLDOWN_MS = 3 * 60 * 1000;
+      const recentAttempt = await Transaction.findOne({
+        user:      userId,
+        product:   productId,
+        status:    { $in: ['failed', 'pending'] },
+        createdAt: { $gte: new Date(Date.now() - COOLDOWN_MS) },
+      }).sort({ createdAt: -1 }).lean();
+
+      if (recentAttempt) {
+        const elapsed   = Date.now() - new Date(recentAttempt.createdAt).getTime();
+        const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        const waitStr = mins > 0
+          ? `${mins} minute${mins !== 1 ? 's' : ''}${secs > 0 ? ` ${secs}s` : ''}`
+          : `${secs} second${secs !== 1 ? 's' : ''}`;
+        return res.json({
+          success: false,
+          message: recentAttempt.status === 'pending'
+            ? 'Your last purchase is still being processed. Please wait a moment before trying again.'
+            : `This purchase failed recently. Please wait ${waitStr} before trying again.`,
+        });
+      }
+    }
+
+    // =====================================
     // ✅ DEDUCT WALLET (atomic)
     // =====================================
     const currentBalance = wallet ? wallet.balances.NAIRA : 0;
@@ -970,6 +1002,7 @@ exports.payWithWallet = async (req, res) => {
         // =====================================
         if (apiResponse.status === "pending") {
           tx.apiResponse = apiResponse;
+          tx.rpEarned    = 0;
           await tx.save();
 
           notify(userId, {
@@ -992,6 +1025,7 @@ exports.payWithWallet = async (req, res) => {
           await refundWallet();
 
           tx.status       = "failed";
+          tx.rpEarned     = 0;
           tx.balanceAfter = balanceBefore; // wallet was refunded, so final balance is back to original
           tx.apiResponse  = apiResponse;
           await tx.save();

@@ -116,7 +116,7 @@
                       <a class="nav-link" data-toggle="tab" href="#tab-topups" role="tab">Top-ups</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link" data-toggle="tab" href="#tab-transactions" role="tab">Transactions</a>
+                      <a class="nav-link" data-toggle="tab" href="#tab-transactions" role="tab">Account Statements</a>
                     </li>
                   </ul>
                 </div>
@@ -217,6 +217,10 @@
 
                     <!-- Top-ups tab -->
                     <div class="tab-pane fade" id="tab-topups" role="tabpanel">
+                      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
+                        <small class="text-muted"><%= topups.length %> records</small>
+                        <input type="text" id="topup-search" class="form-control" placeholder="Search top-ups…" style="max-width:320px;">
+                      </div>
                       <div class="table-responsive">
                         <table class="table table-striped" id="table-topups">
                           <thead>
@@ -285,105 +289,101 @@
                       </div>
                     </div>
 
-                    <!-- Transactions tab -->
+                    <!-- Account Statements tab -->
                     <div class="tab-pane fade" id="tab-transactions" role="tabpanel">
+                      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
+                        <small class="text-muted">
+                          <%= accountStatements.length %> entries &mdash;
+                          <span style="color:#28a745;"><%= successfulTransactions %> successful payments</span>,
+                          <span style="color:#dc3545;"><%= failedTransactions %> failed</span>
+                        </small>
+                        <input type="text" id="stmt-search" class="form-control" placeholder="Search reference, description, amount…" style="max-width:320px;">
+                      </div>
                       <div class="table-responsive">
-                        <table class="table table-striped" id="table-transactions">
-                          <thead>
+                        <table class="table table-hover table-sm" id="table-statements">
+                          <thead class="thead-light">
                             <tr>
-                              <th>#</th>
+                              <th style="width:36px;">#</th>
                               <th>Type</th>
                               <th>Reference</th>
-                              <th>Product</th>
-                              <th>Qty</th>
+                              <th>Description</th>
                               <th>Amount</th>
-                              <th>Wallet</th>
-                              <th>RP Earned</th>
-                              <th>Prev Bal</th>
-                              <th>New Bal</th>
+                              <th>Bal. Before</th>
+                              <th>Bal. After</th>
                               <th>Status</th>
                               <th>Date</th>
+                              <th></th>
                             </tr>
                           </thead>
                           <tbody>
-                            <% if (transactions && transactions.length > 0) { %>
-                            <% transactions.forEach((tx, index) => {
-                                 var productName = 'N/A';
-                                 if (tx.product && tx.product.item_name) {
-                                   productName = tx.product.item_name;
-                                 } else if (tx.product && tx.product.dataDetails && tx.product.dataDetails.plan_name) {
-                                   productName = tx.product.dataDetails.plan_name;
-                                 } else if (tx.products && tx.products.length > 0) {
-                                   var names = tx.products
-                                     .filter(function(p){ return p.product; })
-                                     .map(function(p){ return p.product.item_name || (p.product.dataDetails && p.product.dataDetails.plan_name) || '?'; });
-                                   if (names.length > 0) productName = names.join(', ');
-                                 }
+                            <% if (accountStatements && accountStatements.length > 0) { %>
+                            <% accountStatements.forEach(function(stmt, idx) {
+                                 var typeLabel = 'Payment';
+                                 var typeBadge = 'badge-primary';
+                                 var typeTeal  = false;
+                                 if (stmt._entryType === 'deduction')                                { typeLabel = 'Deduction'; typeBadge = 'badge-danger'; }
+                                 else if (stmt._entryType === 'refund' || stmt._entryType === 'system-refund') { typeLabel = 'Refund';    typeTeal  = true; }
+                                 else if (stmt._entryType === 'credit')                              { typeLabel = 'Credit';    typeBadge = 'badge-success'; }
+                                 else if (stmt._entryType === 'topup')                               { typeLabel = 'Top-up';    typeBadge = 'badge-success'; }
 
-                                 var qty = 1;
-                                 if (tx.products && tx.products.length > 0) {
-                                   qty = tx.products.reduce(function(s, p){ return s + (p.quantity || 1); }, 0);
-                                 }
+                                 var isCredit = (stmt._entryType === 'topup' || stmt._entryType === 'refund' || stmt._entryType === 'credit' || stmt._entryType === 'system-refund');
+                                 var isDebit  = (stmt._entryType === 'deduction' || (stmt._entryType === 'payment' && stmt.status === 'success'));
 
-                                 var apiBefore = tx.apiResponse && tx.apiResponse.balanceBefore != null ? tx.apiResponse.balanceBefore
-                                                 : (tx.apiResponse && tx.apiResponse.refundBalBefore != null ? tx.apiResponse.refundBalBefore : null);
-                                 var apiAfter  = tx.apiResponse && tx.apiResponse.balanceAfter  != null ? tx.apiResponse.balanceAfter
-                                                 : (tx.apiResponse && tx.apiResponse.refundBalAfter  != null ? tx.apiResponse.refundBalAfter  : null);
-                                 var prevBalNum = tx.balanceBefore != null ? tx.balanceBefore : apiBefore;
-                                 var newBalNum  = tx.balanceAfter  != null ? tx.balanceAfter  : apiAfter;
-                                 var prevBal = prevBalNum != null ? '₦' + Number(prevBalNum).toLocaleString() : '—';
-                                 var newBal  = newBalNum  != null ? '₦' + Number(newBalNum).toLocaleString()  : '—';
-
-                                 var isRefund    = tx.status === 'refunded' || !!(tx.apiResponse && tx.apiResponse.adminRefunded);
-                                 var isDeduction = !isRefund && !!(tx.apiResponse && tx.apiResponse.adminDeducted);
+                                 var descPreview = stmt.description && stmt.description.length > 45
+                                   ? stmt.description.substring(0, 45) + '…'
+                                   : (stmt.description || '—');
+                                 var refPreview = stmt.reference && stmt.reference.length > 22
+                                   ? stmt.reference.substring(0, 22) + '…'
+                                   : (stmt.reference || '—');
                             %>
-                            <tr>
-                              <td><%= index + 1 %></td>
+                            <tr data-idx="<%= idx %>">
+                              <td class="text-muted" style="font-size:12px;"><%= idx + 1 %></td>
                               <td>
-                                <% if (isRefund) { %>
-                                  <span class="badge" style="background:#17a2b8;color:#fff;">Refund</span>
-                                <% } else if (isDeduction) { %>
-                                  <span class="badge badge-warning" style="color:#fff;">Deduction</span>
+                                <% if (typeTeal) { %>
+                                  <span class="badge" style="background:#17a2b8;color:#fff;font-size:10px;"><%= typeLabel %></span>
                                 <% } else { %>
-                                  <span class="badge badge-primary">Payment</span>
+                                  <span class="badge <%= typeBadge %>" style="font-size:10px;"><%= typeLabel %></span>
                                 <% } %>
                               </td>
-                              <td><small><%= tx.reference %></small></td>
-                              <td><%= productName %></td>
-                              <td><%= qty %></td>
-                              <td>₦<%= tx.amount.toLocaleString() %></td>
-                              <td><span class="badge badge-info"><%= tx.walletType %></span></td>
-                              <td><span class="badge badge-success"><%= tx.rpEarned || 0 %></span></td>
-                              <td><small><%= prevBal %></small></td>
-                              <td><small><%= newBal %></small></td>
-                              <td>
-                                <% if (tx.status === 'success') { %>
-                                <span class="badge badge-success">Success</span>
-                                <% } else if (tx.status === 'failed') { %>
-                                <span class="badge badge-danger">Failed</span>
+                              <td><small style="font-family:monospace;font-size:11px;" title="<%= stmt.reference %>"><%= refPreview %></small></td>
+                              <td style="max-width:200px;" title="<%= stmt.description %>"><small><%= descPreview %></small></td>
+                              <td style="white-space:nowrap;">
+                                <% if (isCredit) { %>
+                                  <strong style="color:#28a745;">+₦<%= Number(stmt.amount).toLocaleString() %></strong>
+                                <% } else if (isDebit) { %>
+                                  <strong style="color:#dc3545;">&minus;₦<%= Number(stmt.amount).toLocaleString() %></strong>
                                 <% } else { %>
-                                <span class="badge badge-warning"><%= tx.status %></span>
+                                  <span class="text-muted">₦<%= Number(stmt.amount).toLocaleString() %></span>
                                 <% } %>
                               </td>
-                              <td><small><%= new Date(tx.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></small></td>
+                              <td><small class="text-muted" style="white-space:nowrap;"><%= stmt.balanceBefore != null ? '₦' + Number(stmt.balanceBefore).toLocaleString() : '—' %></small></td>
+                              <td><small class="text-muted" style="white-space:nowrap;"><%= stmt.balanceAfter  != null ? '₦' + Number(stmt.balanceAfter).toLocaleString()  : '—' %></small></td>
+                              <td>
+                                <% if (stmt.status === 'success') { %>
+                                  <span class="badge badge-success" style="font-size:10px;">Success</span>
+                                <% } else if (stmt.status === 'failed') { %>
+                                  <span class="badge badge-danger" style="font-size:10px;">Failed</span>
+                                <% } else if (stmt.status === 'refunded') { %>
+                                  <span class="badge" style="background:#17a2b8;color:#fff;font-size:10px;">Refunded</span>
+                                <% } else if (stmt.status === 'pending') { %>
+                                  <span class="badge badge-warning" style="font-size:10px;">Pending</span>
+                                <% } else { %>
+                                  <span class="badge badge-secondary" style="font-size:10px;"><%= stmt.status %></span>
+                                <% } %>
+                              </td>
+                              <td><small style="white-space:nowrap;"><%= new Date(stmt.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></small></td>
+                              <td>
+                                <button class="btn btn-outline-secondary btn-sm stmt-details-btn" data-idx="<%= idx %>" style="font-size:11px;padding:2px 8px;white-space:nowrap;">Details</button>
+                              </td>
                             </tr>
                             <% }) %>
                             <% } else { %>
                             <tr>
-                              <td colspan="12" class="text-center">No transactions found</td>
+                              <td colspan="10" class="text-center text-muted py-3">No account records found</td>
                             </tr>
                             <% } %>
                           </tbody>
                         </table>
-                      </div>
-                      <div class="mt-2">
-                        <small class="text-muted">
-                          Total Transactions = <%= transactions.length %>
-                          &nbsp;&nbsp;
-                          <span style="color: #28a745;">Successful = <%= successfulTransactions %></span>
-                          &nbsp;&nbsp;
-                          <span style="color: #dc3545;">Failed = <%= failedTransactions %></span>
-                        </small>
                       </div>
                     </div>
 
@@ -409,6 +409,107 @@
   var csrfToken = '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>';
   var userId    = '<%= user._id %>';
   var username  = '<%= user.username || user.email %>';
+
+  // ── Account Statement Details ─────────────────────────────────────────────────
+  var stmtData = <%- JSON.stringify(accountStatements.map(function(s) {
+    return {
+      type:          s._entryType,
+      source:        s._source,
+      reference:     s.reference,
+      description:   s.description,
+      amount:        s.amount,
+      walletType:    s.walletType,
+      balanceBefore: s.balanceBefore,
+      balanceAfter:  s.balanceAfter,
+      status:        s.status,
+      createdAt:     s.createdAt,
+      rpEarned:      s.rpEarned,
+      paymentMethod: s.paymentMethod,
+      phone:         s.phone,
+      performedBy:   s.performedBy,
+      refundOf:      s._refundOf,
+      originalRef:   s._originalRef,
+    };
+  })) %>;
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  var TYPE_LABELS = { 'payment':'Payment', 'topup':'Top-up', 'deduction':'Admin Deduction', 'refund':'Admin Refund', 'credit':'Admin Credit', 'system-refund':'System Refund' };
+  var TYPE_COLORS = { 'payment':'#3d72bd', 'topup':'#28a745', 'deduction':'#dc3545', 'refund':'#17a2b8', 'credit':'#28a745', 'system-refund':'#17a2b8' };
+
+  document.getElementById('table-statements').addEventListener('click', function(e) {
+    var btn = e.target.closest('.stmt-details-btn');
+    if (!btn) return;
+    var idx = parseInt(btn.getAttribute('data-idx'), 10);
+    var d = stmtData[idx];
+    if (!d) return;
+
+    var isCredit = ['topup','refund','credit','system-refund'].includes(d.type);
+    var isDebit  = d.type === 'deduction' || (d.type === 'payment' && d.status === 'success');
+    var dir      = isCredit ? '+' : (isDebit ? '−' : '');
+    var amtColor = isCredit ? '#28a745' : (isDebit ? '#dc3545' : '#555');
+
+    var rows = [
+      ['Type',           '<span style="background:' + (TYPE_COLORS[d.type]||'#666') + ';color:#fff;padding:2px 10px;border-radius:4px;font-size:12px;">' + escHtml(TYPE_LABELS[d.type]||d.type) + '</span>'],
+      ['Reference',      '<code style="font-size:12px;word-break:break-all;">' + escHtml(d.reference||'—') + '</code>'],
+      ['Description',    escHtml(d.description||'—')],
+      ['Amount',         '<strong style="color:' + amtColor + ';font-size:15px;">' + dir + '₦' + Number(d.amount).toLocaleString() + '</strong>'],
+      ['Wallet',         escHtml(d.walletType||'NAIRA')],
+      ['Balance Before', d.balanceBefore != null ? '₦' + Number(d.balanceBefore).toLocaleString() : '—'],
+      ['Balance After',  d.balanceAfter  != null ? '₦' + Number(d.balanceAfter).toLocaleString()  : '—'],
+      ['Status',         escHtml(d.status)],
+      ['Payment Method', escHtml(d.paymentMethod||'—')],
+      ['Phone',          escHtml(d.phone||'—')],
+      ['RP Earned',      String(Number(d.rpEarned||0))],
+      ['Date / Time',    new Date(d.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })],
+    ];
+    if (d.performedBy) rows.push(['Performed By',   escHtml(d.performedBy)]);
+    if (d.refundOf)    rows.push(['Refund of Tx ID','<code style="font-size:11px;word-break:break-all;">' + escHtml(d.refundOf) + '</code>']);
+    if (d.originalRef) rows.push(['Original Ref',   '<code style="font-size:12px;">' + escHtml(d.originalRef) + '</code>']);
+
+    var html = '<table style="width:100%;border-collapse:collapse;">';
+    rows.forEach(function(r) {
+      html += '<tr style="border-bottom:1px solid #f3f3f3;">'
+        + '<td style="padding:7px 10px;font-weight:600;font-size:11px;color:#999;white-space:nowrap;width:38%;">' + r[0] + '</td>'
+        + '<td style="padding:7px 10px;font-size:13px;word-break:break-word;">' + r[1] + '</td>'
+        + '</tr>';
+    });
+    html += '</table>';
+
+    Swal.fire({ title: 'Statement Details', html: html, width: 540, showCloseButton: true, showConfirmButton: false });
+  });
+
+  // ── Live search — Account Statements ─────────────────────────────────────────
+  var stmtSearch = document.getElementById('stmt-search');
+  if (stmtSearch) {
+    stmtSearch.addEventListener('input', function() {
+      var q = this.value.toLowerCase().trim();
+      document.querySelectorAll('#table-statements tbody tr[data-idx]').forEach(function(row) {
+        row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+      });
+    });
+  }
+
+  // ── Live search — Top-ups ─────────────────────────────────────────────────────
+  // datatables.js initializes #table-topups with DataTables pagination,
+  // so we must use the DataTables API to search all rows (not just the current page).
+  var topupSearch = document.getElementById('topup-search');
+  if (topupSearch) {
+    topupSearch.addEventListener('input', function() {
+      var q = this.value.trim();
+      if (window.topupsTable && typeof window.topupsTable.search === 'function') {
+        window.topupsTable.search(q).draw();
+      } else {
+        // Fallback: plain DOM filter (works when DataTables is not active)
+        document.querySelectorAll('#table-topups tbody tr').forEach(function(row) {
+          row.style.display = (!q || row.textContent.toLowerCase().includes(q.toLowerCase())) ? '' : 'none';
+        });
+      }
+    });
+  }
 
   document.getElementById('deduct-wallet-btn').addEventListener('click', function () {
     Swal.fire({

@@ -14,8 +14,10 @@
           <div class="row">
             <div class="col-12">
               <div class="card">
-                <div class="card-header">
-                  <h4>All Transactions</h4>
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                  <h4 class="mb-0">All Transactions</h4>
+                  <input type="text" id="tx-search-input" class="form-control"
+                         placeholder="Search reference, phone, status, user…" style="max-width:320px;">
                 </div>
                 <div class="card-body">
                   <div class="table-responsive">
@@ -42,7 +44,7 @@
                 <script>
                 // Use window load so jQuery + DataTables from the layout are guaranteed ready
                 window.addEventListener('load', function () {
-                  $('#admin-tx-server').DataTable({
+                  var dt = $('#admin-tx-server').DataTable({
                     serverSide: true,
                     processing: true,
                     destroy:    true,
@@ -50,6 +52,7 @@
                       url:  '/admin/transactions/data',
                       type: 'GET',
                     },
+                    dom: 'lrtip',
                     columns: [
                       { data: 'rowNum',    orderable: false },
                       { data: 'reference', render: function(d) { return '<small>' + d + '</small>'; } },
@@ -78,6 +81,13 @@
                       processing: 'Loading transactions…',
                       emptyTable:  'No transactions found',
                     },
+                  });
+
+                  var searchTimer;
+                  document.getElementById('tx-search-input').addEventListener('input', function () {
+                    var q = this.value;
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () { dt.search(q).draw(); }, 400);
                   });
                 });
                 </script>

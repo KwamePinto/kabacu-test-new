@@ -21,7 +21,6 @@
             <div class="alert alert-danger"><strong>Error:</strong> <%- error %></div>
           <% } %>
 
-          <!-- Explainer -->
           <div class="alert alert-warning">
             <strong>What is this?</strong>
             These are wallet payment transactions that failed because our server timed out waiting
@@ -92,18 +91,18 @@
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" id="deducted-tab" data-toggle="tab" href="#tab-deducted" role="tab">
-                Deducted <span class="badge badge-success ml-1"><%= alreadyDeducted %></span>
+              <a class="nav-link" id="deducted-tab" data-toggle="tab" href="#tab-deducted" role="tab" data-lazy="deducted">
+                Deducted <span class="badge badge-success ml-1" id="deducted-badge"><%= alreadyDeducted %></span>
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" id="refunded-tab" data-toggle="tab" href="#tab-refunded" role="tab">
-                Refunded <span class="badge badge-info ml-1"><%= (refundedHistory || []).length %></span>
+              <a class="nav-link" id="refunded-tab" data-toggle="tab" href="#tab-refunded" role="tab" data-lazy="refunded">
+                Refunded <span class="badge badge-info ml-1" id="refunded-badge">...</span>
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" id="cleared-tab" data-toggle="tab" href="#tab-cleared" role="tab">
-                Cleared <span class="badge badge-secondary ml-1"><%= (clearedRows || []).length %></span>
+              <a class="nav-link" id="cleared-tab" data-toggle="tab" href="#tab-cleared" role="tab" data-lazy="cleared">
+                Cleared <span class="badge badge-secondary ml-1" id="cleared-badge">...</span>
               </a>
             </li>
           </ul>
@@ -206,7 +205,7 @@
               </div>
             </div>
 
-            <!-- ── Tab 2: Deducted ── -->
+            <!-- ── Tab 2: Deducted (lazy) ── -->
             <div class="tab-pane fade" id="tab-deducted" role="tabpanel">
               <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
                 <div class="card-body p-0">
@@ -223,44 +222,10 @@
                           <th>Action</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        <% if (!deductedHistory || deductedHistory.length === 0) { %>
-                          <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No manually deducted accounts yet.</td>
-                          </tr>
-                        <% } %>
-                        <% (deductedHistory || []).forEach(function(tx) {
-                             var dUser = tx.user ? tx.user.username : 'Unknown';
-                             var dAt = tx.apiResponse && tx.apiResponse.adminDeductedAt
-                               ? new Date(tx.apiResponse.adminDeductedAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
-                               : '—';
-                             var bBefore = tx.apiResponse && tx.apiResponse.balanceBefore != null ? tx.apiResponse.balanceBefore : null;
-                             var bAfter  = tx.apiResponse && tx.apiResponse.balanceAfter  != null ? tx.apiResponse.balanceAfter  : null;
-                        %>
-                          <tr id="deducted-row-<%= tx._id %>">
-                            <td><small><%= dAt %></small></td>
-                            <td>
-                              <strong><%= dUser %></strong><br>
-                              <small class="text-muted"><%= tx.user ? tx.user.email : '' %></small>
-                            </td>
-                            <td><code><%= tx.phone || '—' %></code></td>
-                            <td class="text-right"><strong>₦<%= (tx.amount || 0).toLocaleString() %></strong></td>
-                            <td class="text-right">
-                              <% if (bBefore != null) { %>₦<%= bBefore.toLocaleString() %><% } else { %><span class="text-muted">—</span><% } %>
-                            </td>
-                            <td class="text-right">
-                              <% if (bAfter != null) { %>₦<%= bAfter.toLocaleString() %><% } else { %><span class="text-muted">—</span><% } %>
-                            </td>
-                            <td>
-                              <button class="btn btn-sm btn-outline-warning refund-deduct-btn"
-                                data-id="<%= tx._id %>"
-                                data-amount="<%= tx.amount %>"
-                                data-user="<%= dUser %>">
-                                Refund
-                              </button>
-                            </td>
-                          </tr>
-                        <% }) %>
+                      <tbody id="deducted-tbody">
+                        <tr><td colspan="7" class="text-center py-4 text-muted">
+                          <span class="spinner-border spinner-border-sm" role="status"></span> Loading…
+                        </td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -268,7 +233,7 @@
               </div>
             </div>
 
-            <!-- ── Tab 3: Refunded ── -->
+            <!-- ── Tab 3: Refunded (lazy) ── -->
             <div class="tab-pane fade" id="tab-refunded" role="tabpanel">
               <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
                 <div class="card-body p-0">
@@ -283,61 +248,13 @@
                           <th>Reason</th>
                           <th>Requested By</th>
                           <th>Status</th>
-                          <% if (user && user.role === 'super_admin') { %>
-                          <th>Action</th>
-                          <% } %>
+                          <th id="refunded-action-th" style="display:none;">Action</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        <% if (!refundedHistory || refundedHistory.length === 0) { %>
-                          <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">No refunded entries yet.</td>
-                          </tr>
-                        <% } %>
-                        <% (refundedHistory || []).forEach(function(tx) {
-                             var rUser  = tx.user ? tx.user.username : 'Unknown';
-                             var rDate  = new Date(tx.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-                             var rReason        = (tx.apiResponse && tx.apiResponse.refundReason) || '—';
-                             var rRequestedBy   = (tx.apiResponse && tx.apiResponse.refundRequestedBy) || '—';
-                             var rApprovedBy    = (tx.apiResponse && tx.apiResponse.refundApprovedBy) || null;
-                             var isPending      = tx.apiResponse && tx.apiResponse.refundPending;
-                        %>
-                          <tr id="refunded-row-<%= tx._id %>">
-                            <td><small><%= rDate %></small></td>
-                            <td>
-                              <strong><%= rUser %></strong><br>
-                              <small class="text-muted"><%= tx.user ? tx.user.email : '' %></small>
-                            </td>
-                            <td><code><%= tx.phone || '—' %></code></td>
-                            <td class="text-right"><strong>₦<%= (tx.amount || 0).toLocaleString() %></strong></td>
-                            <td style="max-width:200px;word-break:break-word;font-size:13px;"><%= rReason %></td>
-                            <td><small class="text-muted"><%= rRequestedBy %></small></td>
-                            <td class="refund-status-cell">
-                              <% if (isPending) { %>
-                                <span class="badge badge-warning">Pending</span>
-                              <% } else { %>
-                                <span class="badge badge-success">Refunded</span>
-                                <% if (rApprovedBy) { %>
-                                  <br><small class="text-muted">by <%= rApprovedBy %></small>
-                                <% } %>
-                              <% } %>
-                            </td>
-                            <% if (user && user.role === 'super_admin') { %>
-                            <td>
-                              <% if (isPending) { %>
-                                <button class="btn btn-sm btn-primary review-refund-btn"
-                                  data-id="<%= tx._id %>"
-                                  data-user="<%= rUser %>"
-                                  data-amount="<%= tx.amount %>"
-                                  data-requestedby="<%= rRequestedBy %>"
-                                  data-reason="<%= rReason.replace(/"/g, '&quot;') %>">
-                                  Review
-                                </button>
-                              <% } %>
-                            </td>
-                            <% } %>
-                          </tr>
-                        <% }) %>
+                      <tbody id="refunded-tbody">
+                        <tr><td colspan="8" class="text-center py-4 text-muted">
+                          <span class="spinner-border spinner-border-sm" role="status"></span> Loading…
+                        </td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -345,7 +262,7 @@
               </div>
             </div>
 
-            <!-- ── Tab 4: Cleared ── -->
+            <!-- ── Tab 4: Cleared (lazy) ── -->
             <div class="tab-pane fade" id="tab-cleared" role="tabpanel">
               <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
                 <div class="card-body p-0">
@@ -362,43 +279,10 @@
                           <th>Cleared At</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        <% if (!clearedRows || clearedRows.length === 0) { %>
-                          <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No cleared transactions yet.</td>
-                          </tr>
-                        <% } %>
-                        <% (clearedRows || []).forEach(function(tx) {
-                             var cUser = tx.user ? tx.user.username : 'Unknown';
-                             var cAt = tx.adminClearedAt
-                               ? new Date(tx.adminClearedAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
-                               : '—';
-                        %>
-                          <tr>
-                            <td>
-                              <small>
-                                <%= new Date(tx.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
-                              </small>
-                            </td>
-                            <td>
-                              <strong><%= cUser %></strong><br>
-                              <small class="text-muted"><%= tx.user ? tx.user.email : '' %></small>
-                            </td>
-                            <td><code><%= tx.phone || '—' %></code></td>
-                            <td class="text-right"><strong>₦<%= (tx.amount || 0).toLocaleString() %></strong></td>
-                            <td>
-                              <% if (tx.status === 'pending') { %>
-                                <span class="badge badge-warning">Pending</span>
-                              <% } else if (tx.status === 'failed') { %>
-                                <span class="badge badge-danger">Failed</span>
-                              <% } else { %>
-                                <span class="badge badge-secondary"><%= tx.status %></span>
-                              <% } %>
-                            </td>
-                            <td><small class="text-muted"><%= tx.adminClearedBy || 'admin' %></small></td>
-                            <td><small><%= cAt %></small></td>
-                          </tr>
-                        <% }) %>
+                      <tbody id="cleared-tbody">
+                        <tr><td colspan="7" class="text-center py-4 text-muted">
+                          <span class="spinner-border spinner-border-sm" role="status"></span> Loading…
+                        </td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -444,8 +328,7 @@
   </div>
 </div>
 
-<!-- ── Review Refund Modal (super_admin only) ── -->
-<% if (user && user.role === 'super_admin') { %>
+<!-- ── Review Refund Modal (super_admin only, rendered server-side) ── -->
 <div class="modal fade" id="reviewRefundModal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -476,7 +359,6 @@
     </div>
   </div>
 </div>
-<% } %>
 
 <script src="/admin/assets/js/app.min.js"></script>
 <script src="/admin/assets/js/scripts.js"></script>
@@ -501,14 +383,13 @@ function fadeRow(id, btn, label) {
   btn.className = 'btn btn-sm btn-secondary';
 }
 
-// ── Deduct Wallet (old flagged) ──────────────────────────────────
+// ── Deduct Wallet ────────────────────────────────────────────────────
 document.querySelectorAll('.deduct-btn').forEach(function (btn) {
   btn.addEventListener('click', async function () {
     var id = this.dataset.id, amount = Number(this.dataset.amount).toLocaleString(), user = this.dataset.user;
     var ok = await Swal.fire({
       icon: 'warning', title: 'Confirm Deduction',
-      html: `Deduct <strong>₦${amount}</strong> from <strong>${user}</strong>'s wallet?<br>
-             <small class="text-muted">Only do this after confirming data delivery in OurDataStore.</small>`,
+      html: 'Deduct <strong>₦' + amount + '</strong> from <strong>' + user + '</strong>\'s wallet?<br><small class="text-muted">Only do this after confirming data delivery in OurDataStore.</small>',
       showCancelButton: true, confirmButtonText: 'Yes, Deduct', confirmButtonColor: '#dc3545',
     });
     if (!ok.isConfirmed) return;
@@ -529,19 +410,18 @@ document.querySelectorAll('.deduct-btn').forEach(function (btn) {
   });
 });
 
-// ── Mark Delivered / Refund User (new flagged) ───────────────────
+// ── Mark Delivered / Refund User ─────────────────────────────────────
 document.querySelectorAll('.resolve-btn').forEach(function (btn) {
   btn.addEventListener('click', async function () {
     var id = this.dataset.id, action = this.dataset.action;
     var amount = Number(this.dataset.amount).toLocaleString(), user = this.dataset.user;
-
     var isDelivered = action === 'delivered';
     var ok = await Swal.fire({
       icon: isDelivered ? 'question' : 'warning',
       title: isDelivered ? 'Mark as Delivered?' : 'Refund User?',
       html: isDelivered
-        ? `Confirm that OurDataStore delivered data for <strong>${user}</strong> (₦${amount}). The wallet charge will stand.`
-        : `Refund <strong>₦${amount}</strong> to <strong>${user}</strong>? Only do this if OurDataStore did <em>not</em> deliver.`,
+        ? 'Confirm that OurDataStore delivered data for <strong>' + user + '</strong> (₦' + amount + '). The wallet charge will stand.'
+        : 'Refund <strong>₦' + amount + '</strong> to <strong>' + user + '</strong>? Only do this if OurDataStore did <em>not</em> deliver.',
       showCancelButton: true,
       confirmButtonText: isDelivered ? 'Yes, Delivered' : 'Yes, Refund',
       confirmButtonColor: isDelivered ? '#47c363' : '#6c757d',
@@ -566,7 +446,7 @@ document.querySelectorAll('.resolve-btn').forEach(function (btn) {
   });
 });
 
-// ── Live search (searches whichever tab is active) ───────────────
+// ── Live search ───────────────────────────────────────────────────────
 function applySearch(q) {
   var activePane = document.querySelector('#flaggedTabs + .tab-content .tab-pane.active');
   if (!activePane) return;
@@ -580,113 +460,13 @@ document.getElementById('flaggedSearch').addEventListener('input', function () {
   applySearch(this.value.toLowerCase().trim());
 });
 
-// Re-apply (or clear) search when the admin switches tabs
 document.querySelectorAll('#flaggedTabs a[data-toggle="tab"]').forEach(function (tab) {
   tab.addEventListener('shown.bs.tab', function () {
     applySearch(document.getElementById('flaggedSearch').value.toLowerCase().trim());
   });
 });
 
-// ── Refund Deduction ─────────────────────────────────────────────
-var _refundTxId  = null;
-var _refundRow   = null;
-
-document.querySelectorAll('.refund-deduct-btn').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    _refundTxId = this.dataset.id;
-    _refundRow  = document.getElementById('deducted-row-' + this.dataset.id);
-    var amount  = Number(this.dataset.amount).toLocaleString();
-    var uname   = this.dataset.user;
-    document.getElementById('refundModalDesc').textContent =
-      'You are about to refund ₦' + amount + ' to ' + uname + '\'s wallet.';
-    document.getElementById('refundReasonInput').value = '';
-    $('#refundReasonModal').modal('show');
-  });
-});
-
-document.getElementById('refundContinueBtn').addEventListener('click', async function () {
-  var reason = document.getElementById('refundReasonInput').value.trim();
-  if (!reason) {
-    Swal.fire({ icon: 'warning', text: 'Please enter a reason for the refund.' });
-    return;
-  }
-  var lbl = document.getElementById('refundBtnLabel');
-  var spn = document.getElementById('refundBtnSpinner');
-  this.disabled = true; lbl.style.display = 'none'; spn.style.display = 'inline';
-
-  try {
-    var data = await postAction('/admin/flagged-transactions/refund-deduction', {
-      transactionId: _refundTxId,
-      reason: reason,
-    });
-    $('#refundReasonModal').modal('hide');
-    this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
-
-    if (data.success) {
-      if (data.immediate) {
-        Swal.fire({ icon: 'success', title: 'Refunded', text: data.message, timer: 2500, showConfirmButton: false });
-      } else {
-        Swal.fire({ icon: 'info', title: 'Request Submitted', text: 'Your refund request has been submitted for super admin approval.', confirmButtonColor: '#6777ef' });
-      }
-      if (_refundRow) { _refundRow.style.opacity = '0.4'; _refundRow.style.pointerEvents = 'none'; }
-    } else {
-      Swal.fire({ icon: 'error', title: 'Failed', text: data.message });
-    }
-  } catch (_) {
-    $('#refundReasonModal').modal('hide');
-    this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
-    Swal.fire({ icon: 'error', text: 'Something went wrong.' });
-  }
-});
-
-// ── Review / Approve Refund Request (super_admin) ────────────────
-var _reviewTxId  = null;
-var _reviewRow   = null;
-
-document.querySelectorAll('.review-refund-btn').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    _reviewTxId = this.dataset.id;
-    _reviewRow  = document.getElementById('refunded-row-' + this.dataset.id);
-    document.getElementById('reviewRefundUser').textContent        = this.dataset.user;
-    document.getElementById('reviewRefundAmount').textContent      = Number(this.dataset.amount).toLocaleString();
-    document.getElementById('reviewRefundRequestedBy').textContent = this.dataset.requestedby;
-    document.getElementById('reviewRefundReason').textContent      = this.dataset.reason;
-    $('#reviewRefundModal').modal('show');
-  });
-});
-
-var approveBtn = document.getElementById('approveRefundBtn');
-if (approveBtn) {
-  approveBtn.addEventListener('click', async function () {
-    var lbl = document.getElementById('approveBtnLabel');
-    var spn = document.getElementById('approveBtnSpinner');
-    this.disabled = true; lbl.style.display = 'none'; spn.style.display = 'inline';
-
-    try {
-      var data = await postAction('/admin/flagged-transactions/approve-refund', { transactionId: _reviewTxId });
-      $('#reviewRefundModal').modal('hide');
-      this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
-
-      if (data.success) {
-        Swal.fire({ icon: 'success', title: 'Approved', text: data.message, timer: 2500, showConfirmButton: false });
-        if (_reviewRow) {
-          var statusCell = _reviewRow.querySelector('.refund-status-cell');
-          if (statusCell) statusCell.innerHTML = '<span class="badge badge-success">Refunded</span>';
-          var reviewBtnEl = _reviewRow.querySelector('.review-refund-btn');
-          if (reviewBtnEl) reviewBtnEl.remove();
-        }
-      } else {
-        Swal.fire({ icon: 'error', title: 'Failed', text: data.message });
-      }
-    } catch (_) {
-      $('#reviewRefundModal').modal('hide');
-      this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
-      Swal.fire({ icon: 'error', text: 'Something went wrong.' });
-    }
-  });
-}
-
-// ── Clear / dismiss ───────────────────────────────────────────────
+// ── Clear / dismiss ───────────────────────────────────────────────────
 document.querySelectorAll('.clear-btn').forEach(function (btn) {
   btn.addEventListener('click', async function () {
     var id = this.dataset.id;
@@ -704,6 +484,225 @@ document.querySelectorAll('.clear-btn').forEach(function (btn) {
       Swal.fire({ icon: 'error', text: 'Something went wrong' });
       this.disabled = false;
     }
+  });
+});
+
+// ── Refund Deduction modal (event delegation — rows loaded lazily) ────
+var _refundTxId = null;
+var _refundRow  = null;
+
+document.getElementById('tab-deducted').addEventListener('click', function (e) {
+  var btn = e.target.closest('.refund-deduct-btn');
+  if (!btn) return;
+  _refundTxId = btn.dataset.id;
+  _refundRow  = document.getElementById('deducted-row-' + btn.dataset.id);
+  document.getElementById('refundModalDesc').textContent =
+    'You are about to refund ₦' + Number(btn.dataset.amount).toLocaleString() + ' to ' + btn.dataset.user + '\'s wallet.';
+  document.getElementById('refundReasonInput').value = '';
+  $('#refundReasonModal').modal('show');
+});
+
+document.getElementById('refundContinueBtn').addEventListener('click', async function () {
+  var reason = document.getElementById('refundReasonInput').value.trim();
+  if (!reason) { Swal.fire({ icon: 'warning', text: 'Please enter a reason for the refund.' }); return; }
+  var lbl = document.getElementById('refundBtnLabel');
+  var spn = document.getElementById('refundBtnSpinner');
+  this.disabled = true; lbl.style.display = 'none'; spn.style.display = 'inline';
+  try {
+    var data = await postAction('/admin/flagged-transactions/refund-deduction', { transactionId: _refundTxId, reason });
+    $('#refundReasonModal').modal('hide');
+    this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
+    if (data.success) {
+      if (data.immediate) {
+        Swal.fire({ icon: 'success', title: 'Refunded', text: data.message, timer: 2500, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'info', title: 'Request Submitted', text: 'Your refund request has been submitted for super admin approval.', confirmButtonColor: '#6777ef' });
+      }
+      if (_refundRow) { _refundRow.style.opacity = '0.4'; _refundRow.style.pointerEvents = 'none'; }
+    } else {
+      Swal.fire({ icon: 'error', title: 'Failed', text: data.message });
+    }
+  } catch (_) {
+    $('#refundReasonModal').modal('hide');
+    this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
+    Swal.fire({ icon: 'error', text: 'Something went wrong.' });
+  }
+});
+
+// ── Review / Approve Refund (event delegation) ────────────────────────
+var _reviewTxId = null;
+var _reviewRow  = null;
+
+document.getElementById('tab-refunded').addEventListener('click', function (e) {
+  var btn = e.target.closest('.review-refund-btn');
+  if (!btn) return;
+  _reviewTxId = btn.dataset.id;
+  _reviewRow  = document.getElementById('refunded-row-' + btn.dataset.id);
+  document.getElementById('reviewRefundUser').textContent        = btn.dataset.user;
+  document.getElementById('reviewRefundAmount').textContent      = Number(btn.dataset.amount).toLocaleString();
+  document.getElementById('reviewRefundRequestedBy').textContent = btn.dataset.requestedby;
+  document.getElementById('reviewRefundReason').textContent      = btn.dataset.reason;
+  $('#reviewRefundModal').modal('show');
+});
+
+document.getElementById('approveRefundBtn').addEventListener('click', async function () {
+  var lbl = document.getElementById('approveBtnLabel');
+  var spn = document.getElementById('approveBtnSpinner');
+  this.disabled = true; lbl.style.display = 'none'; spn.style.display = 'inline';
+  try {
+    var data = await postAction('/admin/flagged-transactions/approve-refund', { transactionId: _reviewTxId });
+    $('#reviewRefundModal').modal('hide');
+    this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
+    if (data.success) {
+      Swal.fire({ icon: 'success', title: 'Approved', text: data.message, timer: 2500, showConfirmButton: false });
+      if (_reviewRow) {
+        var statusCell = _reviewRow.querySelector('.refund-status-cell');
+        if (statusCell) statusCell.innerHTML = '<span class="badge badge-success">Refunded</span>';
+        var reviewBtnEl = _reviewRow.querySelector('.review-refund-btn');
+        if (reviewBtnEl) reviewBtnEl.remove();
+      }
+    } else {
+      Swal.fire({ icon: 'error', title: 'Failed', text: data.message });
+    }
+  } catch (_) {
+    $('#reviewRefundModal').modal('hide');
+    this.disabled = false; lbl.style.display = 'inline'; spn.style.display = 'none';
+    Swal.fire({ icon: 'error', text: 'Something went wrong.' });
+  }
+});
+
+// ── Lazy tab loading ──────────────────────────────────────────────────
+var _tabLoaded = { deducted: false, cleared: false, refunded: false };
+
+function fmtDate(str) {
+  if (!str) return '—';
+  return new Date(str).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderDeductedRows(rows) {
+  var tbody = document.getElementById('deducted-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No manually deducted accounts yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(tx) {
+    var dUser   = tx.user ? tx.user.username : 'Unknown';
+    var dEmail  = tx.user ? tx.user.email : '';
+    var dAt     = fmtDate(tx.apiResponse && tx.apiResponse.adminDeductedAt);
+    var bBefore = tx.apiResponse && tx.apiResponse.balanceBefore != null ? '₦' + Number(tx.apiResponse.balanceBefore).toLocaleString() : '—';
+    var bAfter  = tx.apiResponse && tx.apiResponse.balanceAfter  != null ? '₦' + Number(tx.apiResponse.balanceAfter).toLocaleString()  : '—';
+    return '<tr id="deducted-row-' + tx._id + '">' +
+      '<td><small>' + dAt + '</small></td>' +
+      '<td><strong>' + escHtml(dUser) + '</strong><br><small class="text-muted">' + escHtml(dEmail) + '</small></td>' +
+      '<td><code>' + escHtml(tx.phone || '—') + '</code></td>' +
+      '<td class="text-right"><strong>₦' + Number(tx.amount || 0).toLocaleString() + '</strong></td>' +
+      '<td class="text-right">' + bBefore + '</td>' +
+      '<td class="text-right">' + bAfter + '</td>' +
+      '<td><button class="btn btn-sm btn-outline-warning refund-deduct-btn" data-id="' + tx._id + '" data-amount="' + (tx.amount||0) + '" data-user="' + escHtml(dUser) + '">Refund</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderRefundedRows(rows, isSuperAdmin) {
+  var tbody = document.getElementById('refunded-tbody');
+  var actionTh = document.getElementById('refunded-action-th');
+  if (isSuperAdmin) actionTh.style.display = '';
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No refunded entries yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(tx) {
+    var rUser         = tx.user ? tx.user.username : 'Unknown';
+    var rEmail        = tx.user ? tx.user.email : '';
+    var rDate         = fmtDate(tx.createdAt);
+    var rReason       = (tx.apiResponse && tx.apiResponse.refundReason) || '—';
+    var rRequestedBy  = (tx.apiResponse && tx.apiResponse.refundRequestedBy) || '—';
+    var rApprovedBy   = (tx.apiResponse && tx.apiResponse.refundApprovedBy) || null;
+    var isPending     = tx.apiResponse && tx.apiResponse.refundPending;
+    var statusHtml    = isPending
+      ? '<span class="badge badge-warning">Pending</span>'
+      : '<span class="badge badge-success">Refunded</span>' + (rApprovedBy ? '<br><small class="text-muted">by ' + escHtml(rApprovedBy) + '</small>' : '');
+    var actionHtml = '';
+    if (isSuperAdmin && isPending) {
+      actionHtml = '<button class="btn btn-sm btn-primary review-refund-btn"' +
+        ' data-id="' + tx._id + '"' +
+        ' data-user="' + escHtml(rUser) + '"' +
+        ' data-amount="' + (tx.amount||0) + '"' +
+        ' data-requestedby="' + escHtml(rRequestedBy) + '"' +
+        ' data-reason="' + escHtml(rReason) + '">Review</button>';
+    }
+    return '<tr id="refunded-row-' + tx._id + '">' +
+      '<td><small>' + rDate + '</small></td>' +
+      '<td><strong>' + escHtml(rUser) + '</strong><br><small class="text-muted">' + escHtml(rEmail) + '</small></td>' +
+      '<td><code>' + escHtml(tx.phone || '—') + '</code></td>' +
+      '<td class="text-right"><strong>₦' + Number(tx.amount || 0).toLocaleString() + '</strong></td>' +
+      '<td style="max-width:200px;word-break:break-word;font-size:13px;">' + escHtml(rReason) + '</td>' +
+      '<td><small class="text-muted">' + escHtml(rRequestedBy) + '</small></td>' +
+      '<td class="refund-status-cell">' + statusHtml + '</td>' +
+      (isSuperAdmin ? '<td>' + actionHtml + '</td>' : '') +
+    '</tr>';
+  }).join('');
+}
+
+function renderClearedRows(rows) {
+  var tbody = document.getElementById('cleared-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No cleared transactions yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(tx) {
+    var cUser  = tx.user ? tx.user.username : 'Unknown';
+    var cEmail = tx.user ? tx.user.email : '';
+    var cAt    = fmtDate(tx.adminClearedAt);
+    var txDate = fmtDate(tx.createdAt);
+    var statusBadge = tx.status === 'pending'
+      ? '<span class="badge badge-warning">Pending</span>'
+      : tx.status === 'failed'
+        ? '<span class="badge badge-danger">Failed</span>'
+        : '<span class="badge badge-secondary">' + escHtml(tx.status) + '</span>';
+    return '<tr>' +
+      '<td><small>' + txDate + '</small></td>' +
+      '<td><strong>' + escHtml(cUser) + '</strong><br><small class="text-muted">' + escHtml(cEmail) + '</small></td>' +
+      '<td><code>' + escHtml(tx.phone || '—') + '</code></td>' +
+      '<td class="text-right"><strong>₦' + Number(tx.amount || 0).toLocaleString() + '</strong></td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td><small class="text-muted">' + escHtml(tx.adminClearedBy || 'admin') + '</small></td>' +
+      '<td><small>' + cAt + '</small></td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function loadTab(tabName) {
+  if (_tabLoaded[tabName]) return;
+  _tabLoaded[tabName] = true;
+  try {
+    var res  = await fetch('/admin/flagged-transactions/tab-data?tab=' + tabName);
+    var data = await res.json();
+    if (tabName === 'deducted') {
+      renderDeductedRows(data.rows || []);
+      document.getElementById('deducted-badge').textContent = (data.rows || []).length;
+    } else if (tabName === 'refunded') {
+      renderRefundedRows(data.rows || [], data.isSuperAdmin);
+      document.getElementById('refunded-badge').textContent = (data.rows || []).length;
+    } else if (tabName === 'cleared') {
+      renderClearedRows(data.rows || []);
+      document.getElementById('cleared-badge').textContent = (data.rows || []).length;
+    }
+  } catch (err) {
+    console.error('Failed to load tab:', tabName, err);
+    var tbodyId = tabName + '-tbody';
+    var el = document.getElementById(tbodyId);
+    if (el) el.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-danger">Failed to load data. Please refresh.</td></tr>';
+    _tabLoaded[tabName] = false; // allow retry
+  }
+}
+
+document.querySelectorAll('#flaggedTabs a[data-lazy]').forEach(function (tab) {
+  tab.addEventListener('shown.bs.tab', function () {
+    loadTab(this.dataset.lazy);
   });
 });
 </script>

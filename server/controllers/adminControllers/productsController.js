@@ -272,17 +272,79 @@ exports.userView = [
   authenticateAdminUser,
   async (req, res) => {
     try {
-      const users = await User.find()
-        .select('username email firstname lastname createdAt isVerified role country phone_number')
-        .sort({ createdAt: -1 })
-        .lean();
+      const [total, verified, unverified, withMinerId] = await Promise.all([
+        User.countDocuments(),
+        User.countDocuments({ isVerified: true }),
+        User.countDocuments({ isVerified: false }),
+        User.countDocuments({ minerId: { $exists: true, $ne: null } }),
+      ]);
       res.render("adminview/tables/view-users", {
-        users,
+        stats: { total, verified, unverified, withMinerId },
         layout: adminLayouts,
       });
     } catch (err) {
       console.error(err);
       res.status(500).send("Server Error");
+    }
+  },
+];
+
+exports.getUsersData = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const draw   = parseInt(req.query.draw) || 1;
+      const start  = parseInt(req.query.start) || 0;
+      const length = Math.min(parseInt(req.query.length) || 25, 500);
+      const search = (req.query['search[value]'] ?? req.query.search?.value)?.trim() || '';
+
+      const SORT_COLS = { 1: 'username', 2: 'phone_number', 3: 'country', 7: 'createdAt' };
+      const orderColIdx = parseInt(req.query['order[0][column]'] ?? req.query.order?.[0]?.column) || 7;
+      const orderDir = (req.query['order[0][dir]'] ?? req.query.order?.[0]?.dir) === 'asc' ? 1 : -1;
+      const sortField = SORT_COLS[orderColIdx] || 'createdAt';
+
+      let filter = {};
+      if (search) {
+        // Escape regex special characters so e.g. "+" in phone numbers doesn't throw
+        const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter = {
+          $or: [
+            { username:     { $regex: safeSearch, $options: 'i' } },
+            { email:        { $regex: safeSearch, $options: 'i' } },
+            { firstname:    { $regex: safeSearch, $options: 'i' } },
+            { lastname:     { $regex: safeSearch, $options: 'i' } },
+            { phone_number: { $regex: safeSearch, $options: 'i' } },
+          ],
+        };
+      }
+
+      const [totalCount, filteredCount, users] = await Promise.all([
+        User.countDocuments(),
+        User.countDocuments(filter),
+        User.find(filter)
+          .select('username email firstname lastname createdAt isVerified country phone_number minerId')
+          .sort({ [sortField]: orderDir })
+          .skip(start)
+          .limit(length)
+          .lean(),
+      ]);
+
+      const data = users.map((u, i) => ({
+        rowNum:     start + i + 1,
+        id:         u._id,
+        username:   u.username || '—',
+        email:      u.email || '—',
+        phone:      u.phone_number || '—',
+        country:    u.country || '—',
+        minerId:    u.minerId || null,
+        isVerified: u.isVerified,
+        createdAt:  new Date(u.createdAt || parseInt(u._id.toString().substring(0, 8), 16) * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      }));
+
+      res.json({ draw, recordsTotal: totalCount, recordsFiltered: filteredCount, data });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
     }
   },
 ];
@@ -327,12 +389,76 @@ exports.userDetails = [
         (tx) => tx.status === "failed"
       ).length;
 
+      // Build unified account statements (all money movements sorted by date)
+      const accountStatements = [
+        ...transactions.map(tx => {
+          const ar = tx.apiResponse || {};
+          let entryType = 'payment';
+          if (tx.paymentMethod === 'Admin') {
+            if (ar.adminRefund) entryType = 'refund';
+            else if (ar.adminDeducted) entryType = 'deduction';
+            else entryType = 'credit';
+          } else if (tx.reference && /^ADMIN-REFUND/.test(tx.reference)) {
+            entryType = 'refund';
+          } else if (tx.reference && /^ADMIN-/.test(tx.reference)) {
+            entryType = 'credit';
+          } else if (tx.status === 'refunded') {
+            entryType = 'system-refund';
+          }
+          const balBefore = tx.balanceBefore != null ? tx.balanceBefore
+                          : (ar.balanceBefore != null ? ar.balanceBefore : null);
+          const balAfter  = tx.balanceAfter  != null ? tx.balanceAfter
+                          : (ar.balanceAfter  != null ? ar.balanceAfter
+                          : (ar.refundBalAfter != null ? ar.refundBalAfter : null));
+          let description = '';
+          if (entryType === 'deduction') description = ar.adminDeductReason || '';
+          else if (entryType === 'refund' || entryType === 'credit') description = ar.refundReason || ar.adminDeductReason || '';
+          if (!description) {
+            if (tx.product) {
+              description = tx.product.item_name || (tx.product.dataDetails && tx.product.dataDetails.plan_name) || '';
+            } else if (tx.products && tx.products.length) {
+              description = tx.products.filter(p => p.product)
+                .map(p => p.product.item_name || (p.product.dataDetails && p.product.dataDetails.plan_name) || '')
+                .filter(Boolean).join(', ');
+            }
+          }
+          return {
+            _source: 'transaction', _entryType: entryType,
+            _id: tx._id, reference: tx.reference || '',
+            description: description || '—',
+            amount: tx.amount || 0, walletType: tx.walletType || 'NAIRA',
+            balanceBefore: balBefore, balanceAfter: balAfter,
+            status: tx.status, createdAt: tx.createdAt,
+            rpEarned: tx.rpEarned || 0, paymentMethod: tx.paymentMethod || '',
+            phone: tx.phone || '',
+            performedBy: ar.adminDeductedBy || ar.refundApprovedBy || ar.refundBy || '',
+            _refundOf: ar.adminRefundOf || '', _originalRef: ar.originalRef || '',
+          };
+        }),
+        ...topups.map(tp => {
+          const pmDisplay = tp.balanceType && ['RP','BTT','USDT'].includes(tp.balanceType) ? 'Bittoken' : (tp.paymentMethod || 'External');
+          return {
+            _source: 'topup', _entryType: 'topup',
+            _id: tp._id, reference: tp.reference || '',
+            description: (tp.balanceType || 'NAIRA') + ' wallet top-up',
+            amount: tp.nairaAmount || tp.amount || 0, walletType: tp.balanceType || 'NAIRA',
+            balanceBefore: null, balanceAfter: null,
+            status: tp.status === 'COMPLETED' ? 'success' : (tp.status ? tp.status.toLowerCase() : 'pending'),
+            createdAt: tp.createdAt, rpEarned: 0,
+            paymentMethod: pmDisplay, phone: '', performedBy: pmDisplay,
+            _refundOf: '', _originalRef: '',
+            _topupWalletCredited: tp.walletCredited, _topupBalanceType: tp.balanceType,
+          };
+        }),
+      ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
       res.render("adminview/tables/user-details", {
         layout: adminLayouts,
         user,
         walletBalances,
         transactions,
         topups,
+        accountStatements,
         totalSpent,
         totalToppedUp,
         successfulTransactions,
@@ -522,11 +648,15 @@ exports.adminDeductWallet = [
         paymentMethod: 'Admin',
         status:        'success',
         reference:     'ADMIN-DEDUCT-' + Date.now(),
+        balanceBefore: balanceBefore,
+        balanceAfter:  balanceAfter,
         apiResponse: {
           adminDeducted:      true,
           adminDeductedBy:    req.user?.username || 'admin',
           adminDeductedAt:    new Date().toISOString(),
           adminDeductReason:  reason || '',
+          balanceBefore:      balanceBefore,
+          balanceAfter:       balanceAfter,
         },
       });
 
@@ -607,6 +737,28 @@ exports.adminRefundDeduction = [
       tx.apiResponse.refundBalAfter   = wallet.balances.NAIRA;
       tx.markModified('apiResponse');
       await tx.save();
+
+      // Create a separate ledger entry for the refund so it appears as its own statement row
+      await Transaction.create({
+        user:          userId,
+        amount:        tx.amount,
+        walletType:    tx.walletType || 'NAIRA',
+        paymentMethod: 'Admin',
+        status:        'success',
+        reference:     'ADMIN-REFUND-' + Date.now(),
+        balanceBefore: balanceBefore,
+        balanceAfter:  wallet.balances.NAIRA,
+        apiResponse: {
+          adminRefund:     true,
+          adminRefundOf:   tx._id.toString(),
+          originalRef:     tx.reference,
+          refundReason:    reason.trim(),
+          refundBy:        req.user?.username || 'admin',
+          adminRefundedAt: new Date().toISOString(),
+          balanceBefore:   balanceBefore,
+          balanceAfter:    wallet.balances.NAIRA,
+        },
+      });
 
       notify(userId, {
         type: 'success',

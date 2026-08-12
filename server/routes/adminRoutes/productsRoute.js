@@ -7,7 +7,8 @@ const getProducts = require('../../controllers/adminControllers/productsControll
 router.get('/create-products', getProducts.createProducts);
 router.post('/add-product', upload.array('images', 3), getProducts.addProduct);
 router.get('/view-products',  getProducts.viewProducts);
-router.get('/view-users',     getProducts.userView);
+router.get('/view-users',      getProducts.userView);
+router.get('/view-users/data', getProducts.getUsersData);
 router.get('/user-details/:id', getProducts.userDetails);
 router.post('/user-details/:id/deduct-wallet',    getProducts.adminDeductWallet);
 router.get('/user-details/:id/available-refunds', getProducts.getAvailableRefunds);
