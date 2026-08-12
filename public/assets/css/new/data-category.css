@@ -170,7 +170,7 @@
 @media (min-width: 640px)  { .bundle-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
 @media (min-width: 1024px) { .bundle-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
 
-/* Bundle card */
+/* Bundle card — single-column, entirely clickable */
 .bundle-card {
   background: var(--white);
   border-radius: var(--r-md);
@@ -178,70 +178,48 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition: box-shadow .2s, transform .2s;
 }
 
 .bundle-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
-.bundle-card__img {
-  width: 100%;
-  aspect-ratio: 3/2;
-  overflow: hidden;
-  background: var(--primary-light);
+.bundle-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
-.bundle-card__img img { width: 100%; height: 100%; object-fit: cover; }
-
 .bundle-card__body {
-  padding: 10px 12px 12px;
+  padding: 14px 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   flex: 1;
 }
 
-.bundle-card__top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.bundle-card__network {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--primary);
-  background: var(--primary-light);
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-}
-
-.bundle-card__name {
-  font-size: 13px;
-  font-weight: 700;
+.bundle-card__amount {
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text);
-  line-height: 1.3;
+  line-height: 1.2;
 }
 
-.bundle-card__rp {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
+@media (min-width: 640px) {
+  .bundle-card__amount { font-size: 24px; }
+}
+
+.bundle-card__validity {
+  font-size: 12px;
   font-weight: 600;
-  color: var(--orange);
+  color: var(--muted);
+  margin-top: 2px;
+  margin-bottom: 10px;
 }
 
-.bundle-card__rp svg { width: 11px; height: 11px; }
-
-.bundle-card__footer {
+.bundle-card__pricing {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .bundle-card__price {
@@ -260,6 +238,72 @@
   text-decoration: line-through;
   font-weight: 400;
 }
+
+.bundle-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+@media (max-width: 639px) {
+  .bundle-card__pricing {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .bundle-card__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+.bundle-card__network {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+
+.bundle-card__rp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--orange);
+}
+
+.bundle-card__rp svg { width: 11px; height: 11px; }
+
+/* Extras footer — only rendered when a bundle has bonus perks */
+.bundle-card__extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--primary-light);
+}
+
+.bundle-card__extras-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.bundle-card__extras-chip svg { width: 11px; height: 11px; }
 
 /* Network panel */
 .network-panel        { display: none; }

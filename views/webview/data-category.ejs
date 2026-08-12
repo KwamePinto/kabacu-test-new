@@ -70,33 +70,35 @@
       <% } %>
       <div class="bundle-grid">
         <% groupedProducts[provider].forEach(function(product) { %>
-        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>">
-          <div class="bundle-card__img">
-            <% if (product.images && product.images.length > 0) { %>
-            <img src="<%= product.images[0] %>" alt="<%= product.dataDetails.network %>">
-            <% } %>
-          </div>
+        <% const extras = product.dataDetails.extras; %>
+        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= product.dataDetails.plan_name %> <%= product.dataDetails.network %> bundle for ₦<%= product.dataDetails.amount %>">
           <div class="bundle-card__body">
-            <span class="bundle-card__network" style="width: fit-content;"><%= product.dataDetails.network %></span>
-            <h4 class="bundle-card__name">
-              <%= product.dataDetails.plan_type %> · <%= product.dataDetails.validate_period %>
-            </h4>
-            <div class="bundle-card__rp">
-              <i data-lucide="star"></i>
-              <%= product.reward_point %> RP
-            </div>
-            <div class="bundle-card__footer">
+            <div class="bundle-card__amount"><%= product.dataDetails.plan_name %></div>
+            <div class="bundle-card__validity"><%= product.dataDetails.validate_period %></div>
+            <div class="bundle-card__pricing">
               <span class="bundle-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
-              <% if (user) { %>
-              <button class="btn btn--primary btn--sm buy-btn" data-id="<%= product._id %>" data-network="<%= provider %>">
-                <i data-lucide="shopping-cart"></i>
-                Buy
-              </button>
-              <% } else { %>
-              <a href="/user/login" class="btn btn--primary btn--sm">Buy</a>
+              <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount) { %>
+              <span class="bundle-card__price-old"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
               <% } %>
             </div>
+            <div class="bundle-card__meta">
+              <span class="bundle-card__network"><%= product.dataDetails.network %></span>
+              <span class="bundle-card__rp">
+                <i data-lucide="star"></i>
+                <%= product.reward_point %> RP
+              </span>
+            </div>
           </div>
+          <% if (extras && extras.length > 0) { %>
+          <div class="bundle-card__extras">
+            <% extras.forEach(function(extra) { %>
+            <span class="bundle-card__extras-chip">
+              <i data-lucide="gift"></i>
+              <%= extra %>
+            </span>
+            <% }) %>
+          </div>
+          <% } %>
         </div>
         <% }) %>
       </div>
@@ -398,37 +400,50 @@
     }
   }
 
-  document.querySelectorAll('.buy-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      selectedPackageId = this.dataset.id;
-      selectedNetwork = this.dataset.network || null;
+  function initiateBundleBuy(card) {
+    if (card.dataset.requiresLogin) {
+      window.location.href = '/user/login';
+      return;
+    }
+    selectedPackageId = card.dataset.id;
+    selectedNetwork = card.dataset.network || null;
 
-      const quickPhone = quickPhoneInput ? quickPhoneInput.value.trim() : '';
-      if (quickPhone) {
-        if (!/^\d{11}$/.test(quickPhone)) {
-          quickPhoneError.style.display = 'block';
-          return;
-        }
-        if (!phoneMatchesNetwork(quickPhone, selectedNetwork)) {
-          Swal.fire({
-            icon: 'error',
-            text: 'This number doesn\'t look like a ' + selectedNetwork + ' number'
-          });
-          return;
-        }
-        proceedToCheckout(
-          quickPhone,
-          quickSaveBeneficiaryCheckbox && quickSaveBeneficiaryCheckbox.checked,
-          quickBeneficiaryNicknameInput ? quickBeneficiaryNicknameInput.value.trim() : ''
-        );
+    const quickPhone = quickPhoneInput ? quickPhoneInput.value.trim() : '';
+    if (quickPhone) {
+      if (!/^\d{11}$/.test(quickPhone)) {
+        quickPhoneError.style.display = 'block';
         return;
       }
+      if (!phoneMatchesNetwork(quickPhone, selectedNetwork)) {
+        Swal.fire({
+          icon: 'error',
+          text: 'This number doesn\'t look like a ' + selectedNetwork + ' number'
+        });
+        return;
+      }
+      proceedToCheckout(
+        quickPhone,
+        quickSaveBeneficiaryCheckbox && quickSaveBeneficiaryCheckbox.checked,
+        quickBeneficiaryNicknameInput ? quickBeneficiaryNicknameInput.value.trim() : ''
+      );
+      return;
+    }
 
-      resetBuyModalForm();
-      document.getElementById('buyModal').classList.add('open');
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
+    resetBuyModalForm();
+    document.getElementById('buyModal').classList.add('open');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+  }
+
+  document.querySelectorAll('.bundle-card').forEach(card => {
+    card.addEventListener('click', function() {
+      initiateBundleBuy(this);
+    });
+    card.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        initiateBundleBuy(this);
+      }
     });
   });
 
