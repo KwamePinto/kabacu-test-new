@@ -341,6 +341,64 @@
 #buyModal        { display: none; }
 #buyModal.open   { display: flex; }
 
+/* ── Country picker ─────────────────────────────────────── */
+.country-modal-box {
+  max-width: 380px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.country-list {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+.country-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.country-row:hover { background: var(--input-bg); }
+
+.country-row__flag {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.country-row__name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
+
+.country-row__check { width: 16px; height: 16px; color: var(--primary); flex-shrink: 0; display: none; }
+.country-row.active .country-row__check { display: block; }
+
+.country-row__empty { padding: 24px 8px; text-align: center; color: var(--muted); font-size: 13px; }
+
+.acct-link--btn {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 /* ── Beneficiaries (buy modal) ──────────────────────────── */
 .beneficiary-chips {
   display: flex;

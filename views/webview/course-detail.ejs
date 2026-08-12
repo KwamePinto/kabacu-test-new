@@ -8,7 +8,7 @@
 
   var coursePrice = Number(course.price) || 0;
   var isPaid      = coursePrice > 0;
-  var price       = isPaid ? '₦' + coursePrice.toLocaleString() : 'Free';
+  var price       = isPaid ? '<span class="js-currency-symbol">₦</span>' + coursePrice.toLocaleString() : 'Free';
 
   var diffColor = { Beginner: '#15a844', Intermediate: '#f97316', Advanced: '#e53e3e' };
   var diffBg    = { Beginner: '#e8f5ee', Intermediate: '#fff3e0', Advanced: '#fdecea' };
@@ -290,7 +290,7 @@
       <!-- ── Sidebar (desktop) ── -->
       <div class="cd-sidebar">
         <div class="cd-price-card">
-          <div class="cd-price-card__amount"><%= price %></div>
+          <div class="cd-price-card__amount"><%- price %></div>
 
           <% if (alreadyPurchased) { %>
           <a href="#" class="cd-price-card__enroll cd-price-card__enroll--access">
@@ -327,7 +327,7 @@
 
 <!-- Mobile sticky price bar -->
 <div class="cd-mobile-price">
-  <div class="cd-mobile-price__amount"><%= price %></div>
+  <div class="cd-mobile-price__amount"><%- price %></div>
   <% if (alreadyPurchased) { %>
   <a href="#" class="cd-mobile-price__btn cd-mobile-price__btn--access">You Have Access</a>
   <% } else if (isPaid) { %>

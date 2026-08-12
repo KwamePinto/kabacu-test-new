@@ -24,7 +24,7 @@
     </div>
 
     <div class="topup-modal-field">
-      <label class="topup-modal-label">Amount (₦)</label>
+      <label class="topup-modal-label">Amount (<span class="js-currency-symbol">₦</span>)</label>
       <div class="topup-modal-input-wrap">
         <i data-lucide="hash"></i>
         <input type="number" id="topup-amount-input" class="topup-modal-input" placeholder="Enter amount" min="100">
@@ -186,7 +186,10 @@
   var shortNote   = document.getElementById('topup-shortfall-note');
   var _csrf       = '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>';
 
-  function fmt(n) { return '₦' + Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmt(n) {
+    var sym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
+    return sym + Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
 
   async function loadMethods() {
     try {
@@ -246,7 +249,8 @@
     var amount = parseFloat(amountInput.value);
     if (!method) return;
     if (!amount || amount < 100) {
-      Swal.fire({ icon: 'warning', title: 'Invalid Amount', text: 'Minimum top-up is ₦100.' });
+      var sym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
+      Swal.fire({ icon: 'warning', title: 'Invalid Amount', text: 'Minimum top-up is ' + sym + '100.' });
       return;
     }
     fundBtn.disabled   = true;

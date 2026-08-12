@@ -415,8 +415,9 @@
         ? '<span class="course-difficulty course-difficulty--' + c.difficulty + '">' + c.difficulty + '</span>'
         : '';
 
+      var currencySym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
       var priceHtml = c.price
-        ? '<span class="course-card__price">₦' + Number(c.price).toLocaleString() + '</span>'
+        ? '<span class="course-card__price">' + currencySym + Number(c.price).toLocaleString() + '</span>'
         : '<span class="course-card__price">Free</span>';
 
       card.innerHTML =

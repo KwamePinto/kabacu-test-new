@@ -208,9 +208,9 @@
           <p class="product-card__brand"><%= product.dataDetails.network %></p>
           <div class="product-card__footer">
             <div>
-              <span class="product-card__price">₦<%= product.dataDetails.amount %></span>
+              <span class="product-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
               <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount){ %>
-              <span class="" style="text-decoration: line-through; font-size: smaller; color: #f63232;">₦<%= product.dataDetails.oldPrice %></span>
+              <span class="" style="text-decoration: line-through; font-size: smaller; color: #f63232;"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
               <% } %>
             </div>
             <% if (user) { %>
@@ -258,7 +258,7 @@
             <div class="cat-strip__name"><%= p.electronicDetails && p.electronicDetails.itemName || p.description %></div>
             <div class="cat-strip__sub"><%= p.electronicDetails && p.electronicDetails.brandItem || '' %></div>
             <% if (p.electronicDetails && p.electronicDetails.items_price) { %>
-            <div class="cat-strip__price">₦<%= p.electronicDetails.items_price.toLocaleString() %></div>
+            <div class="cat-strip__price"><span class="js-currency-symbol">₦</span><%= p.electronicDetails.items_price.toLocaleString() %></div>
             <% } %>
           </div>
         </a>
@@ -297,7 +297,7 @@
             <div class="cat-strip__name"><%= p.automobileDetails && (p.automobileDetails.brand + ' ' + p.automobileDetails.model) || p.description %></div>
             <div class="cat-strip__sub"><%= p.automobileDetails && (p.automobileDetails.year + ' · ' + (p.automobileDetails.condition || '')) || '' %></div>
             <% if (p.automobileDetails && p.automobileDetails.price) { %>
-            <div class="cat-strip__price">₦<%= p.automobileDetails.price.toLocaleString() %></div>
+            <div class="cat-strip__price"><span class="js-currency-symbol">₦</span><%= p.automobileDetails.price.toLocaleString() %></div>
             <% } %>
           </div>
         </a>
@@ -336,7 +336,7 @@
             <div class="cat-strip__name"><%= p.coursesDetails && p.coursesDetails.title || p.description %></div>
             <div class="cat-strip__sub"><%= p.coursesDetails && p.coursesDetails.instructor ? 'by ' + p.coursesDetails.instructor : '' %></div>
             <% if (p.coursesDetails && p.coursesDetails.course_price) { %>
-            <div class="cat-strip__price">₦<%= p.coursesDetails.course_price.toLocaleString() %></div>
+            <div class="cat-strip__price"><span class="js-currency-symbol">₦</span><%= p.coursesDetails.course_price.toLocaleString() %></div>
             <% } %>
           </div>
         </a>

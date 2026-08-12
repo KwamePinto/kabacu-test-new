@@ -19,7 +19,7 @@
 
       <!-- Actions -->
       <div class="app-header__actions">
-        <p class="mobile-only">₦<%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
+        <p class="mobile-only"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
         <button id="searchBtn" class="app-header__icon-btn" aria-label="Search">
           <i data-lucide="search"></i>
         </button>
@@ -50,7 +50,12 @@
         <a href="/user-profile" class="app-header__icon-btn desktop-only" aria-label="My Account" title="My Account">
           <i data-lucide="user-circle-2"></i>
         </a>
-        <p class="desktop-only app-header__balance">₦<%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
+
+        <!-- Country selector (desktop) -->
+        <button type="button" id="countryTriggerBtn" class="app-header__icon-btn app-header__flag-btn js-country-trigger desktop-only" aria-label="Select country" title="Select your country">
+          <span class="js-country-flag">🇳🇬</span>
+        </button>
+        <p class="desktop-only app-header__balance"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
         <% } else { %>
         <a href="/user/login" class="app-header__login-btn">
           <i data-lucide="log-in"></i>
@@ -200,3 +205,206 @@
 }());
 </script>
 <% } %>
+
+<!-- Country selector (frontend-only, persisted in localStorage) -->
+<script>
+(function () {
+  var STORAGE_KEY = 'kbc_country';
+
+  function flagEmoji(code) {
+    return code.toUpperCase().replace(/./g, function (c) {
+      return String.fromCodePoint(127397 + c.charCodeAt(0));
+    });
+  }
+
+  function buildCountries() {
+    var fallback = [
+      { code: 'NG', name: 'Nigeria' }, { code: 'US', name: 'United States' },
+      { code: 'GB', name: 'United Kingdom' }, { code: 'GH', name: 'Ghana' },
+      { code: 'KE', name: 'Kenya' }, { code: 'ZA', name: 'South Africa' },
+      { code: 'CA', name: 'Canada' }, { code: 'IN', name: 'India' },
+      { code: 'CN', name: 'China' }, { code: 'DE', name: 'Germany' },
+      { code: 'FR', name: 'France' }, { code: 'AE', name: 'United Arab Emirates' },
+      { code: 'EG', name: 'Egypt' }, { code: 'BR', name: 'Brazil' },
+      { code: 'AU', name: 'Australia' }
+    ];
+    try {
+      var codes = Intl.supportedValuesOf('region').filter(function (c) { return /^[A-Z]{2}$/.test(c); });
+      var dn = new Intl.DisplayNames(['en'], { type: 'region' });
+      var list = codes.map(function (c) { return { code: c, name: dn.of(c) }; });
+      list.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      return list.length ? list : fallback;
+    } catch (e) {
+      fallback.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      return fallback;
+    }
+  }
+
+  var countries = buildCountries();
+
+  function getCurrentCode() {
+    return localStorage.getItem(STORAGE_KEY) || 'NG';
+  }
+
+  function getCurrentCountry() {
+    var code = getCurrentCode();
+    var found = countries.filter(function (c) { return c.code === code; })[0];
+    return found || { code: 'NG', name: 'Nigeria' };
+  }
+
+  // Display-only symbol per country — actual amounts/conversion are unaffected for now.
+  var CURRENCY_MAP = {
+    NG: '₦', US: '$', GB: '£', GH: '₵', KE: 'KSh', ZA: 'R', CA: '$', IN: '₹',
+    CN: '¥', DE: '€', FR: '€', AE: 'AED', EG: 'E£', BR: 'R$', AU: '$',
+    JP: '¥', KR: '₩', RU: '₽', MX: '$', ES: '€', IT: '€', NL: '€', SE: 'kr',
+    CH: 'CHF', SG: '$', MY: 'RM', PH: '₱', PK: '₨', BD: '৳', TZ: 'TSh',
+    UG: 'USh', RW: 'FRw', ZM: 'ZK', SN: 'CFA', CI: 'CFA', CM: 'FCFA'
+  };
+
+  function getCurrencySymbol() {
+    return CURRENCY_MAP[getCurrentCode()] || '$';
+  }
+
+  var CURRENCY_NAME_MAP = {
+    NG: 'Naira', US: 'Dollar', GB: 'Pound', GH: 'Cedi', KE: 'Shilling',
+    ZA: 'Rand', CA: 'Dollar', IN: 'Rupee', CN: 'Yuan', DE: 'Euro',
+    FR: 'Euro', AE: 'Dirham', EG: 'Pound', BR: 'Real', AU: 'Dollar',
+    JP: 'Yen', KR: 'Won', RU: 'Ruble', MX: 'Peso', ES: 'Euro', IT: 'Euro',
+    NL: 'Euro', SE: 'Krona', CH: 'Franc', SG: 'Dollar', MY: 'Ringgit',
+    PH: 'Peso', PK: 'Rupee', BD: 'Taka', TZ: 'Shilling', UG: 'Shilling',
+    RW: 'Franc', ZM: 'Kwacha', SN: 'Franc', CI: 'Franc', CM: 'Franc'
+  };
+
+  var CURRENCY_CODE_MAP = {
+    NG: 'NGN', US: 'USD', GB: 'GBP', GH: 'GHS', KE: 'KES', ZA: 'ZAR',
+    CA: 'CAD', IN: 'INR', CN: 'CNY', DE: 'EUR', FR: 'EUR', AE: 'AED',
+    EG: 'EGP', BR: 'BRL', AU: 'AUD', JP: 'JPY', KR: 'KRW', RU: 'RUB',
+    MX: 'MXN', ES: 'EUR', IT: 'EUR', NL: 'EUR', SE: 'SEK', CH: 'CHF',
+    SG: 'SGD', MY: 'MYR', PH: 'PHP', PK: 'PKR', BD: 'BDT', TZ: 'TZS',
+    UG: 'UGX', RW: 'RWF', ZM: 'ZMW', SN: 'XOF', CI: 'XOF', CM: 'XAF'
+  };
+
+  function getCurrencyName() {
+    return CURRENCY_NAME_MAP[getCurrentCode()] || 'Dollar';
+  }
+
+  function getCurrencyCode() {
+    return CURRENCY_CODE_MAP[getCurrentCode()] || 'USD';
+  }
+
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'countryModalOverlay';
+  overlay.innerHTML =
+    '<div class="modal-box country-modal-box">' +
+      '<button type="button" class="modal-close" id="countryModalClose"><i data-lucide="x"></i></button>' +
+      '<div class="modal-box__header"><span class="modal-title">Select your country</span></div>' +
+      '<div class="input-wrapper" style="margin-bottom:14px;">' +
+        '<i data-lucide="search"></i>' +
+        '<input type="text" id="countrySearchInput" class="form-input" placeholder="Search countries..." autocomplete="off">' +
+      '</div>' +
+      '<div class="country-list" id="countryList"></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  var searchInput = document.getElementById('countrySearchInput');
+  var listEl = document.getElementById('countryList');
+  var closeBtn = document.getElementById('countryModalClose');
+
+  function renderList(filter) {
+    var q = (filter || '').trim().toLowerCase();
+    var current = getCurrentCode();
+    var items = countries.filter(function (c) { return !q || c.name.toLowerCase().indexOf(q) !== -1; });
+
+    if (!items.length) {
+      listEl.innerHTML = '<div class="country-row__empty">No countries found</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.map(function (c) {
+      return '<button type="button" class="country-row' + (c.code === current ? ' active' : '') + '" data-code="' + c.code + '">' +
+        '<span class="country-row__flag">' + flagEmoji(c.code) + '</span>' +
+        '<span class="country-row__name">' + c.name + '</span>' +
+        '<i data-lucide="check" class="country-row__check"></i>' +
+      '</button>';
+    }).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function updateTriggers() {
+    var country = getCurrentCountry();
+    var symbol = getCurrencySymbol();
+    var currencyName = getCurrencyName();
+    var currencyCode = getCurrencyCode();
+    document.querySelectorAll('.js-country-flag').forEach(function (el) {
+      el.textContent = flagEmoji(country.code);
+    });
+    document.querySelectorAll('.js-country-name').forEach(function (el) {
+      el.textContent = country.name;
+    });
+    document.querySelectorAll('.js-currency-symbol').forEach(function (el) {
+      el.textContent = symbol;
+    });
+    document.querySelectorAll('.js-currency-placeholder').forEach(function (el) {
+      el.placeholder = symbol + (el.dataset.currencySuffix || '0.00');
+    });
+    document.querySelectorAll('.js-currency-name').forEach(function (el) {
+      el.textContent = currencyName;
+    });
+    document.querySelectorAll('.js-currency-code').forEach(function (el) {
+      el.textContent = currencyCode;
+    });
+  }
+
+  function openModal() {
+    renderList('');
+    searchInput.value = '';
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { searchInput.focus(); }, 50);
+  }
+
+  function closeModal() {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function selectCountry(code) {
+    localStorage.setItem(STORAGE_KEY, code);
+    updateTriggers();
+    closeModal();
+    window.dispatchEvent(new CustomEvent('kbc:countrychange', { detail: { code: code } }));
+  }
+
+  listEl.addEventListener('click', function (e) {
+    var row = e.target.closest('.country-row');
+    if (row) selectCountry(row.dataset.code);
+  });
+
+  searchInput.addEventListener('input', function () { renderList(this.value); });
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+  // Trigger elements (header flag button, profile country row, ...) may live
+  // further down the page than this script tag, so wait for the full DOM.
+  document.addEventListener('DOMContentLoaded', function () {
+    updateTriggers();
+    document.querySelectorAll('.js-country-trigger').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openModal();
+      });
+    });
+  });
+
+  window.KbcCountrySelector = {
+    open: openModal,
+    getCurrent: getCurrentCountry,
+    getCurrencySymbol: getCurrencySymbol,
+    getCurrencyName: getCurrencyName,
+    getCurrencyCode: getCurrencyCode
+  };
+}());
+</script>

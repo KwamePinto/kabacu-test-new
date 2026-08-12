@@ -55,12 +55,12 @@
 
                 <td data-label="Amount">
   <% if(topup.balanceType === 'NAIRA'){ %>
-      ₦<%= Number(topup.nairaAmount).toLocaleString() %>
+      <span class="js-currency-symbol">₦</span><%= Number(topup.nairaAmount).toLocaleString() %>
   <% } else { %>
       <%= Number(topup.amount).toLocaleString() %> <%= topup.balanceType %>
       <br>
       <small>
-        ₦<%= Number(topup.amount || 0).toLocaleString() %>
+        <span class="js-currency-symbol">₦</span><%= Number(topup.amount || 0).toLocaleString() %>
       </small>
   <% } %>
 </td>

@@ -22,10 +22,15 @@
 
     <!-- Page hero -->
     <div class="page-hero">
-      <h1 class="page-hero__title">
-        <i data-lucide="wallet"></i>
-        My Wallet
-      </h1>
+      <div class="page-hero__row">
+        <h1 class="page-hero__title">
+          <i data-lucide="wallet"></i>
+          My Wallet
+        </h1>
+        <button type="button" class="app-header__icon-btn app-header__flag-btn js-country-trigger mobile-only" aria-label="Select country" title="Select your country">
+          <span class="js-country-flag">🇳🇬</span>
+        </button>
+      </div>
       <p class="page-hero__sub">Manage your balances and fund your account</p>
     </div>
 
@@ -34,9 +39,9 @@
       <div class="balance-card balance-card--naira">
         <div class="balance-card__icon"><i data-lucide="banknote"></i></div>
         <div class="balance-card__body">
-          <span class="balance-card__label">Naira Balance</span>
+          <span class="balance-card__label"><span class="js-currency-name">Naira</span> Balance</span>
           <span class="balance-card__amount">
-            ₦<%= wallet && wallet.balances ? wallet.balances.NAIRA.toFixed(2) : '0.00' %>
+            <span class="js-currency-symbol">₦</span><%= wallet && wallet.balances ? wallet.balances.NAIRA.toFixed(2) : '0.00' %>
           </span>
         </div>
       </div>
@@ -76,7 +81,7 @@
       <div class="action-card is-open">
         <button type="button" class="accordion-header" aria-expanded="true">
           <i data-lucide="credit-card"></i>
-          <span class="accordion-header__title">Fund Naira Wallet</span>
+          <span class="accordion-header__title">Fund <span class="js-currency-name">Naira</span> Wallet</span>
           <i data-lucide="chevron-down" class="accordion-chevron"></i>
         </button>
         <div class="accordion-body">
@@ -97,7 +102,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Amount (₦)</label>
+              <label class="form-label">Amount (<span class="js-currency-symbol">₦</span>)</label>
               <div class="input-wrapper">
                 <i data-lucide="hash"></i>
                 <input type="number" id="palmpayAmount" class="form-input" placeholder="Enter amount" min="100">
@@ -180,12 +185,12 @@
       <div class="action-card">
         <button type="button" class="accordion-header" aria-expanded="false">
           <i data-lucide="refresh-cw"></i>
-          <span class="accordion-header__title">Convert USDT to Naira</span>
+          <span class="accordion-header__title">Convert USDT to <span class="js-currency-name">Naira</span></span>
           <i data-lucide="chevron-down" class="accordion-chevron"></i>
         </button>
         <div class="accordion-body">
           <div class="accordion-body__inner">
-            <p class="action-card__desc">Instantly convert your USDT balance to NGN</p>
+            <p class="action-card__desc">Instantly convert your USDT balance to <span class="js-currency-code">NGN</span></p>
 
             <div class="form-group">
               <label class="form-label">Amount (USDT)</label>
@@ -196,10 +201,10 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">You will receive (₦)</label>
+              <label class="form-label">You will receive (<span class="js-currency-symbol">₦</span>)</label>
               <div class="input-wrapper">
                 <i data-lucide="banknote"></i>
-                <input type="text" id="nairaAmount" class="form-input" placeholder="₦0.00" readonly>
+                <input type="text" id="nairaAmount" class="form-input js-currency-placeholder" data-currency-suffix="0.00" placeholder="₦0.00" readonly>
               </div>
             </div>
 
@@ -445,7 +450,8 @@
       });
       const data = await res.json();
       if (data.success) {
-        document.getElementById('nairaAmount').value = '₦' + Number(data.nairaAmount).toLocaleString();
+        var sym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
+        document.getElementById('nairaAmount').value = sym + Number(data.nairaAmount).toLocaleString();
       }
     } catch (err) {
       if (err.name !== 'AbortError') console.log(err);
@@ -475,7 +481,8 @@
       });
       const data = await res.json();
       if (data.success) {
-        document.getElementById('nairaAmount').value = '₦' + data.nairaAmount.toLocaleString();
+        var sym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
+        document.getElementById('nairaAmount').value = sym + data.nairaAmount.toLocaleString();
         Swal.fire({
           icon: 'success',
           text: 'Conversion successful'
@@ -601,9 +608,10 @@
       return;
     }
     if (!amount || amount < 100) {
+      var sym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
       Swal.fire({
         icon: 'warning',
-        text: 'Enter a valid amount (minimum ₦100)'
+        text: 'Enter a valid amount (minimum ' + sym + '100)'
       });
       return;
     }

@@ -83,6 +83,9 @@
 
 .app-header__icon-btn:hover { background: rgba(0, 0, 0, 0.15); }
 
+/* Country flag trigger — emoji instead of an svg icon */
+.app-header__flag-btn { font-size: 15px; line-height: 1; }
+
 /* Force SVG icons to be visible regardless of inherited colour */
 .app-header__icon-btn svg {
   width: 16px; height: 16px;
@@ -288,6 +291,13 @@ body.no-header .page-main {
 
 /* ── Page hero (inner pages) ────────────────────────────── */
 .page-hero { padding: 20px 0 16px; }
+
+.page-hero__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 
 .page-hero__title {
   display: flex;

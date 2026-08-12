@@ -64,7 +64,7 @@
           </td>
 
           <td data-label="Amount">
-            ₦<%= tx.amount %>
+            <span class="js-currency-symbol">₦</span><%= tx.amount %>
           </td>
 
           <td data-label="Status">
@@ -154,7 +154,7 @@
                   <% if (cp.free) { %>
                     <span style="color:var(--primary);font-weight:600;">Free</span>
                   <% } else { %>
-                    ₦<%= Number(cp.price || 0).toLocaleString() %>
+                    <span class="js-currency-symbol">₦</span><%= Number(cp.price || 0).toLocaleString() %>
                   <% } %>
                 </td>
                 <td data-label="Type">

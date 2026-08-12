@@ -19,7 +19,7 @@
         <i data-lucide="arrow-left-right"></i>
         Conversion History
       </h1>
-      <p class="page-hero__sub">Your USDT → Naira conversion records</p>
+      <p class="page-hero__sub">Your USDT → <span class="js-currency-name">Naira</span> conversion records</p>
     </div>
 
     <div class="tx-table-wrap">
@@ -28,8 +28,8 @@
           <tr>
             <th>Date</th>
             <th>USDT Amount</th>
-            <th>Rate (₦/USDT)</th>
-            <th>Naira Received</th>
+            <th>Rate (<span class="js-currency-symbol">₦</span>/USDT)</th>
+            <th><span class="js-currency-name">Naira</span> Received</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -45,8 +45,8 @@
                   </span>
                 </td>
                 <td><strong><%= c.usdtAmount.toFixed(4) %> USDT</strong></td>
-                <td>₦<%= c.finalRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
-                <td><strong>₦<%= c.nairaAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong></td>
+                <td><span class="js-currency-symbol">₦</span><%= c.finalRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                <td><strong><span class="js-currency-symbol">₦</span><%= c.nairaAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong></td>
                 <td>
                   <span class="status-badge status-badge--<%= c.status === 'COMPLETED' ? 'success' : 'failed' %>">
                     <%= c.status %>

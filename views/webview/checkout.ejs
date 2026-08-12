@@ -45,7 +45,7 @@
             </button>
           </div>
         </div>
-        <div class="checkout-item__price">₦<%= checkout.product.dataDetails.amount %></div>
+        <div class="checkout-item__price"><span class="js-currency-symbol">₦</span><%= checkout.product.dataDetails.amount %></div>
       </div>
 
       <!-- Footer -->
@@ -78,7 +78,7 @@
         <div class="payment-method-opt__icon"><i data-lucide="wallet"></i></div>
         <div style="flex:1;">
           <div class="payment-method-opt__label">Pay with My Wallet</div>
-          <div class="payment-method-opt__sub">Balance: <strong>₦<%= (walletBalance || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong></div>
+          <div class="payment-method-opt__sub">Balance: <strong><span class="js-currency-symbol">₦</span><%= (walletBalance || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong></div>
         </div>
       </div>
     </div>

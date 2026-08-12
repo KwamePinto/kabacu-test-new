@@ -21,7 +21,7 @@
   <div class="acct-balances">
     <div class="acct-balance-card">
       <i data-lucide="wallet"></i>
-      <div class="acct-balance-card__val">₦<%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></div>
+      <div class="acct-balance-card__val"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></div>
       <div class="acct-balance-card__lbl">Wallet Balance</div>
     </div>
     <div class="acct-balance-card">
@@ -87,7 +87,7 @@
         </div>
         <div class="acct-link__body">
           <span class="acct-link__label">Conversion History</span>
-          <span class="acct-link__sub">USDT → Naira conversions</span>
+          <span class="acct-link__sub">USDT → <span class="js-currency-name">Naira</span> conversions</span>
         </div>
         <i data-lucide="chevron-right" class="acct-link__arrow"></i>
       </a>
@@ -104,6 +104,23 @@
       </div>
       <% } %>
 
+    </div>
+  </div>
+
+  <!-- ── Preferences ──────────────────────────────────────── -->
+  <div class="acct-section">
+    <h3 class="acct-section__title">Preferences</h3>
+    <div class="acct-links">
+      <button type="button" class="acct-link acct-link--btn js-country-trigger">
+        <div class="acct-link__icon" style="background:var(--input-bg);">
+          <span class="js-country-flag" style="font-size:20px;line-height:1;">🇳🇬</span>
+        </div>
+        <div class="acct-link__body">
+          <span class="acct-link__label">Country</span>
+          <span class="acct-link__sub js-country-name">Nigeria</span>
+        </div>
+        <i data-lucide="chevron-right" class="acct-link__arrow"></i>
+      </button>
     </div>
   </div>
 

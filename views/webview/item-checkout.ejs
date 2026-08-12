@@ -31,9 +31,9 @@
                       <span><%= item.name %></span>
                     </div>
                   </td>
-                  <td>₦<%= item.price.toLocaleString() %></td>
+                  <td><span class="js-currency-symbol">₦</span><%= item.price.toLocaleString() %></td>
                   <td><%= item.quantity %></td>
-                  <td>₦<%= item.subtotal.toLocaleString() %></td>
+                  <td><span class="js-currency-symbol">₦</span><%= item.subtotal.toLocaleString() %></td>
                 </tr>
                 <% }) %>
               <% } else { %>
@@ -63,15 +63,15 @@
         <h3 class="order-summary__title">Order Summary</h3>
         <div class="order-summary__row">
           <span>Subtotal (<%= totalItems %> items)</span>
-          <span>₦<%= total.toLocaleString() %></span>
+          <span><span class="js-currency-symbol">₦</span><%= total.toLocaleString() %></span>
         </div>
         <div class="order-summary__row">
           <span>Delivery fee</span>
-          <span>₦0.00</span>
+          <span><span class="js-currency-symbol">₦</span>0.00</span>
         </div>
         <div class="order-summary__row">
           <span>Total</span>
-          <span>₦<%= total.toLocaleString() %></span>
+          <span><span class="js-currency-symbol">₦</span><%= total.toLocaleString() %></span>
         </div>
         <div class="order-summary__cta">
           <button id="buyNowBtn" class="btn btn--primary btn--full btn--lg">
@@ -122,7 +122,7 @@
         <div class="payment-method-opt__icon"><i data-lucide="wallet"></i></div>
         <div>
           <div class="payment-method-opt__label">Pay with Wallet</div>
-          <div class="payment-method-opt__sub">Use your USDT or Naira balance</div>
+          <div class="payment-method-opt__sub">Use your USDT or <span class="js-currency-name">Naira</span> balance</div>
         </div>
       </div>
     </div>

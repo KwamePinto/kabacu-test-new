@@ -86,7 +86,7 @@
               <%= product.reward_point %> RP
             </div>
             <div class="bundle-card__footer">
-              <span class="bundle-card__price">₦<%= product.dataDetails.amount %></span>
+              <span class="bundle-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
               <% if (user) { %>
               <button class="btn btn--primary btn--sm buy-btn" data-id="<%= product._id %>" data-network="<%= provider %>">
                 <i data-lucide="shopping-cart"></i>
