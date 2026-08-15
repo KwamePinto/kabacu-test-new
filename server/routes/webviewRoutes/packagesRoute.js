@@ -6,6 +6,8 @@ const getPackages = require('../../controllers/webviewControllers/packagesContro
 
 router.get('/',getPackages.packagesView)
 
+router.get('/categories', getPackages.categoriesPage)
+router.get('/about', getPackages.aboutPage)
 router.get('/faq', getPackages.faqPage)
 router.get('/privacy-policy', getPackages.privacyPolicy)
 router.get('/terms', getPackages.termsOfUse)
@@ -47,6 +49,8 @@ router.post('/wallet/pay', authenticateUser, getPackages.payWithWallet);
 router.get('/user-profile', authenticateUser, getPackages.userProfile);
 
 router.post('/edit-user-profile', authenticateUser, getPackages.editUserProfile);
+
+router.post('/referral/apply', authenticateUser, getPackages.applyReferral);
 
 router.post('/wallet/convert-usdt', authenticateUser, getPackages.convertUSDTtoNaira);
 

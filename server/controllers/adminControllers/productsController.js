@@ -1,3 +1,4 @@
+const { allCountries, toCode, DEFAULT_COUNTRY } = require('../../utils/country');
 const adminLayouts = "layouts/adminLayout";
 
 const Transaction = require("../../models/TransactionModel");
@@ -24,6 +25,7 @@ exports.createProducts = [
         layout: adminLayouts,
         category,
         networks,
+        countryList: allCountries(),
         query: req.query,
       });
     } catch (error) {
@@ -48,6 +50,9 @@ exports.addProduct = [
         description,
         costPrice: costPrice ? Number(costPrice) : 0,
         images: imagePaths,
+        // Market this product belongs to. Falls back to NG so a product can
+        // never end up untargeted and invisible to everyone.
+        country: toCode(req.body.country) || DEFAULT_COUNTRY,
       };
 
       const validCategories = ["DATA", "ELECTRONICS", "AUTOMOBILE"];
@@ -195,6 +200,7 @@ exports.editProductGet = [
         product,
         category,
         networks,
+        countryList: allCountries(),
         query: req.query,
       });
     } catch (error) {
@@ -217,6 +223,7 @@ exports.editProductPost = [
           reward_point !== undefined ? reward_point : product.reward_point,
         description: description || product.description,
         costPrice: costPrice !== undefined ? Number(costPrice) : product.costPrice,
+        country: toCode(req.body.country) || product.country || DEFAULT_COUNTRY,
       };
 
       // Replace images only when the admin explicitly uploaded new ones

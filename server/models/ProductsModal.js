@@ -6,6 +6,16 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+
+  // Market this product is sold in, as an ISO alpha-2 code ("NG", "GH").
+  // Signed-in users only see products matching their profile country;
+  // signed-out visitors can browse any market via the header picker.
+  country: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    default: 'NG',
+  },
   is_deleted: {
     type: Number,
     default: 0
@@ -92,5 +102,10 @@ const productSchema = new mongoose.Schema({
     },
 
 }, { timestamps: true });
+
+/* Home page and every category page query by category and sort by newest —
+   without this the queries are full collection scans. */
+productSchema.index({ category: 1, createdAt: -1 });
+productSchema.index({ category: 1, country: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Product', productSchema);

@@ -1,14 +1,72 @@
-<!-- Centered page tabs -->
-<div class="container">
-  <div class="page-tabs">
-    <button class="page-tab active" id="tabHome" onclick="switchTab('home')">Home</button>
-    <button class="page-tab" id="tabCategory" onclick="switchTab('category')">Category</button>
-    <span class="tab-indicator" id="tabIndicator"></span>
-  </div>
-</div>
+<!-- ══ HOME ════════════════════════════════════════════════ -->
+<script>
+  /* Image fallback chain for product cards. Defined before any card markup so
+     it exists by the time an <img> error fires during parsing.
+     own image → per-network default artwork → styled text card */
+  function kbImgFallback(img) {
+    var next = img.getAttribute('data-fallback');
+    if (next) {
+      img.removeAttribute('data-fallback');
+      img.classList.add('product-card__img--default');
+      img.src = next;
+      return;
+    }
+    img.style.display = 'none';
+    var panel = img.nextElementSibling;
+    if (panel) panel.removeAttribute('hidden');
+  }
+</script>
 
-<!-- ══ HOME TAB ════════════════════════════════════════════ -->
-<div id="homeContent" class="tab-content">
+<div id="homeContent">
+
+  <!-- ── Mobile: Category quick-access circles ─────────────── -->
+  <div class="mobile-cats">
+    <div class="mobile-cats__header">
+      <a href="/categories" class="mobile-cats__see-all" aria-label="See all categories">
+        <i data-lucide="chevron-right"></i>
+      </a>
+      <p class="mobile-cats__label">Categories</p>
+    </div>
+    <div class="mobile-cats__row">
+      <a href="/category/data-category" class="mobile-cat">
+        <div class="mobile-cat__circle">
+          <i data-lucide="wifi"></i>
+        </div>
+        <span class="mobile-cat__name">Data</span>
+      </a>
+      <a href="/category/electronic-category" class="mobile-cat">
+        <div class="mobile-cat__circle">
+          <i data-lucide="smartphone"></i>
+        </div>
+        <span class="mobile-cat__name">Electronics</span>
+      </a>
+      <a href="/category/automobile-category" class="mobile-cat">
+        <div class="mobile-cat__circle">
+          <i data-lucide="car"></i>
+        </div>
+        <span class="mobile-cat__name">Automobiles</span>
+      </a>
+      <a href="/category/course-category" class="mobile-cat">
+        <div class="mobile-cat__circle">
+          <i data-lucide="graduation-cap"></i>
+        </div>
+        <span class="mobile-cat__name">Courses</span>
+      </a>
+      <a href="/category/p2p-category" class="mobile-cat">
+        <div class="mobile-cat__circle">
+          <i data-lucide="arrow-left-right"></i>
+        </div>
+        <span class="mobile-cat__name">P2P</span>
+      </a>
+      <!-- "More" circle — always at the end; links to the categories landing page -->
+      <a href="/categories" class="mobile-cat mobile-cat--more">
+        <div class="mobile-cat__circle mobile-cat__circle--more">
+          <i data-lucide="layout-grid"></i>
+        </div>
+        <span class="mobile-cat__name">More</span>
+      </a>
+    </div>
+  </div>
 
   <!-- ══ Hero section — green bg (desktop), image card + header ══ -->
   <div class="hero-section">
@@ -27,77 +85,33 @@
     <!-- Carousel card -->
     <div class="promo-carousel" id="promoCarousel">
 
-      <div class="promo-slide promo-slide--1 active">
-        <img class="promo-slide__bg-img" src="/assets/images/hero-slide-1.jpg" alt="Happy customer earning reward points">
+      <%
+        /* Banners come from the Announcements admin section. */
+        var _banners = (locals.announcements && announcements.banners) || [];
+      %>
+      <% _banners.forEach(function(b, i) { %>
+      <div class="promo-slide<%= i === 0 ? ' active' : '' %>">
+        <% if (b.image) { %>
+        <img class="promo-slide__bg-img" src="<%= b.image %>" alt="<%= b.title %>">
+        <% } %>
         <div class="promo-slide__overlay"></div>
         <!-- Mobile overlay text -->
         <div class="promo-slide__content">
-          <span class="promo-slide__tag">Earn Rewards</span>
-          <h2 class="promo-slide__title">Reward Points on Every Purchase</h2>
-          <p class="promo-slide__sub">Redeem RP for free data bundles</p>
-          <a href="/category/data-category" class="promo-slide__btn">Start Earning</a>
+          <% if (b.eyebrow) { %><span class="promo-slide__eyebrow"><%= b.eyebrow %></span><% } %>
+          <h2 class="promo-slide__title"><%= b.title %></h2>
+          <% if (b.subtitle) { %><p class="promo-slide__sub"><%= b.subtitle %></p><% } %>
+          <% if (b.ctaLabel) { %>
+          <a href="<%= b.ctaLink || '#' %>" class="promo-slide__btn"><%= b.ctaLabel %></a>
+          <% } %>
         </div>
         <!-- Desktop caption at card bottom -->
+        <% if (b.caption) { %>
         <div class="promo-slide__caption">
-          <p class="promo-slide__caption-text">Earn reward points on every purchase you make</p>
+          <p class="promo-slide__caption-text"><%= b.caption %></p>
         </div>
+        <% } %>
       </div>
-
-      <div class="promo-slide promo-slide--2">
-        <img class="promo-slide__bg-img" src="/assets/images/hero-slide-2.jpg" alt="Customer topping up across all networks">
-        <div class="promo-slide__overlay"></div>
-        <div class="promo-slide__content">
-          <span class="promo-slide__tag">All Networks</span>
-          <h2 class="promo-slide__title">Top Up Any Network Instantly</h2>
-          <p class="promo-slide__sub">MTN · Airtel · Glo </p>
-          <a href="/category/data-category" class="promo-slide__btn">Browse Plans</a>
-        </div>
-        <div class="promo-slide__caption">
-          <p class="promo-slide__caption-text">MTN · Airtel · Glo — always available, 24/7</p>
-        </div>
-      </div>
-
-      <div class="promo-slide promo-slide--3">
-        <img class="promo-slide__bg-img" src="/assets/images/hero-slide-3.jpg" alt="Data delivered instantly to a phone">
-        <div class="promo-slide__overlay"></div>
-        <div class="promo-slide__content">
-          <span class="promo-slide__tag">Instant Delivery</span>
-          <h2 class="promo-slide__title">Data Delivered in Seconds</h2>
-          <p class="promo-slide__sub">Buy once, connect instantly</p>
-          <a href="/category/data-category" class="promo-slide__btn">Shop Now</a>
-        </div>
-        <div class="promo-slide__caption">
-          <p class="promo-slide__caption-text">Instant data delivery to any Nigerian number</p>
-        </div>
-      </div>
-
-      <div class="promo-slide promo-slide--4">
-        <img class="promo-slide__bg-img" src="/assets/images/hero-slide-4.jpg" alt="Marketplace of phones, gadgets and more">
-        <div class="promo-slide__overlay"></div>
-        <div class="promo-slide__content">
-          <span class="promo-slide__tag">Marketplace</span>
-          <h2 class="promo-slide__title">Shop Phones, Gadgets &amp; More</h2>
-          <p class="promo-slide__sub">Secure trades · Best deals · Easy exchange</p>
-          <a href="/" class="promo-slide__btn">Explore Shop</a>
-        </div>
-        <div class="promo-slide__caption">
-          <p class="promo-slide__caption-text">Phones, gadgets, fashion &amp; more — all in one place</p>
-        </div>
-      </div>
-
-      <div class="promo-slide promo-slide--5">
-        <img class="promo-slide__bg-img" src="/assets/images/hero-slide-5.jpg" alt="Data plans and analytics dashboard">
-        <div class="promo-slide__overlay"></div>
-        <div class="promo-slide__content">
-          <span class="promo-slide__tag">Best Plans</span>
-          <h2 class="promo-slide__title">Buy Data Bundles in Seconds</h2>
-          <p class="promo-slide__sub">Fast, reliable plans at the best prices</p>
-          <a href="/category/data-category" class="promo-slide__btn">Shop Now</a>
-        </div>
-        <div class="promo-slide__caption">
-          <p class="promo-slide__caption-text">Fast, reliable data plans at the best prices</p>
-        </div>
-      </div>
+      <% }) %>
 
     </div>
 
@@ -113,11 +127,9 @@
   <!-- Dots — below overflowing card (desktop: positioned in white area) -->
   <div class="hero-dots-wrap">
     <div class="promo-dots" id="promoDots">
-      <span class="promo-dot promo-dot--active"></span>
-      <span class="promo-dot"></span>
-      <span class="promo-dot"></span>
-      <span class="promo-dot"></span>
-      <span class="promo-dot"></span>
+      <% _banners.forEach(function(b, i) { %>
+      <span class="promo-dot<%= i === 0 ? ' promo-dot--active' : '' %>"></span>
+      <% }) %>
     </div>
   </div>
 
@@ -192,13 +204,44 @@
       <a href="/category/data-category" class="sec-link">See All</a>
     </div>
 
-    <% var arrivalProducts = (dataProducts || []).filter(function(product) { return product.images && product.images[0]; }); %>
+    <%
+      /* Per-network fallback artwork for data plans whose own image is missing
+         or fails to load. Network names are free text ("CTC Weekly Special-MTN",
+         "MTN Awoof", "GLO"), so match on the keyword rather than the whole value.
+         Anything unrecognised — the in-house "CTC Awoof Monthly" style names —
+         falls back to the MTN artwork, since every CTC special runs on MTN. */
+      function defaultDataImg(network) {
+        var n = String(network || '').toLowerCase();
+        if (n.indexOf('glo')    !== -1) return '/assets/images/glodatadefault.png';
+        if (n.indexOf('airtel') !== -1) return '/assets/images/airteldatadefault.png';
+        return '/assets/images/mtndatadefault.png';
+      }
+      function dataImgFor(p) {
+        return (p.images && p.images[0]) || defaultDataImg(p.dataDetails.network);
+      }
+      var arrivalProducts = (dataProducts || []).filter(function(p) { return dataImgFor(p); });
+      var noImageProducts = (dataProducts || []).filter(function(p) { return !dataImgFor(p); });
+    %>
     <% if (arrivalProducts.length > 0) { %>
     <div class="product-grid" id="homeProductGrid">
       <% arrivalProducts.slice(0, 8).forEach(function(product) { %>
+      <%
+        var netDefault = defaultDataImg(product.dataDetails.network);
+        var ownImg     = (product.images && product.images[0]) || null;
+        var primary    = ownImg || netDefault;
+      %>
       <div class="product-card" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>">
         <div class="product-card__img">
-          <img src="<%= product.images[0] %>" alt="<%= product.dataDetails.plan_type %>">
+          <img src="<%= primary %>" alt="<%= product.dataDetails.plan_type %>"
+               class="<%= ownImg ? '' : 'product-card__img--default' %>"
+               <% if (ownImg && netDefault) { %>data-fallback="<%= netDefault %>"<% } %>
+               onerror="kbImgFallback(this)">
+          <div class="product-card__img-fallback" hidden>
+            <span class="pcf__amount"><%= product.dataDetails.plan_name %></span>
+            <span class="pcf__validity"><%= product.dataDetails.validate_period %></span>
+            <span class="pcf__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
+            <span class="pcf__net"><%= product.dataDetails.network %></span>
+          </div>
           <button class="product-card__fav" aria-label="Favourite">
             <i data-lucide="heart"></i>
           </button>
@@ -227,7 +270,50 @@
       </div>
       <% }) %>
     </div>
-    <% } else { %>
+    <% } %>
+
+    <!-- No-image data products — rendered as bundle cards -->
+    <% if (noImageProducts.length > 0) { %>
+    <div class="bundle-grid" style="margin-top:12px;">
+      <% noImageProducts.slice(0, 8).forEach(function(product) { %>
+      <% var extras = product.dataDetails.extras; %>
+      <div class="bundle-card">
+        <div class="bundle-card__body">
+          <div class="bundle-card__amount"><%= product.dataDetails.plan_name %></div>
+          <div class="bundle-card__validity"><%= product.dataDetails.validate_period %></div>
+          <div class="bundle-card__pricing">
+            <span class="bundle-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
+            <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount) { %>
+            <span class="bundle-card__price-old"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
+            <% } %>
+          </div>
+          <div class="bundle-card__meta">
+            <span class="bundle-card__network"><%= product.dataDetails.network %></span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="bundle-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
+              <% if (user) { %>
+              <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
+                <i data-lucide="plus"></i>
+              </button>
+              <% } else { %>
+              <a href="/user/login" class="product-card__buy" aria-label="Login to buy"><i data-lucide="plus"></i></a>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <% if (extras && extras.length > 0) { %>
+        <div class="bundle-card__extras">
+          <% extras.forEach(function(extra) { %>
+          <span class="bundle-card__extras-chip"><i data-lucide="gift"></i><%= extra %></span>
+          <% }) %>
+        </div>
+        <% } %>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+
+    <% if (arrivalProducts.length === 0 && noImageProducts.length === 0) { %>
     <div class="empty-state">
       <i data-lucide="package"></i>
       <p>No products available yet</p>
@@ -250,9 +336,11 @@
         <% electronicProducts.slice(0, 4).forEach(function(p) { %>
         <a href="/category/electronic-category" class="cat-strip__card">
           <% if (p.images && p.images[0]) { %>
-          <img src="<%= p.images[0] %>" alt="<%= p.electronicDetails && p.electronicDetails.itemName || 'Electronic' %>" class="cat-strip__img">
+          <img src="<%= p.images[0] %>" alt="<%= p.electronicDetails && p.electronicDetails.itemName || 'Electronic' %>" class="cat-strip__img"
+               onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
+          <div class="cat-strip__img--placeholder" hidden><i data-lucide="monitor-smartphone"></i></div>
           <% } else { %>
-          <div class="cat-strip__img--placeholder"><i data-lucide="monitor"></i></div>
+          <div class="cat-strip__img--placeholder"><i data-lucide="monitor-smartphone"></i></div>
           <% } %>
           <div class="cat-strip__body">
             <div class="cat-strip__name"><%= p.electronicDetails && p.electronicDetails.itemName || p.description %></div>
@@ -289,7 +377,9 @@
         <% automobileProducts.slice(0, 4).forEach(function(p) { %>
         <a href="/category/automobile-category" class="cat-strip__card">
           <% if (p.images && p.images[0]) { %>
-          <img src="<%= p.images[0] %>" alt="<%= p.automobileDetails && p.automobileDetails.brand || 'Auto' %>" class="cat-strip__img">
+          <img src="<%= p.images[0] %>" alt="<%= p.automobileDetails && p.automobileDetails.brand || 'Auto' %>" class="cat-strip__img"
+               onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
+          <div class="cat-strip__img--placeholder" hidden><i data-lucide="car"></i></div>
           <% } else { %>
           <div class="cat-strip__img--placeholder"><i data-lucide="car"></i></div>
           <% } %>
@@ -328,7 +418,9 @@
         <% coursesProducts.slice(0, 4).forEach(function(p) { %>
         <a href="/category/course-category" class="cat-strip__card">
           <% if (p.images && p.images[0]) { %>
-          <img src="<%= p.images[0] %>" alt="<%= p.coursesDetails && p.coursesDetails.title || 'Course' %>" class="cat-strip__img">
+          <img src="<%= p.images[0] %>" alt="<%= p.coursesDetails && p.coursesDetails.title || 'Course' %>" class="cat-strip__img"
+               onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
+          <div class="cat-strip__img--placeholder" hidden><i data-lucide="book-open"></i></div>
           <% } else { %>
           <div class="cat-strip__img--placeholder"><i data-lucide="book-open"></i></div>
           <% } %>
@@ -402,63 +494,6 @@
 </div>
 
 <!-- ══ CATEGORY TAB ════════════════════════════════════════ -->
-<div id="categoryContent" class="tab-content" style="display:none;">
-  <div class="container">
-    <div class="cat-banner-list">
-
-      <a href="/category/data-category" class="cat-banner-card">
-        <div class="cat-banner-card__info">
-          <h3 class="cat-banner-card__name">Data Bundles</h3>
-          <p class="cat-banner-card__count">MTN · Airtel · Glo </p>
-        </div>
-        <div class="cat-banner-card__img">
-          <picture>
-            <source srcset="/assets/images/cat-databundles.webp" type="image/webp">
-            <img src="/assets/images/cat-databundles.jpg" alt="Data" loading="lazy">
-          </picture>
-        </div>
-      </a>
-
-      <a href="/category/electronic-category" class="cat-banner-card">
-        <div class="cat-banner-card__info">
-          <h3 class="cat-banner-card__name">Electronics</h3>
-          <p class="cat-banner-card__count">Phones, Laptops, Gadgets</p>
-        </div>
-        <div class="cat-banner-card__img">
-          <picture>
-            <source srcset="/assets/images/cat-electronics.webp" type="image/webp">
-            <img src="/assets/images/cat-electronics.jpg" alt="Electronics" loading="lazy">
-          </picture>
-        </div>
-      </a>
-
-      <a href="/category/automobile-category" class="cat-banner-card">
-        <div class="cat-banner-card__info">
-          <h3 class="cat-banner-card__name">Automobiles</h3>
-          <p class="cat-banner-card__count">Cars, Parts, Accessories</p>
-        </div>
-        <div class="cat-banner-card__img">
-          <img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=250&q=80" alt="Automobiles">
-        </div>
-      </a>
-
-      <a href="/category/course-category" class="cat-banner-card">
-        <div class="cat-banner-card__info">
-          <h3 class="cat-banner-card__name">Courses</h3>
-          <p class="cat-banner-card__count">Online Skills &amp; Training</p>
-        </div>
-        <div class="cat-banner-card__img">
-          <picture>
-            <source srcset="/assets/images/cat-courses.webp" type="image/webp">
-            <img src="/assets/images/cat-courses.jpg" alt="Courses" loading="lazy">
-          </picture>
-        </div>
-      </a>
-
-    </div>
-  </div>
-</div>
-
 <!-- Buy Modal -->
 <div id="buyModal" class="modal-overlay" role="dialog" aria-modal="true">
   <div class="modal-box">
@@ -514,46 +549,6 @@
 </div>
 
 <script>
-  /* ── Tab indicator ─────────────────────────────────────── */
-  function moveTabIndicator(tab) {
-    var indicator = document.getElementById('tabIndicator');
-    var btn = document.getElementById(tab === 'home' ? 'tabHome' : 'tabCategory');
-    if (!indicator || !btn) return;
-    indicator.style.left = btn.offsetLeft + 'px';
-    indicator.style.width = btn.offsetWidth + 'px';
-  }
-
-  /* ── Tab switching ─────────────────────────────────────── */
-  function switchTab(tab) {
-    var isHome = tab === 'home';
-    var showEl = document.getElementById(isHome ? 'homeContent' : 'categoryContent');
-    var hideEl = document.getElementById(isHome ? 'categoryContent' : 'homeContent');
-
-    hideEl.style.display = 'none';
-    hideEl.classList.remove('tab-entering');
-
-    showEl.style.display = '';
-    showEl.classList.remove('tab-entering');
-    void showEl.offsetWidth;
-    showEl.classList.add('tab-entering');
-
-    document.getElementById('tabHome').classList.toggle('active', isHome);
-    document.getElementById('tabCategory').classList.toggle('active', !isHome);
-
-    moveTabIndicator(tab);
-    lucide.createIcons();
-  }
-
-  // Initialise indicator on page load (no transition on first paint)
-  (function() {
-    var indicator = document.getElementById('tabIndicator');
-    if (indicator) indicator.style.transition = 'none';
-    moveTabIndicator('home');
-    setTimeout(function() {
-      if (indicator) indicator.style.transition = '';
-    }, 50);
-  })();
-
   /* ── Carousel ─────────────────────────────────────────── */
   (function() {
     var slides = document.querySelectorAll('.promo-slide');
@@ -561,27 +556,14 @@
     var current = 0;
     var timer;
 
-    var slideData = [{
-        title: 'Reward Points on Every Purchase',
-        sub: 'Collect reward points on every order and redeem them for free data.'
-      },
-      {
-        title: 'Top Up Any Network Instantly',
-        sub: 'MTN · Airtel · Glo — always available at the best prices.'
-      },
-      {
-        title: 'Data Delivered in Seconds',
-        sub: 'Fast, instant delivery to any Nigerian network. Buy once, connect instantly.'
-      },
-      {
-        title: 'Shop Phones, Gadgets & More',
-        sub: 'A trusted marketplace — secure trades, best deals and easy exchange.'
-      },
-      {
-        title: 'Buy Data Bundles in Seconds',
-        sub: 'Fast, reliable plans at the best prices. Shop your network now.'
-      }
-    ];
+    /* Banners are admin-managed, so the carousel may legitimately be empty */
+    if (!slides.length) return;
+
+    /* Desktop heading text mirrors the active banner. Built from the same
+       Announcements records that rendered the slides above. */
+    var slideData = <%- JSON.stringify(_banners.map(function(b) {
+      return { title: b.title || '', sub: b.caption || b.subtitle || '' };
+    })) %>;
 
     function updateHeroHeader(idx) {
       var titleEl = document.getElementById('heroTitle');
@@ -657,14 +639,8 @@
     lucide.createIcons();
   })();
 
-  /* ── Hero background watermark pattern ───────────────── */
-  (function() {
-    if (window.innerWidth < 768) return;
-    var el = document.getElementById('heroBgPattern');
-    if (!el) return;
-    var words = ['Data', 'MTN', 'Airtel', 'Glo', 'Electronics', 'Courses', 'Automobiles'];
-    el.textContent = (words.join(' · ') + ' · ').repeat(30);
-  })();
+  /* Hero watermark now lives in its own <script> below so that an error in
+     any of the blocks above can never leave it unfilled. */
 
   /* ── Hero transparent header (desktop only) ──────────── */
   (function() {
@@ -709,10 +685,10 @@
   var selectedPackageId = null;
   var selectedNetwork   = null;
 
-  // Nigerian network prefixes — used to catch a phone number that clearly
-  // belongs to a different network than the bundle being purchased.
+  // Nigerian network prefixes — soft hint only (number portability means these
+  // are not authoritative; OurDataStore validates the actual network on purchase).
   var NETWORK_PREFIXES = {
-    MTN:    ['0803','0806','0703','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
+    MTN:    ['0803','0806','0703','0706','0707','0810','0813','0814','0816','0903','0906','0913','0916'],
     AIRTEL: ['0802','0808','0701','0708','0812','0901','0902','0904','0907','0912'],
     GLO:    ['0805','0807','0705','0811','0815','0905','0915']
   };
@@ -725,9 +701,10 @@
     return null;
   }
 
+  // Returns true if known match, false if looks wrong, null if no data for this network.
   function phoneMatchesNetwork(phone, networkName) {
     var key = detectNetworkKey(networkName);
-    if (!key) return true; // e.g. 9mobile — no prefix list to check against
+    if (!key) return null;
     return NETWORK_PREFIXES[key].indexOf(phone.slice(0, 4)) !== -1;
   }
 
@@ -764,9 +741,12 @@
   var saveBeneficiaryCheckbox  = document.getElementById('saveBeneficiaryCheckbox');
   var beneficiaryNicknameInput = document.getElementById('beneficiaryNicknameInput');
 
+  var networkWarningDismissed = false;
+
   function resetBuyModalForm() {
     phoneInput.value = '';
     phoneError.style.display = 'none';
+    networkWarningDismissed = false;
     if (beneficiaryChips) {
       beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) { c.classList.remove('active'); });
     }
@@ -782,6 +762,8 @@
 
   phoneInput.addEventListener('input', function() {
     this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    networkWarningDismissed = false;
+    phoneError.style.display = 'none';
     if (beneficiaryChips) {
       beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) { c.classList.remove('active'); });
     }
@@ -816,12 +798,15 @@
       phoneError.style.display = 'block';
       return;
     }
-    if (!phoneMatchesNetwork(phone, selectedNetwork)) {
-      phoneError.textContent = 'This number doesn\'t look like a ' + selectedNetwork + ' number';
+    var networkMatch = phoneMatchesNetwork(phone, selectedNetwork);
+    if (networkMatch === false && !networkWarningDismissed) {
+      phoneError.textContent = 'This number may not be a ' + selectedNetwork + ' number (could be ported). Tap Proceed again to continue anyway.';
       phoneError.style.display = 'block';
+      networkWarningDismissed = true;
       return;
     }
     phoneError.style.display = 'none';
+    networkWarningDismissed = false;
     if (!selectedPackageId) {
       Swal.fire({
         icon: 'error',
@@ -864,4 +849,18 @@
       });
     }
   });
+</script>
+<!-- Hero watermark tiling — deliberately isolated in its own script tag.
+     It previously shared a block with the carousel and reveal observers, so any
+     error in those left the pattern element empty and the tiling invisible.
+     There is also no viewport check here: the element is filled unconditionally
+     and CSS alone decides where it shows, so resizing from mobile to desktop
+     (or opening devtools on load) can no longer leave it blank. -->
+<script>
+  (function () {
+    var el = document.getElementById('heroBgPattern');
+    if (!el || el.textContent.trim()) return;
+    var words = ['Data', 'MTN', 'Airtel', 'Glo', 'Electronics', 'Courses', 'Automobiles'];
+    el.textContent = (words.join(' · ') + ' · ').repeat(30);
+  })();
 </script>

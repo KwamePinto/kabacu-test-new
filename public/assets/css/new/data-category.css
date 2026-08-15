@@ -4,6 +4,11 @@
 
 .category-page { padding: 32px 0 64px; }
 
+/* Mobile: header is flush to the top, so drop the extra breathing room */
+@media (max-width: 767px) {
+  .category-page { padding: 6px 0 40px; }
+}
+
 /* Network dropdown + quick phone entry */
 .category-controls {
   display: flex;
@@ -143,22 +148,44 @@
 
 .quick-phone-nickname { height: 40px; margin-top: 8px; }
 
-/* Plan-type sub-tabs (within a network panel) */
-.plan-tabs-bar {
-  margin-bottom: 16px;
+/* Sub-tabs within a network panel: duration first, then size */
+.plan-tabs-bar,
+.duration-tabs-bar,
+.size-tabs-bar {
   flex-wrap: nowrap;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-.plan-tabs-bar::-webkit-scrollbar { display: none; }
+.plan-tabs-bar::-webkit-scrollbar,
+.duration-tabs-bar::-webkit-scrollbar,
+.size-tabs-bar::-webkit-scrollbar { display: none; }
 
-.plan-tab-btn {
-  padding: 6px 14px;
-  font-size: 12px;
+.plan-tabs-bar     { margin-bottom: 16px; }
+.duration-tabs-bar { margin-bottom: 8px; }
+.size-tabs-bar     { margin-bottom: 16px; }
+
+.plan-tab-btn,
+.duration-tab-btn,
+.size-tab-btn {
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+.plan-tab-btn,
+.duration-tab-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+/* Size is the secondary filter — render it lighter than the duration row */
+.size-tab-btn {
+  padding: 4px 12px;
+  font-size: 11px;
+  opacity: .85;
+}
+
+.size-tab-btn.active { opacity: 1; }
 
 /* Bundle cards grid */
 .bundle-grid {

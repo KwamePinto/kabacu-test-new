@@ -460,10 +460,8 @@ document.getElementById('flaggedSearch').addEventListener('input', function () {
   applySearch(this.value.toLowerCase().trim());
 });
 
-document.querySelectorAll('#flaggedTabs a[data-toggle="tab"]').forEach(function (tab) {
-  tab.addEventListener('shown.bs.tab', function () {
-    applySearch(document.getElementById('flaggedSearch').value.toLowerCase().trim());
-  });
+$('#flaggedTabs a[data-toggle="tab"]').on('shown.bs.tab', function () {
+  applySearch(document.getElementById('flaggedSearch').value.toLowerCase().trim());
 });
 
 // ── Clear / dismiss ───────────────────────────────────────────────────
@@ -700,9 +698,7 @@ async function loadTab(tabName) {
   }
 }
 
-document.querySelectorAll('#flaggedTabs a[data-lazy]').forEach(function (tab) {
-  tab.addEventListener('shown.bs.tab', function () {
-    loadTab(this.dataset.lazy);
-  });
+$('#flaggedTabs a[data-lazy]').on('shown.bs.tab', function () {
+  loadTab($(this).data('lazy'));
 });
 </script>

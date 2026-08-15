@@ -117,6 +117,9 @@ app.set('view engine', 'ejs');
 // ── Maintenance mode (runs before all web routes) ─────────────────────────────
 app.use(require('./server/middleware/maintenanceMiddleware'));
 
+// ── Announcements (banners / strips / popups) available to every view ─────────
+app.use(require('./server/middleware/announcementsMiddleware'));
+
 // ── Web routes ────────────────────────────────────────────────────────────────
 app.use('/', require('./server/routes/webviewRoutes/packagesRoute'));
 app.use('/user', require('./server/routes/webviewRoutes/userRoute'));
@@ -140,6 +143,8 @@ app.use('/admin/flagged-transactions', require('./server/routes/adminRoutes/dama
 app.use('/admin/notifications',       require('./server/routes/adminRoutes/adminNotificationsRoute'));
 app.use('/admin/transactions',        require('./server/routes/adminRoutes/transactionsAdminRoute'));
 app.use('/admin/faq',                 require('./server/routes/adminRoutes/faqRoute'));
+app.use('/admin/announcements',       require('./server/routes/adminRoutes/announcementsRoute'));
+app.use('/admin/referrals',           require('./server/routes/adminRoutes/referralsRoute'));
 
 // ── Notification device registration (mobile — x-token auth, no CSRF) ────────
 app.post('/notification/register', require('./server/controllers/apiControllers/notificationController').registerDevice);

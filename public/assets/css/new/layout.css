@@ -2,36 +2,47 @@
    LAYOUT — app header, bottom nav, footer
    ========================================================= */
 
-/* ── App Header — Dynamic Island ────────────────────────── */
+/* ── App Header ──────────────────────────────────────────── */
 .app-header {
   position: fixed;
-  top: 14px;
-  left: 14px;
-  right: 14px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 500;
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-          backdrop-filter: blur(24px) saturate(180%);
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px  rgba(0, 0, 0, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  padding: 4px 16px;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  padding: 6px 16px;
   overflow: hidden;
-  /* visible by default */
   transform: translateY(0);
   transition: transform .35s cubic-bezier(.4, 0, .2, 1), box-shadow .3s;
 }
 
 /* JS adds this when user scrolls down */
 .app-header.island-hidden {
-  transform: translateY(calc(-100% - 28px));
+  transform: translateY(-100%);
 }
 
+/* Desktop: restore the floating island style */
 @media (min-width: 768px) {
-  .app-header { left: 24px; right: 24px; }
+  .app-header {
+    top: 14px;
+    left: 24px;
+    right: 24px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+            backdrop-filter: blur(24px) saturate(180%);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px  rgba(0, 0, 0, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  }
+  .app-header.island-hidden {
+    transform: translateY(calc(-100% - 28px));
+  }
 }
 
 .app-header__inner {
@@ -39,25 +50,127 @@
   align-items: center;
   justify-content: space-between;
   padding: 0;
+  position: relative; /* anchors the centred brand mark */
+}
+
+/* ── Signed-in mobile header: greeting | brand mark | actions ─────── */
+.app-header__greet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  min-width: 0;
+  flex-shrink: 1;
+  /* nudged in from the edge so left, centre and right sit evenly apart */
+  margin-left: 10px;
+  /* never grow far enough to sit under the centred brand mark */
+  max-width: calc(50% - 42px);
+}
+
+.app-header__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+
+.app-header__greet-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.app-header__greet-line {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header__greet-line strong { font-weight: 800; }
+
+.app-header__greet-sub {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header__center-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.app-header__center-logo picture { display: block; }
+
+.app-header__center-logo img {
+  height: 30px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+@media (min-width: 768px) {
+  /* Desktop: greeting drops away and the brand mark returns to the left,
+     restoring the normal logo | nav | actions row */
+  .app-header__greet { display: none; }
+
+  .app-header__center-logo {
+    position: static;
+    transform: none;
+  }
+
+  .app-header__center-logo img { height: 40px; }
 }
 
 /* Logo */
 .app-header__logo {
   display: flex;
   align-items: center;
+  gap: 8px;
+  text-decoration: none;
 }
 
+/* Wordmark logo (749×246) — height drives the size, width follows */
 .app-header__logo img {
-  height: 42px;
-  max-height: 42px;
+  height: 34px;
+  max-height: 34px;
   width: auto;
   object-fit: contain;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .app-header__logo img { height: 40px; max-height: 40px; }
 }
 
 .app-header__actions {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Mirror the greeting's inset on mobile so both ends sit evenly
+   off the edges and the centred brand mark reads as balanced */
+@media (max-width: 767px) {
+  .app-header__actions { margin-right: 10px; }
 }
 
 .app-header__balance {
@@ -93,6 +206,22 @@
   display: block;
   flex-shrink: 0;
 }
+
+/* Mobile wallet balance chip in header */
+.app-header__wallet-balance {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--primary-light);
+  border: 1px solid rgba(21, 168, 68, 0.2);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+
+/* Utility classes */
+.mobile-only { display: block; }
+@media (min-width: 768px) { .mobile-only { display: none !important; } }
 
 /* Log in pill button — shown when no user is logged in */
 .app-header__login-btn {
@@ -196,7 +325,7 @@
   justify-content: center;
   gap: 0;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 24px;
+  margin-bottom: 0;
   position: relative;
 }
 
@@ -274,15 +403,20 @@
 }
 
 /* ── Page main ──────────────────────────────────────────── */
-/* island top(14) + header(50) + gap(16) ≈ 80px */
 .page-main {
   min-height: calc(100vh - 76px);
-  padding-top: 82px;
-  animation: page-enter .32s cubic-bezier(.22,.61,.36,1);
+  padding-top: 56px; /* mobile: header height only, no island gap */
+  animation: page-enter .18s cubic-bezier(.22,.61,.36,1);
+}
+
+@media (min-width: 768px) {
+  .page-main {
+    padding-top: 82px; /* desktop: island top(14) + header(50) + gap */
+  }
 }
 
 body.is-leaving .page-main {
-  animation: page-leave .2s ease forwards;
+  animation: page-leave .12s ease forwards;
 }
 
 body.no-header .page-main {
@@ -291,6 +425,10 @@ body.no-header .page-main {
 
 /* ── Page hero (inner pages) ────────────────────────────── */
 .page-hero { padding: 20px 0 16px; }
+
+@media (max-width: 767px) {
+  .page-hero { padding: 8px 0 12px; }
+}
 
 .page-hero__row {
   display: flex;
@@ -360,15 +498,9 @@ body.no-header .page-main {
   padding-bottom: 16px;
 }
 
-/* Mobile: brand full-width, contact hidden, clear fixed bottom nav */
+/* Hide footer on mobile — its content lives on the /about page */
 @media (max-width: 767px) {
-  .site-footer { padding-bottom: 72px; }
-
-  .site-footer__grid > div:first-child { grid-column: 1 / -1; }
-  .site-footer__grid > div:last-child  { display: none; }
-
-  .footer-brand__desc { display: none; }
-  .footer-brand__logo { margin-bottom: 8px; }
+  .site-footer { display: none; }
 }
 
 @media (min-width: 768px) {
@@ -587,4 +719,191 @@ cursor: pointer;
 
   /* ── Always show home content on desktop (tabs are hidden) ── */
   #homeContent { display: block !important; }
+}
+
+/* ── About page ─────────────────────────────────────────── */
+.about-page { padding: 8px 0 40px; }
+
+.about-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  background: var(--white);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  padding: 24px 20px;
+  margin-bottom: 20px;
+}
+
+.about-card__logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+}
+
+.about-card__desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 420px;
+  margin: 0;
+}
+
+.about-block { margin-bottom: 20px; }
+
+.about-block__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.about-socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--white);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.about-social {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-sub);
+  text-decoration: none;
+  transition: background .15s, color .15s;
+}
+
+.about-social:hover { background: var(--primary-light); color: var(--primary); }
+.about-social svg   { display: block; }
+
+.about-links {
+  background: var(--white);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.about-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+
+.about-link:last-child { border-bottom: none; }
+.about-link:hover      { background: var(--input-bg); color: var(--text); }
+
+.about-link > svg:first-child { width: 18px; height: 18px; color: var(--primary); flex-shrink: 0; }
+.about-link span             { flex: 1; }
+.about-link__arrow           { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
+
+.about-copy {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 24px;
+}
+
+@media (min-width: 768px) {
+  .about-page   { padding: 24px 0 64px; }
+  .about-socials { justify-content: flex-start; }
+}
+
+/* ── Mobile About — stands in for the footer below 768px ─── */
+.mobile-about {
+  display: block;
+  background: var(--text);
+  color: rgba(255,255,255,.7);
+  padding: 24px 20px 16px;
+  margin-top: 32px;
+}
+
+@media (min-width: 768px) { .mobile-about { display: none; } }
+
+.mobile-about__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.mobile-about__logo {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.mobile-about__desc {
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.mobile-about__socials {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.mobile-about__social {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.8);
+  text-decoration: none;
+  transition: background .15s;
+}
+
+.mobile-about__social:hover { background: rgba(255,255,255,.2); }
+.mobile-about__social svg   { display: block; width: 16px; height: 16px; }
+
+.mobile-about__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+}
+
+.mobile-about__link {
+  font-size: 11px;
+  color: rgba(255,255,255,.5);
+  text-decoration: none;
+  transition: color .15s;
+}
+
+.mobile-about__link:hover { color: rgba(255,255,255,.8); }
+
+.mobile-about__copy {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255,255,255,.35);
+  padding-bottom: 76px; /* clear the fixed bottom nav */
 }

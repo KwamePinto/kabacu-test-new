@@ -182,6 +182,13 @@
 
 .product-card:hover .product-card__img img { transform: scale(1.04); }
 
+/* Per-network default artwork — show the whole graphic, don't crop it */
+.product-card__img img.product-card__img--default {
+  object-fit: contain;
+  padding: 8px;
+  background: var(--white);
+}
+
 /* Heart (favourite) button — top-right of image */
 .product-card__fav {
   position: absolute;
@@ -269,6 +276,70 @@
 }
 
 .product-card__rp svg { width: 10px; height: 10px; }
+
+/* ── Image fallback — bundle-card style ─────────────────── */
+.product-card__img-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, var(--primary-light, #e8f8ee) 0%, #cff2dc 100%);
+}
+
+.pcf__amount {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.pcf__validity {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 2px 0 6px;
+}
+
+.pcf__price {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.pcf__net {
+  margin-top: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  align-self: flex-start;
+}
+
+@media (min-width: 640px) {
+  .pcf__amount   { font-size: 28px; }
+  .pcf__validity { font-size: 12px; }
+  .pcf__price    { font-size: 16px; }
+  .pcf__net      { font-size: 10px; }
+}
+
+/* ── Compact card sizing for 3-col mobile grid ───────────── */
+@media (max-width: 639px) {
+  .product-card__body    { padding: 6px 7px 8px; gap: 2px; }
+  .product-card__name    { font-size: 10px; min-height: unset !important; }
+  .product-card__brand   { font-size: 9px; }
+  .product-card__footer  { margin-top: 5px; }
+  .product-card__price   { font-size: 11px; }
+  .product-card__buy     { width: 24px; height: 24px; }
+  .product-card__buy svg { width: 12px; height: 12px; }
+  .product-card__fav     { top: 4px; right: 4px; width: 22px; height: 22px; }
+  .product-card__fav svg { width: 11px; height: 11px; }
+}
 
 /* ── General Card ────────────────────────────────────────── */
 .card {
@@ -540,3 +611,162 @@
 .payment-method-opt__sub      { font-size: 12px; color: var(--muted); }
 
 .payment-modal-methods { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+
+/* =========================================================
+   ANNOUNCEMENTS — strips + sign-in popup
+   ========================================================= */
+
+/* ── Strip — thin bar directly under the header ─────────── */
+.ann-strips { display: block; }
+
+.ann-strip {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ann-strip__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.ann-strip__icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.ann-strip__text {
+  /* tabular digits stop the countdown jittering as numbers change */
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .ann-strip      { padding: 7px 0; font-size: 12px; }
+  .ann-strip__icon { width: 13px; height: 13px; }
+}
+
+/* ── Popup — card shown once after sign in ──────────────── */
+.ann-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ann-popup[hidden] { display: none; }
+
+.ann-popup__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+}
+
+.ann-popup__card {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  background: var(--white);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+  animation: ann-popup-in .26s cubic-bezier(.22, .61, .36, 1);
+}
+
+@keyframes ann-popup-in {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ann-popup__card { animation: none; }
+}
+
+.ann-popup__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text);
+  transition: background .15s;
+}
+
+.ann-popup__close:hover { background: var(--white); }
+.ann-popup__close svg   { width: 16px; height: 16px; }
+
+.ann-popup__media {
+  background: var(--input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 20px;
+}
+
+.ann-popup__media img {
+  max-width: 100%;
+  max-height: 120px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.ann-popup__body {
+  padding: 18px 20px 22px;
+  text-align: center;
+}
+
+.ann-popup__eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.ann-popup__title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+  margin: 0 0 8px;
+}
+
+.ann-popup__text {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.ann-popup__cta {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 10px 22px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+
+.ann-popup__cta:hover { opacity: .9; color: var(--white); }

@@ -56,13 +56,34 @@ forgotPasswordTokenExpires: Date,
      topUp:{
         type: mongoose.Schema.Types.ObjectId,
             ref: 'TopUp',
-    }
+    },
 
+    // ── Referrals ────────────────────────────────────────────────────────
+    // Every user gets a code they can share. Backfilled for existing accounts
+    // by scripts/backfill-referral-codes.js.
+    referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
 
+    // Who referred this user. Set once and never changed — the Referral
+    // collection is the authoritative link record and enforces that.
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user', default: null },
+
+    // Flipped the first time this user completes a purchase, which is the
+    // moment their referrer becomes eligible for a reward.
+    hasMadeFirstPurchase: { type: Boolean, default: false },
 })
 
 userSchema.index({ createdAt: -1 });
 userSchema.index({ isVerified: 1 });
+userSchema.index({ referredBy: 1 });
+
+/**
+ * Account age. The schema has never had timestamps, so createdAt does not
+ * exist on the ~6k existing accounts — the ObjectId's embedded timestamp is
+ * the only creation time available, and it is present on every document.
+ */
+userSchema.methods.createdAtSafe = function () {
+    return this._id.getTimestamp();
+};
 
 const UserModel = mongoose.model('user', userSchema);
 module.exports = UserModel;

@@ -37,6 +37,20 @@
                         </select>
                       </div>
 
+                      <!-- Market — signed-in users only see products for their own country -->
+                      <div class="form-group">
+                        <label>Country</label>
+                        <select class="form-control" name="country" required>
+                          <% countryList.forEach(function(c){ %>
+                          <option value="<%= c.code %>" <%= c.code === 'NG' ? 'selected' : '' %>><%= c.name %></option>
+                          <% }) %>
+                        </select>
+                        <small class="text-muted">
+                          Only users whose profile country matches will see this product.
+                          Signed-out visitors can browse any market.
+                        </small>
+                      </div>
+
                       <!-- DATA fields -->
                       <div id="dataFields" style="display:none;">
                         <div class="form-group">

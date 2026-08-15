@@ -14,6 +14,14 @@ const axios = require("axios");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 
+const referralService = require("../../services/referralService");
+const Referral = require("../../models/ReferralModel");
+const ReferralSettings = require("../../models/ReferralSettingsModel");
+const {
+  resolveViewerCountry,
+  countryFilter,
+  toName: countryName,
+} = require("../../utils/country");
 const { generateSignature, verifySignature } = require("../../utils/palmpay");
 const { transferRPToBittoken } = require("../../services/bittokenService");
 const SiteSettings = require("../../models/SiteSettingsModel");
@@ -21,51 +29,33 @@ const Beneficiary = require("../../models/BeneficiaryModel");
 
 exports.packagesView = async (req, res) => {
   try {
-    const products = await Product.find();
-
     // =====================================
     // PRODUCTS
     // =====================================
+    // All queries run in parallel and are bounded to what the view renders —
+    // the home page only shows 8 data cards and 4 cards per category strip.
+    // .lean() skips Mongoose document hydration; these are read-only here.
 
-    const dataProducts = await Product.find({
-      category: "DATA",
-    }).sort({ createdAt: -1 });
+    const byNewest = { createdAt: -1 };
 
-    const specialProdtcs = await Product.find({
-      category: "DATA",
-    })
-      .limit(3)
-      .sort({ createdAt: -1 });
+    // Signed-in users only see their own market; signed-out visitors see the
+    // market they picked in the header, or everything if they haven't picked.
+    const viewer = await resolveViewerCountry(req);
+    const market = countryFilter(viewer);
 
-    const automobileProducts = await Product.find({
-      category: "AUTOMOBILE",
-    }).sort({ createdAt: -1 });
-
-    const electronicProducts = await Product.find({
-      category: "ELECTRONICS",
-    }).sort({ createdAt: -1 });
-
-    const coursesProducts = await Product.find({
-      category: "COURSES",
-    }).sort({ createdAt: -1 });
-
-    const otherProducts = products.filter(
-      (p) =>
-        p.category !== "DATA" &&
-        p.category !== "AUTOMOBILE" &&
-        p.category !== "ELECTRONICS" &&
-        p.category !== "COURSES",
-    );
-
-    // =====================================
-    // ✅ GET USER
-    // =====================================
-
-    let user = null;
-
-    if (req.user) {
-      user = await User.findById(req.user.id);
-    }
+    const [
+      dataProducts,
+      automobileProducts,
+      electronicProducts,
+      coursesProducts,
+      user,
+    ] = await Promise.all([
+      Product.find({ category: "DATA", ...market }).sort(byNewest).limit(60).lean(),
+      Product.find({ category: "AUTOMOBILE", ...market }).sort(byNewest).limit(5).lean(),
+      Product.find({ category: "ELECTRONICS", ...market }).sort(byNewest).limit(5).lean(),
+      Product.find({ category: "COURSES", ...market }).sort(byNewest).limit(5).lean(),
+      req.user ? User.findById(req.user.id).lean() : null,
+    ]);
 
     // =====================================
     // RENDER
@@ -80,11 +70,10 @@ exports.packagesView = async (req, res) => {
 
       coursesProducts,
 
-      otherProducts,
-
-      specialProdtcs,
-
       user,
+
+      viewerCountry: viewer,
+      viewerCountryName: viewer.code ? countryName(viewer.code) : '',
     });
   } catch (error) {
     console.log(error);
@@ -708,9 +697,16 @@ exports.payWithWallet = async (req, res) => {
 
     const { productId } = req.body;
 
-    let wallet = await Wallet.findOne({
+    const wallet = await Wallet.findOne({
       user: userId,
     });
+
+    if (!wallet) {
+      return res.json({
+        success: false,
+        message: "Wallet not funded",
+      });
+    }
 
     let total = 0;
     let totalCost = 0;
@@ -860,37 +856,18 @@ exports.payWithWallet = async (req, res) => {
     // =====================================
     // ✅ DEDUCT WALLET (atomic)
     // =====================================
-    const currentBalance = wallet ? wallet.balances.NAIRA : 0;
-
-    let balanceBefore;
-    let balanceAfterDeduction;
-
-    if (total === 0) {
-      // Free item — no deduction needed, so a missing wallet is fine.
-      if (!wallet) {
-        wallet = await Wallet.create({ user: userId, balances: { NAIRA: 0 } });
-      }
-      balanceBefore = balanceAfterDeduction = wallet.balances.NAIRA;
-    } else {
-      // Single DB operation: check balance AND deduct atomically.
-      // Prevents two simultaneous purchases from both passing the balance check.
-      const walletSnap = await Wallet.findOneAndUpdate(
-        { user: userId, 'balances.NAIRA': { $gte: total } },
-        { $inc: { 'balances.NAIRA': -total } },
-        { new: false }
-      );
-      if (!walletSnap) {
-        return res.json({
-          success: false,
-          insufficientBalance: true,
-          message: 'Insufficient wallet balance. Please top up your wallet to continue.',
-          requiredAmount: total,
-          currentBalance,
-        });
-      }
-      balanceBefore         = walletSnap.balances.NAIRA;
-      balanceAfterDeduction = balanceBefore - total;
+    // Single DB operation: check balance AND deduct atomically.
+    // Prevents two simultaneous purchases from both passing the balance check.
+    const walletSnap = await Wallet.findOneAndUpdate(
+      { user: userId, 'balances.NAIRA': { $gte: total } },
+      { $inc: { 'balances.NAIRA': -total } },
+      { new: false }
+    );
+    if (!walletSnap) {
+      return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
+    const balanceBefore         = walletSnap.balances.NAIRA;
+    const balanceAfterDeduction = balanceBefore - total;
 
     // Atomic refund helper used by error paths below
     const refundWallet = () =>
@@ -1105,6 +1082,10 @@ exports.payWithWallet = async (req, res) => {
       text: `Data purchase of ₦${total.toLocaleString()} was successful. Your data is on its way.`,
       link: '/user/transaction-history',
     });
+
+    // Referral payout — pays this user's referrer if this was their first
+    // purchase. Swallows its own errors so it can never fail a completed sale.
+    await referralService.handlePurchase(userId, { amount: total });
 
     // =====================================
     // ✅ SUCCESS RESPONSE
@@ -1609,11 +1590,31 @@ exports.userProfile = async (req, res) => {
         .limit(5),
       TopUp.countDocuments({ user: userId, status: "COMPLETED" }),
     ]);
+
+    // ── Referrals ────────────────────────────────────────────────────────
+    // Existing accounts were backfilled by scripts/backfill-referral-codes.js;
+    // this also covers anyone created since.
+    const referralCode = await referralService.ensureReferralCode(userId);
+
+    const [referralSettings, myReferral, myReferrals] = await Promise.all([
+      ReferralSettings.getSettings(),
+      Referral.findOne({ referred: userId }).populate('referrer', 'username'),
+      Referral.find({ referrer: userId })
+        .sort({ createdAt: -1 })
+        .populate('referred', 'username')
+        .lean(),
+    ]);
+
     res.render("webview/profile", {
       user,
       recentOrders,
       recentTopups,
       totalTopups,
+      referralCode,
+      referralSettings,
+      myReferral,
+      myReferrals,
+      referralsRewarded: myReferrals.filter(r => r.status === 'rewarded').length,
     });
   } catch (error) {
     console.log(error);
@@ -1862,6 +1863,14 @@ exports.faqPage = async (req, res) => {
   }
 };
 
+exports.categoriesPage = (req, res) => {
+  res.render("webview/categories");
+};
+
+exports.aboutPage = (req, res) => {
+  res.render("webview/about");
+};
+
 exports.privacyPolicy = (req, res) => {
   res.render("webview/privacy-policy");
 };
@@ -1981,5 +1990,24 @@ exports.transferRPToBittokenHandler = async (req, res) => {
       success: false,
       message: "Something went wrong. Please try again.",
     });
+  }
+};
+
+// =====================================
+// REFERRALS
+// =====================================
+
+/**
+ * Applies another user's referral code to the signed-in account.
+ * All validation (self-referral, one-code-only, account-age ordering) lives in
+ * referralService so the rules stay in one place.
+ */
+exports.applyReferral = async (req, res) => {
+  try {
+    const result = await referralService.applyReferralCode(req.user.id, req.body.code);
+    res.json(result);
+  } catch (err) {
+    console.error("[applyReferral]", err);
+    res.json({ success: false, message: "Could not apply that code. Please try again." });
   }
 };

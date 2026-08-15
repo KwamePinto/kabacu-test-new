@@ -35,6 +35,19 @@
                         <input type="text" class="form-control" value="<%= product.category %>" readonly style="background:#f9fafb;">
                       </div>
 
+                      <!-- Market -->
+                      <div class="form-group">
+                        <label>Country</label>
+                        <select class="form-control" name="country" required>
+                          <% countryList.forEach(function(c){ %>
+                          <option value="<%= c.code %>" <%= (product.country || 'NG') === c.code ? 'selected' : '' %>><%= c.name %></option>
+                          <% }) %>
+                        </select>
+                        <small class="text-muted">
+                          Only users whose profile country matches will see this product.
+                        </small>
+                      </div>
+
                       <!-- DATA fields -->
                       <% if (product.category === 'DATA') { %>
                       <div class="form-group">

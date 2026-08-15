@@ -5,7 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabacu Marketplace</title>
-  <link rel="shortcut icon" type="image/x-icon" href="/assets/images/new.PNG">
+  <link rel="shortcut icon" type="image/png" href="/assets/images/kabacufavicon.png">
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -114,11 +114,102 @@
   <% } %>
 
   <main class="page-main">
+
+    <%
+      var _strips = (locals.announcements && announcements.strips) || [];
+      var _popups = (locals.announcements && announcements.popups) || [];
+    %>
+
+    <!-- Announcement strips — sit directly under the header, above page content -->
+    <% if (!locals.hideHeader && _strips.length) { %>
+    <div class="ann-strips">
+      <% _strips.forEach(function(s) { %>
+      <div class="ann-strip"
+           style="background:<%= s.background %>;color:<%= s.textColor %>;"
+           <% if (s.countdownEndsAt) { %>data-ends-at="<%= new Date(s.countdownEndsAt).toISOString() %>"<% } %>>
+        <div class="container ann-strip__inner">
+          <i data-lucide="zap" class="ann-strip__icon"></i>
+          <span class="ann-strip__text"><%= s.text %></span>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+
     <%- body %>
   </main>
 
+  <!-- Announcement popup — shown once per sign-in session -->
+  <% if (user && !locals.hideHeader && _popups.length) { %>
+  <% var _popup = _popups[0]; %>
+  <div class="ann-popup" id="annPopup" data-popup-id="<%= _popup._id %>" role="dialog" aria-modal="true" aria-labelledby="annPopupTitle" hidden>
+    <div class="ann-popup__backdrop" data-ann-close></div>
+    <div class="ann-popup__card">
+      <button type="button" class="ann-popup__close" data-ann-close aria-label="Close">
+        <i data-lucide="x"></i>
+      </button>
+
+      <% if (_popup.image) { %>
+      <div class="ann-popup__media">
+        <img src="<%= _popup.image %>" alt="">
+      </div>
+      <% } %>
+
+      <div class="ann-popup__body">
+        <% if (_popup.eyebrow) { %>
+        <span class="ann-popup__eyebrow"><%= _popup.eyebrow %></span>
+        <% } %>
+        <h3 class="ann-popup__title" id="annPopupTitle"><%= _popup.title %></h3>
+        <% if (_popup.subtitle) { %>
+        <p class="ann-popup__text"><%= _popup.subtitle %></p>
+        <% } %>
+        <% if (_popup.ctaLabel) { %>
+        <a href="<%= _popup.ctaLink || '#' %>" class="ann-popup__cta"><%= _popup.ctaLabel %></a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
   <% if (!locals.hideFooter) { %>
   <%- include('../partials/footer') %>
+  <% } %>
+
+  <% if (!locals.hideFooter) { %>
+  <!-- Mobile About — replaces the footer, which is hidden below 768px -->
+  <div class="mobile-about">
+    <div class="mobile-about__brand">
+      <img src="/assets/images/new.PNG" alt="Kabacu" class="mobile-about__logo">
+      <p class="mobile-about__desc">Trusted marketplace for data bundles, electronics, automobiles, and courses. Best prices, instant delivery.</p>
+    </div>
+    <div class="mobile-about__socials">
+      <a href="https://web.facebook.com/ctcofficial01" class="mobile-about__social" target="_blank" rel="noopener" aria-label="Facebook">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ctcofficial1/" class="mobile-about__social" target="_blank" rel="noopener" aria-label="Instagram">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://www.tiktok.com/@ctc.official1" class="mobile-about__social" target="_blank" rel="noopener" aria-label="TikTok">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.77a4.85 4.85 0 0 1-1.01-.08z"/></svg>
+      </a>
+      <a href="https://t.me/ctcofficialchannel" class="mobile-about__social" target="_blank" rel="noopener" aria-label="Telegram">
+        <i data-lucide="send"></i>
+      </a>
+      <a href="https://www.youtube.com/@CTCTUTORIAL" class="mobile-about__social" target="_blank" rel="noopener" aria-label="YouTube">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      </a>
+      <a href="https://x.com/@ctc_official1" class="mobile-about__social" target="_blank" rel="noopener" aria-label="X">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <div class="mobile-about__links">
+      <a href="/faq" class="mobile-about__link">FAQ</a>
+      <a href="/privacy-policy" class="mobile-about__link">Privacy Policy</a>
+      <a href="/terms" class="mobile-about__link">Terms of Use</a>
+      <a href="mailto:support@kabacu.com" class="mobile-about__link">support@kabacu.com</a>
+    </div>
+    <p class="mobile-about__copy">&copy; <%= new Date().getFullYear() %> Creative Time Center. All rights reserved.</p>
+  </div>
   <% } %>
 
   <% if (!locals.hideFooter) { %>
@@ -159,6 +250,16 @@
         <div class="support-sheet__opt-text">
           <div class="support-sheet__opt-title">FAQs</div>
           <div class="support-sheet__opt-sub">Browse common questions &amp; answers</div>
+        </div>
+        <i data-lucide="chevron-right" class="support-sheet__opt-arrow"></i>
+      </a>
+      <a href="/about" class="support-sheet__option">
+        <div class="support-sheet__opt-icon support-sheet__opt-icon--faq">
+          <i data-lucide="info"></i>
+        </div>
+        <div class="support-sheet__opt-text">
+          <div class="support-sheet__opt-title">About Kabacu</div>
+          <div class="support-sheet__opt-sub">Company info, socials &amp; legal</div>
         </div>
         <i data-lucide="chevron-right" class="support-sheet__opt-arrow"></i>
       </a>
@@ -498,8 +599,99 @@
         e.preventDefault();
         document.body.classList.add('is-leaving');
         var dest = href;
-        setTimeout(function() { window.location.href = dest; }, 200);
+        setTimeout(function() { window.location.href = dest; }, 120);
       });
+
+      /* When the browser restores a page from bfcache (back button),
+         clear the is-leaving class so the page isn't stuck invisible */
+      window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+          document.body.classList.remove('is-leaving');
+        }
+      });
+    })();
+  </script>
+
+  <!-- Announcements: strip countdowns + sign-in popup -->
+  <script>
+    (function () {
+      /* ── Strip countdowns ──────────────────────────────────────────────
+         Any strip carrying data-ends-at has its {countdown} token replaced
+         with a live HH:MM:SS. When it hits zero the strip removes itself. */
+      var strips = Array.prototype.slice.call(document.querySelectorAll('.ann-strip[data-ends-at]'));
+
+      if (strips.length) {
+        strips.forEach(function (el) {
+          var textEl = el.querySelector('.ann-strip__text');
+          el._template = textEl ? textEl.textContent : '';
+        });
+
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+
+        var tick = function () {
+          var now = Date.now();
+          var stillRunning = false;
+
+          strips.forEach(function (el) {
+            if (!el.isConnected) return;
+            var textEl = el.querySelector('.ann-strip__text');
+            if (!textEl) return;
+
+            var remaining = new Date(el.dataset.endsAt).getTime() - now;
+
+            if (remaining <= 0) {
+              el.remove();           // expired — drop it from the page
+              return;
+            }
+
+            stillRunning = true;
+            var total   = Math.floor(remaining / 1000);
+            var hours   = Math.floor(total / 3600);
+            var minutes = Math.floor((total % 3600) / 60);
+            var seconds = total % 60;
+
+            textEl.textContent = el._template.replace(
+              '{countdown}',
+              pad(hours) + ':' + pad(minutes) + ':' + pad(seconds)
+            );
+          });
+
+          if (!stillRunning) clearInterval(timer);
+        };
+
+        tick();
+        var timer = setInterval(tick, 1000);
+      }
+
+      /* ── Sign-in popup ─────────────────────────────────────────────────
+         Shown once per browser session so it greets the user after login
+         without reappearing on every page they visit. */
+      var popup = document.getElementById('annPopup');
+      if (popup) {
+        var key = 'kbc_popup_seen_' + popup.dataset.popupId;
+
+        var close = function () {
+          popup.hidden = true;
+          document.body.style.overflow = '';
+          try { sessionStorage.setItem(key, '1'); } catch (e) {}
+        };
+
+        var alreadySeen = false;
+        try { alreadySeen = sessionStorage.getItem(key) === '1'; } catch (e) {}
+
+        if (!alreadySeen) {
+          popup.hidden = false;
+          document.body.style.overflow = 'hidden';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        popup.querySelectorAll('[data-ann-close]').forEach(function (el) {
+          el.addEventListener('click', close);
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !popup.hidden) close();
+        });
+      }
     })();
   </script>
 

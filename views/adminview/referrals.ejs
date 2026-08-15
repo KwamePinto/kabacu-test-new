@@ -1,0 +1,279 @@
+<style>
+  .rf-stat        { text-align: center; padding: 14px 8px; }
+  .rf-stat__num   { font-size: 26px; font-weight: 700; line-height: 1; }
+  .rf-stat__lbl   { font-size: 12px; color: #6c757d; margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+  .rf-help        { font-size: 12px; color: #6c757d; margin-top: 4px; }
+  .rf-pkg-table   { max-height: 340px; overflow-y: auto; border: 1px solid #e4e6fc; border-radius: 6px; }
+  .rf-pkg-table table { margin-bottom: 0; }
+  .rf-pkg-row     { cursor: pointer; }
+  .rf-pkg-row.selected { background: #eef1ff !important; }
+  .rf-pkg-row td  { vertical-align: middle; }
+  .field-group[hidden] { display: none !important; }
+  .rf-chosen      { background: #eef1ff; border: 1px solid #c9d0ff; border-radius: 6px; padding: 10px 14px; font-size: 13px; }
+</style>
+
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    <div class="navbar-bg"></div>
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
+
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h1>Referrals</h1>
+          <div class="section-header-breadcrumb">
+            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
+            <div class="breadcrumb-item">Referrals</div>
+          </div>
+        </div>
+
+        <div class="section-body">
+
+          <!-- ── Stats ───────────────────────────────────────────────────── -->
+          <div class="row">
+            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
+              <div class="rf-stat__num"><%= stats.pending %></div><div class="rf-stat__lbl">Pending</div>
+            </div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
+              <div class="rf-stat__num"><%= stats.qualified %></div><div class="rf-stat__lbl">Qualified</div>
+            </div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
+              <div class="rf-stat__num text-success"><%= stats.rewarded %></div><div class="rf-stat__lbl">Rewarded</div>
+            </div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
+              <div class="rf-stat__num text-muted"><%= stats.void %></div><div class="rf-stat__lbl">Void</div>
+            </div></div></div>
+          </div>
+
+          <!-- ── Reward configuration ────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header"><h4>Reward Configuration</h4></div>
+            <div class="card-body">
+
+              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
+                A referrer is paid <strong>after the person they referred completes their first purchase</strong>.
+                A user can only ever apply one code, cannot use their own, and cannot use a code
+                belonging to an account newer than theirs.
+              </div>
+
+              <div class="row">
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Reward type <span class="text-danger">*</span></label>
+                    <select id="f-rewardtype" class="form-control" onchange="onRewardTypeChange()">
+                      <option value="money"       <%= settings.rewardType === 'money'       ? 'selected' : '' %>>Money — credited to wallet</option>
+                      <option value="data"        <%= settings.rewardType === 'data'        ? 'selected' : '' %>>Data — award a package</option>
+                      <option value="rewardpoint" <%= settings.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-4 field-group" id="grp-amount">
+                  <div class="form-group">
+                    <label>Amount per referral <span class="text-danger">*</span></label>
+                    <input type="number" id="f-amount" class="form-control" min="1" step="any"
+                           value="<%= settings.amount || '' %>" placeholder="e.g. 200">
+                    <div class="rf-help" id="amount-help">Naira credited to the referrer's wallet.</div>
+                  </div>
+                </div>
+
+                <div class="col-6 col-md-2">
+                  <div class="form-group">
+                    <label>Min. purchase</label>
+                    <input type="number" id="f-minpurchase" class="form-control" min="0" step="any"
+                           value="<%= settings.minPurchaseAmount || 0 %>">
+                    <div class="rf-help">0 = any purchase qualifies.</div>
+                  </div>
+                </div>
+
+                <div class="col-6 col-md-2">
+                  <div class="form-group">
+                    <label>Max / referrer</label>
+                    <input type="number" id="f-maxrewards" class="form-control" min="0"
+                           value="<%= settings.maxRewardsPerReferrer || 0 %>">
+                    <div class="rf-help">0 = unlimited.</div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Programme status</label>
+                    <select id="f-active" class="form-control">
+                      <option value="true"  <%= settings.isActive  ? 'selected' : '' %>>Active</option>
+                      <option value="false" <%= !settings.isActive ? 'selected' : '' %>>Paused</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Data reward: pick the exact package to award -->
+              <div class="field-group" id="grp-data" hidden>
+                <hr>
+                <h6>Choose the data package to award</h6>
+                <p class="rf-help mb-2">
+                  A data reward has to name a real package, so pick the exact bundle a
+                  referrer receives. Click a row to select it.
+                </p>
+
+                <div id="chosen-wrap" class="rf-chosen mb-2" style="display:none;">
+                  Selected: <strong id="chosen-label">—</strong>
+                </div>
+
+                <div class="rf-pkg-table">
+                  <table class="table table-sm table-hover mb-0">
+                    <thead>
+                      <tr><th style="width:40px;"></th><th>Plan</th><th>Network</th><th>Validity</th><th class="text-right">Price</th></tr>
+                    </thead>
+                    <tbody>
+                      <% if (!dataProducts.length) { %>
+                      <tr><td colspan="5" class="text-center text-muted py-3">No data packages exist yet.</td></tr>
+                      <% } %>
+                      <% dataProducts.forEach(function(p) {
+                           var d = p.dataDetails || {};
+                           var label = (d.plan_type || 'Plan') + ' · ' + (d.network || '') + ' · ' + (d.validate_period || '');
+                           var isSel = settings.dataProduct && String(settings.dataProduct) === String(p._id);
+                      %>
+                      <tr class="rf-pkg-row <%= isSel ? 'selected' : '' %>"
+                          data-id="<%= p._id %>" data-label="<%= label %>"
+                          onclick="selectPackage(this)">
+                        <td>
+                          <input type="radio" name="rf-pkg" value="<%= p._id %>" <%= isSel ? 'checked' : '' %>>
+                        </td>
+                        <td><%= d.plan_type || '—' %></td>
+                        <td><%= d.network || '—' %></td>
+                        <td><%= d.validate_period || '—' %></td>
+                        <td class="text-right">&#8358;<%= d.amount != null ? d.amount : '—' %></td>
+                      </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <button class="btn btn-primary" id="save-btn" onclick="saveSettings()">Save Settings</button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ── Recent referrals ────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header"><h4>Recent Referrals</h4></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                  <thead>
+                    <tr><th>Referrer</th><th>Referred user</th><th>Code</th><th>Status</th><th>Reward</th><th>When</th></tr>
+                  </thead>
+                  <tbody>
+                    <% if (!referrals.length) { %>
+                    <tr><td colspan="6" class="text-center text-muted py-4">No referrals recorded yet.</td></tr>
+                    <% } %>
+                    <% referrals.forEach(function(r) {
+                         var badge = r.status === 'rewarded' ? 'success'
+                                   : r.status === 'qualified' ? 'info'
+                                   : r.status === 'void' ? 'secondary' : 'warning';
+                    %>
+                    <tr>
+                      <td><%= (r.referrer && r.referrer.username) || '—' %></td>
+                      <td><%= (r.referred && r.referred.username) || '—' %></td>
+                      <td><code><%= r.codeUsed %></code></td>
+                      <td><span class="badge badge-<%= badge %>"><%= r.status %></span></td>
+                      <td><small><%= r.rewardNote || '—' %></small></td>
+                      <td><small><%= new Date(r.createdAt).toLocaleDateString() %></small></td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+var CSRF = '<%= csrfToken %>';
+var selectedPackageId = <%- settings.dataProduct ? JSON.stringify(String(settings.dataProduct)) : 'null' %>;
+
+function onRewardTypeChange() {
+  var type = document.getElementById('f-rewardtype').value;
+  document.getElementById('grp-amount').hidden = (type === 'data');
+  document.getElementById('grp-data').hidden   = (type !== 'data');
+
+  var help = document.getElementById('amount-help');
+  if (type === 'money')       help.textContent = "Naira credited to the referrer's wallet.";
+  if (type === 'rewardpoint') help.textContent = 'Reward Points added to the referrer’s RP balance.';
+}
+
+function selectPackage(row) {
+  document.querySelectorAll('.rf-pkg-row').forEach(function(r) { r.classList.remove('selected'); });
+  row.classList.add('selected');
+  var radio = row.querySelector('input[type=radio]');
+  if (radio) radio.checked = true;
+
+  selectedPackageId = row.dataset.id;
+  document.getElementById('chosen-wrap').style.display = '';
+  document.getElementById('chosen-label').textContent = row.dataset.label;
+}
+
+async function saveSettings() {
+  var type = document.getElementById('f-rewardtype').value;
+
+  var payload = {
+    rewardType: type,
+    amount: document.getElementById('f-amount').value,
+    dataProduct: selectedPackageId,
+    minPurchaseAmount: document.getElementById('f-minpurchase').value,
+    maxRewardsPerReferrer: document.getElementById('f-maxrewards').value,
+    isActive: document.getElementById('f-active').value,
+  };
+
+  if (type === 'data' && !selectedPackageId) {
+    return Swal.fire({ icon: 'warning', text: 'Choose the data package to award.', confirmButtonColor: '#6777ef' });
+  }
+  if (type !== 'data' && !(Number(payload.amount) > 0)) {
+    return Swal.fire({ icon: 'warning', text: 'Enter a reward amount greater than zero.', confirmButtonColor: '#6777ef' });
+  }
+
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    var res  = await fetch('/admin/referrals/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload),
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1800, showConfirmButton: false });
+    } else {
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+    }
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Save Settings';
+}
+
+/* Reflect any already-saved data package on load */
+(function () {
+  onRewardTypeChange();
+  var sel = document.querySelector('.rf-pkg-row.selected');
+  if (sel) {
+    document.getElementById('chosen-wrap').style.display = '';
+    document.getElementById('chosen-label').textContent = sel.dataset.label;
+  }
+})();
+</script>

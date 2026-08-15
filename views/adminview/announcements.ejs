@@ -1,0 +1,446 @@
+<style>
+  .ann-thumb      { width: 64px; height: 40px; object-fit: cover; border-radius: 4px; background: #f2f2f2; }
+  .ann-swatch     { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; border: 1px solid rgba(0,0,0,.15); }
+  .editing-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 16px; margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #856404; }
+  .type-help      { font-size: 12px; color: #6c757d; margin-top: 4px; }
+  .ann-preview    { border: 1px dashed #d3d6e0; border-radius: 6px; padding: 14px; background: #fafbff; }
+  .field-group[hidden] { display: none !important; }
+</style>
+
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    <div class="navbar-bg"></div>
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
+
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h1>Announcements</h1>
+          <div class="section-header-breadcrumb">
+            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
+            <div class="breadcrumb-item">Announcements</div>
+          </div>
+        </div>
+
+        <div class="section-body">
+
+          <!-- ── Editor ──────────────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header"><h4 id="editor-title">Add New Announcement</h4></div>
+            <div class="card-body">
+
+              <div id="editing-banner" class="editing-banner" style="display:none;"></div>
+
+              <div class="row">
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Type <span class="text-danger">*</span></label>
+                    <select id="f-type" class="form-control" onchange="onTypeChange()">
+                      <option value="banner">Banner — hero carousel slide</option>
+                      <option value="strip">Strip — thin bar under the header</option>
+                      <option value="popup">Popup — card shown after sign in</option>
+                    </select>
+                    <div class="type-help" id="type-help">Appears as a slide in the home page hero carousel.</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-4">
+                  <div class="form-group">
+                    <label>Order</label>
+                    <input type="number" id="f-order" class="form-control" placeholder="Auto" min="0">
+                  </div>
+                </div>
+                <div class="col-6 col-md-4">
+                  <div class="form-group">
+                    <label>Status</label>
+                    <select id="f-active" class="form-control">
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Strip fields -->
+              <div class="field-group" id="grp-strip" hidden>
+                <div class="row">
+                  <div class="col-12">
+                    <div class="form-group">
+                      <label>Strip text <span class="text-danger">*</span></label>
+                      <input type="text" id="f-text" class="form-control"
+                             placeholder="e.g. Flash sale ends in {countdown}">
+                      <div class="type-help">
+                        Put <code>{countdown}</code> anywhere in the text and it becomes a live
+                        timer counting down to the date below.
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <div class="form-group">
+                      <label>Countdown ends at</label>
+                      <input type="datetime-local" id="f-countdown" class="form-control">
+                      <div class="type-help">Leave empty for a strip with no timer.</div>
+                    </div>
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <div class="form-group">
+                      <label>Background colour</label>
+                      <input type="color" id="f-bg" class="form-control" value="#15a844" style="height:38px;">
+                    </div>
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <div class="form-group">
+                      <label>Text colour</label>
+                      <input type="color" id="f-fg" class="form-control" value="#ffffff" style="height:38px;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Banner + popup fields -->
+              <div class="field-group" id="grp-rich">
+                <div class="row">
+                  <div class="col-12 col-md-4">
+                    <div class="form-group">
+                      <label>Eyebrow</label>
+                      <input type="text" id="f-eyebrow" class="form-control" placeholder="Small label above the title">
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-8">
+                    <div class="form-group">
+                      <label>Title <span class="text-danger">*</span></label>
+                      <input type="text" id="f-title" class="form-control" placeholder="Main heading">
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-group">
+                      <label>Subtitle / body</label>
+                      <input type="text" id="f-subtitle" class="form-control" placeholder="Supporting line">
+                    </div>
+                  </div>
+                  <div class="col-12 field-group" id="grp-caption">
+                    <div class="form-group">
+                      <label>Desktop caption</label>
+                      <input type="text" id="f-caption" class="form-control" placeholder="Longer line shown on desktop only">
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-group">
+                      <label>Button label</label>
+                      <input type="text" id="f-ctalabel" class="form-control" placeholder="e.g. Shop Now">
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-group">
+                      <label>Button link</label>
+                      <input type="text" id="f-ctalink" class="form-control" placeholder="/category/data-category">
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-group">
+                      <label>Image — upload</label>
+                      <input type="file" id="f-image" class="form-control" accept="image/*">
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-group">
+                      <label>…or image path</label>
+                      <input type="text" id="f-imageurl" class="form-control" placeholder="/assets/images/new.PNG">
+                      <div class="type-help">Used when no file is uploaded.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <button class="btn btn-primary" id="save-btn" onclick="saveAnnouncement()">Create Announcement</button>
+                <button class="btn btn-secondary" id="cancel-btn" onclick="resetForm()" style="display:none;">Cancel</button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ── Lists ───────────────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header"><h4>Banners — hero carousel (<%= banners.length %>)</h4></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                  <thead>
+                    <tr><th>Image</th><th>Title</th><th>Button</th><th>Order</th><th>Status</th><th class="text-right">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    <% if (!banners.length) { %>
+                    <tr><td colspan="6" class="text-center text-muted py-4">No banners yet.</td></tr>
+                    <% } %>
+                    <% banners.forEach(function(a) { %>
+                    <tr data-id="<%= a._id %>">
+                      <td><img class="ann-thumb" src="<%= a.image || '/assets/images/kabacufavicon.png' %>" alt=""></td>
+                      <td>
+                        <strong><%= a.title %></strong>
+                        <% if (a.eyebrow) { %><br><small class="text-muted"><%= a.eyebrow %></small><% } %>
+                      </td>
+                      <td><small><%= a.ctaLabel || '—' %></small></td>
+                      <td><%= a.order %></td>
+                      <td>
+                        <span class="badge badge-<%= a.isActive ? 'success' : 'secondary' %>"><%= a.isActive ? 'Active' : 'Inactive' %></span>
+                      </td>
+                      <td class="text-right">
+                        <button class="btn btn-sm btn-info"    onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
+                        <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
+                        <button class="btn btn-sm btn-danger"  onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
+                      </td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h4>Strips — under the header (<%= strips.length %>)</h4></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                  <thead>
+                    <tr><th>Text</th><th>Countdown ends</th><th>Colours</th><th>Order</th><th>Status</th><th class="text-right">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    <% if (!strips.length) { %>
+                    <tr><td colspan="6" class="text-center text-muted py-4">No strips yet.</td></tr>
+                    <% } %>
+                    <% strips.forEach(function(a) { %>
+                    <tr data-id="<%= a._id %>">
+                      <td><%= a.text %></td>
+                      <td>
+                        <% if (a.countdownEndsAt) { %>
+                          <small><%= new Date(a.countdownEndsAt).toLocaleString() %></small>
+                          <% if (new Date(a.countdownEndsAt) <= new Date()) { %>
+                          <br><span class="badge badge-danger">Expired</span>
+                          <% } %>
+                        <% } else { %><small class="text-muted">—</small><% } %>
+                      </td>
+                      <td>
+                        <span class="ann-swatch" style="background:<%= a.background %>"></span>
+                        <span class="ann-swatch" style="background:<%= a.textColor %>"></span>
+                      </td>
+                      <td><%= a.order %></td>
+                      <td><span class="badge badge-<%= a.isActive ? 'success' : 'secondary' %>"><%= a.isActive ? 'Active' : 'Inactive' %></span></td>
+                      <td class="text-right">
+                        <button class="btn btn-sm btn-info"    onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
+                        <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
+                        <button class="btn btn-sm btn-danger"  onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
+                      </td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h4>Popups — shown after sign in (<%= popups.length %>)</h4></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                  <thead>
+                    <tr><th>Image</th><th>Title</th><th>Button</th><th>Order</th><th>Status</th><th class="text-right">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    <% if (!popups.length) { %>
+                    <tr><td colspan="6" class="text-center text-muted py-4">No popups yet.</td></tr>
+                    <% } %>
+                    <% popups.forEach(function(a) { %>
+                    <tr data-id="<%= a._id %>">
+                      <td><img class="ann-thumb" src="<%= a.image || '/assets/images/kabacufavicon.png' %>" alt=""></td>
+                      <td>
+                        <strong><%= a.title %></strong>
+                        <% if (a.subtitle) { %><br><small class="text-muted"><%= a.subtitle.slice(0, 70) %></small><% } %>
+                      </td>
+                      <td><small><%= a.ctaLabel || '—' %></small></td>
+                      <td><%= a.order %></td>
+                      <td><span class="badge badge-<%= a.isActive ? 'success' : 'secondary' %>"><%= a.isActive ? 'Active' : 'Inactive' %></span></td>
+                      <td class="text-right">
+                        <button class="btn btn-sm btn-info"    onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
+                        <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
+                        <button class="btn btn-sm btn-danger"  onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
+                      </td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+var CSRF = '<%= csrfToken %>';
+var editingId = null;
+
+var TYPE_HELP = {
+  banner: 'Appears as a slide in the home page hero carousel.',
+  strip:  'A thin bar directly under the header, above the categories. Supports a countdown.',
+  popup:  'A card shown once each time a user signs in.',
+};
+
+// ── Show only the fields that matter for the selected type ───────────────────
+function onTypeChange() {
+  var type = document.getElementById('f-type').value;
+  document.getElementById('type-help').textContent = TYPE_HELP[type];
+  document.getElementById('grp-strip').hidden   = (type !== 'strip');
+  document.getElementById('grp-rich').hidden    = (type === 'strip');
+  document.getElementById('grp-caption').hidden = (type !== 'banner');
+}
+
+function val(id)      { return document.getElementById(id).value; }
+function setVal(id,v) { document.getElementById(id).value = v == null ? '' : v; }
+
+// Converts an ISO date into the value a datetime-local input expects
+function toLocalInput(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+         'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function resetForm() {
+  editingId = null;
+  ['f-title','f-eyebrow','f-subtitle','f-caption','f-text','f-ctalabel','f-ctalink','f-imageurl','f-order','f-countdown']
+    .forEach(function(id) { setVal(id, ''); });
+  document.getElementById('f-image').value = '';
+  setVal('f-bg', '#15a844');
+  setVal('f-fg', '#ffffff');
+  setVal('f-active', 'true');
+  document.getElementById('f-type').disabled = false;
+  document.getElementById('editor-title').textContent = 'Add New Announcement';
+  document.getElementById('save-btn').textContent = 'Create Announcement';
+  document.getElementById('cancel-btn').style.display = 'none';
+  document.getElementById('editing-banner').style.display = 'none';
+  onTypeChange();
+}
+
+function editAnnouncement(a) {
+  editingId = a._id;
+  setVal('f-type', a.type);
+  // Type is fixed after creation — a strip can't become a banner
+  document.getElementById('f-type').disabled = true;
+  onTypeChange();
+
+  setVal('f-title', a.title);
+  setVal('f-eyebrow', a.eyebrow);
+  setVal('f-subtitle', a.subtitle);
+  setVal('f-caption', a.caption);
+  setVal('f-text', a.text);
+  setVal('f-ctalabel', a.ctaLabel);
+  setVal('f-ctalink', a.ctaLink);
+  setVal('f-imageurl', a.image);
+  setVal('f-order', a.order);
+  setVal('f-bg', a.background || '#15a844');
+  setVal('f-fg', a.textColor || '#ffffff');
+  setVal('f-active', a.isActive ? 'true' : 'false');
+  setVal('f-countdown', toLocalInput(a.countdownEndsAt));
+
+  document.getElementById('editor-title').textContent = 'Edit Announcement';
+  document.getElementById('save-btn').textContent = 'Save Changes';
+  document.getElementById('cancel-btn').style.display = '';
+  var banner = document.getElementById('editing-banner');
+  banner.textContent = 'Editing: ' + (a.title || a.text || a.type);
+  banner.style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function saveAnnouncement() {
+  var type = val('f-type');
+
+  if (type === 'strip' && !val('f-text').trim()) {
+    return Swal.fire({ icon: 'warning', text: 'Please enter the strip text.', confirmButtonColor: '#6777ef' });
+  }
+  if (type !== 'strip' && !val('f-title').trim()) {
+    return Swal.fire({ icon: 'warning', text: 'Please enter a title.', confirmButtonColor: '#6777ef' });
+  }
+
+  // FormData so the optional file upload rides along with the text fields
+  var fd = new FormData();
+  fd.append('type', type);
+  fd.append('title', val('f-title'));
+  fd.append('eyebrow', val('f-eyebrow'));
+  fd.append('subtitle', val('f-subtitle'));
+  fd.append('caption', val('f-caption'));
+  fd.append('text', val('f-text'));
+  fd.append('ctaLabel', val('f-ctalabel'));
+  fd.append('ctaLink', val('f-ctalink'));
+  fd.append('imageUrl', val('f-imageurl'));
+  fd.append('order', val('f-order'));
+  fd.append('background', val('f-bg'));
+  fd.append('textColor', val('f-fg'));
+  fd.append('isActive', val('f-active'));
+  fd.append('countdownEndsAt', val('f-countdown'));
+
+  var file = document.getElementById('f-image').files[0];
+  if (file) fd.append('image', file);
+
+  var url = editingId ? '/admin/announcements/' + editingId + '/update'
+                      : '/admin/announcements/create';
+
+  try {
+    var res  = await fetch(url, { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: fd });
+    var data = await res.json();
+
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1600, showConfirmButton: false });
+      setTimeout(function() { location.reload(); }, 900);
+    } else {
+      Swal.fire({ icon: 'error', text: data.message || 'Failed to save.', confirmButtonColor: '#6777ef' });
+    }
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+  }
+}
+
+async function toggleAnnouncement(id) {
+  try {
+    var res  = await fetch('/admin/announcements/' + id + '/toggle', {
+      method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+    });
+    var data = await res.json();
+    if (data.success) location.reload();
+    else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error.', confirmButtonColor: '#6777ef' });
+  }
+}
+
+async function deleteAnnouncement(id) {
+  var confirmed = await Swal.fire({
+    icon: 'warning', title: 'Delete this announcement?',
+    text: 'This cannot be undone.',
+    showCancelButton: true, confirmButtonText: 'Delete',
+    confirmButtonColor: '#dc3545',
+  });
+  if (!confirmed.isConfirmed) return;
+
+  try {
+    var res  = await fetch('/admin/announcements/' + id + '/delete', {
+      method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+    });
+    var data = await res.json();
+    if (data.success) location.reload();
+    else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error.', confirmButtonColor: '#6777ef' });
+  }
+}
+
+onTypeChange();
+</script>

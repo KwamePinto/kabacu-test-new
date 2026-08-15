@@ -2,10 +2,37 @@
   <div class="container">
     <div class="app-header__inner">
 
-      <!-- Logo -->
-      <a href="/" class="app-header__logo">
-        <img src="/assets/images/new.PNG" alt="Data Mall">
+      <%
+        /* Initials for the avatar: first letter of each of the first two words */
+        var _uname = (user && user.username) ? String(user.username).trim() : '';
+        var _parts = _uname.split(/\s+/).filter(Boolean);
+        var _initials = _parts.slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase() || '?';
+        var _firstName = _parts[0] || _uname;
+      %>
+
+      <% if (user) { %>
+      <!-- Signed in — mobile: avatar + greeting takes the left slot -->
+      <a href="/user-profile" class="app-header__greet">
+        <span class="app-header__avatar" aria-hidden="true"><%= _initials %></span>
+        <span class="app-header__greet-text">
+          <span class="app-header__greet-line">Hello <strong><%= _firstName %></strong></span>
+          <span class="app-header__greet-sub js-country-name">Nigeria</span>
+        </span>
       </a>
+
+      <!-- The only logo when signed in: the square mark centred on mobile,
+           the full wordmark left-aligned once there's room for it -->
+      <a href="/" class="app-header__center-logo" aria-label="Kabacu home">
+        <picture>
+          <source media="(min-width: 768px)" srcset="/assets/images/new.PNG">
+          <img src="/assets/images/kabacufavicon.png" alt="Kabacu">
+        </picture>
+      </a>
+      <% } else { %>
+      <a href="/" class="app-header__logo">
+        <img src="/assets/images/new.PNG" alt="Kabacu">
+      </a>
+      <% } %>
 
       <!-- Desktop nav links (hidden on mobile) -->
       <nav class="desktop-nav" aria-label="Main navigation">
@@ -19,11 +46,10 @@
 
       <!-- Actions -->
       <div class="app-header__actions">
-        <p class="mobile-only"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
-        <button id="searchBtn" class="app-header__icon-btn" aria-label="Search">
-          <i data-lucide="search"></i>
-        </button>
         <% if (user) { %>
+
+        <!-- Mobile: wallet balance chip -->
+        <span class="app-header__wallet-balance mobile-only"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></span>
 
         <!-- Notification bell -->
         <div class="notif-bell-wrap" style="position:relative;display:inline-block;">
@@ -31,8 +57,6 @@
             <i data-lucide="bell"></i>
             <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;background:#ef4444;border-radius:50%;border:1px solid #fff;"></span>
           </button>
-
-          <!-- Dropdown panel -->
           <div id="notifPanel" style="display:none;position:fixed;width:320px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:99999;overflow:hidden;">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f0f0f0;">
               <strong style="font-size:14px;">Notifications</strong>
@@ -50,13 +74,18 @@
         <a href="/user-profile" class="app-header__icon-btn desktop-only" aria-label="My Account" title="My Account">
           <i data-lucide="user-circle-2"></i>
         </a>
-
-        <!-- Country selector (desktop) -->
         <button type="button" id="countryTriggerBtn" class="app-header__icon-btn app-header__flag-btn js-country-trigger desktop-only" aria-label="Select country" title="Select your country">
           <span class="js-country-flag">🇳🇬</span>
         </button>
         <p class="desktop-only app-header__balance"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
+
         <% } else { %>
+        <!-- Signed out: pick a market to browse. Signed-in users don't get this
+             — they are locked to the country on their profile. -->
+        <button type="button" class="app-header__icon-btn app-header__flag-btn js-country-trigger"
+                aria-label="Choose country" title="Choose your country">
+          <span class="js-country-flag">🇳🇬</span>
+        </button>
         <a href="/user/login" class="app-header__login-btn">
           <i data-lucide="log-in"></i>
           Log in

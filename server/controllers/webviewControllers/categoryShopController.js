@@ -6,6 +6,8 @@ const Cart = require('../../models/CartModal')
 const Wallet = require('../../models/WalletModal')
 const Transaction = require('../../models/TransactionModel')
 const CoursePurchase = require('../../models/CoursePurchaseModel')
+const referralService = require('../../services/referralService')
+const { resolveViewerCountry, countryFilter, toName: countryName } = require('../../utils/country')
 const axios = require('axios')
 
 const { authenticateUser } = require('../../config/authMiddleware');
@@ -108,8 +110,13 @@ exports.dataCategory = async (req, res) => {
        alongside every Network (including soft-deleted ones) so we can resolve each
        product's API provider — a network removed from the admin list must still
        correctly link any existing products carrying its name */
+    /* Signed-in users are locked to their profile's market; signed-out
+       visitors see whichever market they picked in the header, or all. */
+    const viewer = await resolveViewerCountry(req);
+    const market = countryFilter(viewer);
+
     const [all, networkDocs] = await Promise.all([
-      Product.find({ category: 'DATA', isActive: { $ne: false } })
+      Product.find({ category: 'DATA', isActive: { $ne: false }, ...market })
         .sort({ 'dataDetails.network': 1, 'dataDetails.amount': 1 }),
       Network.find({}),
     ]);
@@ -164,6 +171,8 @@ exports.dataCategory = async (req, res) => {
       groupedProducts,
       netPagination,
       activeNetwork,
+      viewerCountry: viewer,
+      viewerCountryName: viewer.code ? countryName(viewer.code) : '',
     });
 
   } catch (error) {
@@ -354,6 +363,9 @@ exports.coursePurchase = async (req, res) => {
     if (rpEarned > 0) {
       await User.findByIdAndUpdate(user._id, { $inc: { rpBalance: rpEarned } });
     }
+
+    // A paid course counts as a qualifying first purchase for referrals.
+    await referralService.handlePurchase(user._id, { amount: price });
 
     const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
     sendEmail({

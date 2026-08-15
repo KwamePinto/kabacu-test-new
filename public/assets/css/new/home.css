@@ -5,14 +5,20 @@
 /* ── Hero Carousel ───────────────────────────────────────── */
 .promo-carousel {
   position: relative;
-  border-radius: var(--r-lg);
+  border-radius: 0;
   overflow: hidden;
-  height: 210px;
-  /* outside container on desktop — add side margin on mobile */
-  margin: 0 16px;
+  height: 190px;
+  margin: 0;
 }
 
-@media (min-width: 640px) { .promo-carousel { height: 280px; } }
+@media (min-width: 768px) {
+  .promo-carousel {
+    border-radius: var(--r-lg);
+    margin: 0 16px;
+  }
+}
+
+@media (min-width: 640px) { .promo-carousel { height: 240px; } }
 
 .promo-slide {
   position: absolute;
@@ -58,17 +64,14 @@
 
 .promo-slide__content { position: relative; z-index: 1; }
 
-.promo-slide__tag {
-  display: inline-block;
+.promo-slide__eyebrow {
+  display: block;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--white);
-  background: var(--primary);
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
-  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 6px;
 }
 
 .promo-slide__title {
@@ -144,12 +147,118 @@
 /* ── Product grid ────────────────────────────────────────── */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
-@media (min-width: 640px)  { .product-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 640px)  { .product-grid { gap: 12px; } }
 @media (min-width: 1024px) { .product-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; } }
+
+/* ── Mobile category circles (WhatsApp status style) ─────── */
+.mobile-cats {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0 12px;
+}
+
+@media (min-width: 768px) { .mobile-cats { display: none; } }
+
+.mobile-cats__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  padding: 0 40px;
+}
+
+.mobile-cats__see-all {
+  position: absolute;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-sub);
+  text-decoration: none;
+  transition: background .15s;
+}
+
+.mobile-cats__see-all:active { background: var(--border); }
+.mobile-cats__see-all svg { width: 14px; height: 14px; }
+
+.mobile-cats__label {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.mobile-cats__row {
+  display: flex;
+  justify-content: space-around;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 12px;
+}
+
+.mobile-cats__row::-webkit-scrollbar { display: none; }
+
+.mobile-cat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  flex-shrink: 0;
+  min-width: 56px;
+}
+
+.mobile-cat__circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px dashed var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-light);
+  transition: background .15s, border-style .15s;
+}
+
+.mobile-cat:active .mobile-cat__circle {
+  background: #d0eddc;
+  border-style: solid;
+}
+
+.mobile-cat__circle svg {
+  width: 22px;
+  height: 22px;
+  color: var(--primary);
+}
+
+.mobile-cat__name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-sub);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* "More" circle — subtle grey instead of green */
+.mobile-cat__circle--more {
+  background: var(--input-bg);
+  border-color: var(--border);
+  border-style: solid;
+}
+
+.mobile-cat__circle--more svg { color: var(--text-sub); }
 
 /* ── Category banner list (Category tab) ─────────────────── */
 .cat-banner-list {
@@ -290,13 +399,13 @@
 .cat-strip__img--placeholder {
   width: 100%;
   height: 110px;
-  background: var(--primary-light, #e8f8ee);
+  background: linear-gradient(145deg, var(--primary-light, #e8f8ee) 0%, #cff2dc 100%);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.cat-strip__img--placeholder svg { width: 36px; height: 36px; color: var(--primary); opacity: .5; }
+.cat-strip__img--placeholder svg { width: 36px; height: 36px; color: var(--primary); opacity: .65; }
 
 .cat-strip__body {
   padding: 10px 10px 12px;
@@ -555,6 +664,7 @@
 
   .cat-strip__card { width: auto; }
   .cat-strip__img  { height: 160px; }
+  .cat-strip__img--placeholder { height: 160px; }
   .cat-strip__more { display: none; } /* "See All" link in header is enough */
 
   /* ── Browse Categories — uneven bento grid ─────────────── */
@@ -733,3 +843,4 @@
 
   .trust-item__sub { font-size: 13px; color: var(--muted); line-height: 1.5; }
 }
+

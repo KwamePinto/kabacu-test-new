@@ -6,8 +6,35 @@
       <h1 class="page-hero__title">
         Data Bundles
       </h1>
-      <p class="page-hero__sub">Instant delivery to any number</p>
+      <p class="page-hero__sub">
+        <% if (locals.viewerCountryName) { %>
+          Instant delivery in <%= viewerCountryName %>
+        <% } else { %>
+          Instant delivery to any number
+        <% } %>
+      </p>
     </div>
+
+    <%
+      /* No packages for this market. A signed-in user is locked to their own
+         country, so this is a "not launched here yet" state rather than an
+         empty search result. */
+      var _noneForMarket = Object.keys(groupedProducts).length === 0;
+    %>
+    <% if (_noneForMarket && locals.viewerCountry && viewerCountry.locked) { %>
+    <div class="market-soon">
+      <div class="market-soon__icon"><i data-lucide="rocket"></i></div>
+      <h2 class="market-soon__title">Coming soon<%= viewerCountryName ? ' to ' + viewerCountryName : '' %></h2>
+      <p class="market-soon__text">
+        We haven't launched data bundles in your country yet. We're working on it —
+        you'll be able to buy here as soon as we go live.
+      </p>
+      <a href="/" class="market-soon__btn">Back to home</a>
+      <p class="market-soon__hint">
+        Wrong country? Update it in <a href="/user-profile">your profile</a>.
+      </p>
+    </div>
+    <% } else { %>
 
     <!-- Network provider dropdown + quick phone entry -->
     <div class="category-controls">
@@ -54,24 +81,76 @@
       </div>
     </div>
 
+    <%
+      /* validate_period is free text ("1 Month Validity", "14 Days Validity",
+         "Weekly Validity", "1 month"…) so normalise it into three buckets. */
+      function durationBucket(vp) {
+        const s = String(vp || '').toLowerCase();
+        if (s.indexOf('month') !== -1) return 'Monthly';
+        if (s.indexOf('week')  !== -1) return 'Weekly';
+        const m = s.match(/(\d+)\s*day/);
+        if (m) {
+          const d = parseInt(m[1], 10);
+          if (d <= 3)  return 'Daily';
+          if (d <= 20) return 'Weekly';
+          return 'Monthly';
+        }
+        if (s.indexOf('day') !== -1) return 'Daily';
+        return 'Other';
+      }
+      /* plan_type is "2GB Data Plan" / "10 GB Data Plan" — pull out just the size */
+      function sizeLabel(pt) {
+        const s = String(pt || '');
+        const m = s.match(/([\d.]+)\s*(GB|MB|TB)/i);
+        if (m) return m[1] + m[2].toUpperCase();
+        return s.replace(/\s*Data Plan\s*/i, '').trim() || 'Other';
+      }
+      function sizeMB(label) {
+        const m = String(label).match(/([\d.]+)\s*(GB|MB|TB)/i);
+        if (!m) return Number.MAX_SAFE_INTEGER;
+        const v = parseFloat(m[1]), u = m[2].toUpperCase();
+        return u === 'TB' ? v * 1048576 : u === 'GB' ? v * 1024 : v;
+      }
+      const DURATION_ORDER = ['Daily', 'Weekly', 'Monthly', 'Other'];
+    %>
+
     <!-- Network panels — each has its own pagination if needed -->
     <% let panelIdx = 0; %>
     <% for (let provider in groupedProducts) { %>
     <% const npag = netPagination[provider]; %>
     <div id="net_<%= panelIdx %>" class="tab-panel network-panel <%= provider === activeNetwork ? 'active' : '' %>">
-      <% const planTypes = [...new Set(groupedProducts[provider].map(function(p) { return p.dataDetails.plan_type; }).filter(Boolean))]; %>
-      <% if (planTypes.length > 1) { %>
-      <div class="tabs-bar plan-tabs-bar">
-        <button class="tab-btn plan-tab-btn active" data-plan="all">All</button>
-        <% planTypes.forEach(function(pt) { %>
-        <button class="tab-btn plan-tab-btn" data-plan="<%= pt %>"><%= pt %></button>
+      <%
+        const panelItems = groupedProducts[provider];
+        const durations  = DURATION_ORDER.filter(function(d) {
+          return panelItems.some(function(p) { return durationBucket(p.dataDetails.validate_period) === d; });
+        });
+        const sizes = [...new Set(panelItems.map(function(p) { return sizeLabel(p.dataDetails.plan_type); }).filter(Boolean))]
+          .sort(function(a, b) { return sizeMB(a) - sizeMB(b); });
+      %>
+
+      <!-- Primary filter: how long the plan lasts -->
+      <% if (durations.length > 1) { %>
+      <div class="tabs-bar duration-tabs-bar">
+        <button class="tab-btn duration-tab-btn active" data-duration="all">All</button>
+        <% durations.forEach(function(d) { %>
+        <button class="tab-btn duration-tab-btn" data-duration="<%= d %>"><%= d %></button>
+        <% }) %>
+      </div>
+      <% } %>
+
+      <!-- Secondary filter: bundle size, narrowed by the duration above -->
+      <% if (sizes.length > 1) { %>
+      <div class="tabs-bar size-tabs-bar">
+        <button class="tab-btn size-tab-btn active" data-size="all">All Sizes</button>
+        <% sizes.forEach(function(s) { %>
+        <button class="tab-btn size-tab-btn" data-size="<%= s %>"><%= s %></button>
         <% }) %>
       </div>
       <% } %>
       <div class="bundle-grid">
         <% groupedProducts[provider].forEach(function(product) { %>
         <% const extras = product.dataDetails.extras; %>
-        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= product.dataDetails.plan_name %> <%= product.dataDetails.network %> bundle for ₦<%= product.dataDetails.amount %>">
+        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>" data-duration="<%= durationBucket(product.dataDetails.validate_period) %>" data-size="<%= sizeLabel(product.dataDetails.plan_type) %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= product.dataDetails.plan_name %> <%= product.dataDetails.network %> bundle for ₦<%= product.dataDetails.amount %>">
           <div class="bundle-card__body">
             <div class="bundle-card__amount"><%= product.dataDetails.plan_name %></div>
             <div class="bundle-card__validity"><%= product.dataDetails.validate_period %></div>
@@ -125,6 +204,8 @@
     </div>
     <% panelIdx++; %>
     <% } %>
+
+    <% } %><!-- / market has packages -->
 
   </div>
 </section>
@@ -194,29 +275,81 @@
     });
   }
 
-  // ── Plan-type sub-tabs (per network panel) ──
-  document.querySelectorAll('.plan-tabs-bar').forEach(bar => {
-    const panel = bar.closest('.network-panel');
-    bar.querySelectorAll('.plan-tab-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        bar.querySelectorAll('.plan-tab-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        const plan = this.dataset.plan;
-        panel.querySelectorAll('.bundle-card').forEach(card => {
-          card.style.display = (plan === 'all' || card.dataset.planType === plan) ? '' : 'none';
+  // ── Duration → size sub-tabs (per network panel) ──
+  // Duration is the primary filter; the size bar only offers sizes that exist
+  // within the chosen duration, and resets to "All Sizes" when duration changes.
+  document.querySelectorAll('.network-panel').forEach(panel => {
+    const durationBar = panel.querySelector('.duration-tabs-bar');
+    const sizeBar     = panel.querySelector('.size-tabs-bar');
+    const cards       = Array.from(panel.querySelectorAll('.bundle-card'));
+    if (!durationBar && !sizeBar) return;
+
+    let activeDuration = 'all';
+    let activeSize     = 'all';
+
+    function matchesDuration(card) {
+      return activeDuration === 'all' || card.dataset.duration === activeDuration;
+    }
+
+    function apply() {
+      cards.forEach(card => {
+        const show = matchesDuration(card) &&
+                     (activeSize === 'all' || card.dataset.size === activeSize);
+        card.style.display = show ? '' : 'none';
+      });
+
+      // Hide size buttons that have nothing behind them for this duration
+      if (sizeBar) {
+        sizeBar.querySelectorAll('.size-tab-btn').forEach(btn => {
+          const size = btn.dataset.size;
+          if (size === 'all') return;
+          const available = cards.some(c => matchesDuration(c) && c.dataset.size === size);
+          btn.style.display = available ? '' : 'none';
+        });
+      }
+    }
+
+    if (durationBar) {
+      durationBar.querySelectorAll('.duration-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          durationBar.querySelectorAll('.duration-tab-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          activeDuration = this.dataset.duration;
+
+          // Changing duration resets the size filter
+          activeSize = 'all';
+          if (sizeBar) {
+            sizeBar.querySelectorAll('.size-tab-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = sizeBar.querySelector('.size-tab-btn[data-size="all"]');
+            if (allBtn) allBtn.classList.add('active');
+          }
+          apply();
         });
       });
-    });
+    }
+
+    if (sizeBar) {
+      sizeBar.querySelectorAll('.size-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          sizeBar.querySelectorAll('.size-tab-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          activeSize = this.dataset.size;
+          apply();
+        });
+      });
+    }
+
+    apply();
   });
 
   // ── Buy modal ──
   let selectedPackageId = null;
   let selectedNetwork = null;
 
-  // Nigerian network prefixes — used to catch a phone number that clearly
-  // belongs to a different network than the bundle being purchased.
+  // Nigerian network prefixes — soft hint only (number portability means these
+  // are not authoritative; OurDataStore validates the actual network on purchase).
   const NETWORK_PREFIXES = {
-    MTN: ['0803', '0806', '0703', '0706', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916'],
+    MTN: ['0803', '0806', '0703', '0706', '0707', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916'],
     AIRTEL: ['0802', '0808', '0701', '0708', '0812', '0901', '0902', '0904', '0907', '0912'],
     GLO: ['0805', '0807', '0705', '0811', '0815', '0905', '0915']
   };
@@ -229,9 +362,10 @@
     return null;
   }
 
+  // Returns true if known match, false if looks wrong, null if no data for this network.
   function phoneMatchesNetwork(phone, networkName) {
     const key = detectNetworkKey(networkName);
-    if (!key) return true; // e.g. 9mobile — no prefix list to check against
+    if (!key) return null;
     return NETWORK_PREFIXES[key].indexOf(phone.slice(0, 4)) !== -1;
   }
 
@@ -400,7 +534,7 @@
     }
   }
 
-  function initiateBundleBuy(card) {
+  async function initiateBundleBuy(card) {
     if (card.dataset.requiresLogin) {
       window.location.href = '/user/login';
       return;
@@ -414,12 +548,16 @@
         quickPhoneError.style.display = 'block';
         return;
       }
-      if (!phoneMatchesNetwork(quickPhone, selectedNetwork)) {
-        Swal.fire({
-          icon: 'error',
-          text: 'This number doesn\'t look like a ' + selectedNetwork + ' number'
+      const quickNetworkMatch = phoneMatchesNetwork(quickPhone, selectedNetwork);
+      if (quickNetworkMatch === false) {
+        const result = await Swal.fire({
+          icon: 'warning',
+          text: 'This number may not be a ' + selectedNetwork + ' number (could be ported). Proceed anyway?',
+          showCancelButton: true,
+          confirmButtonText: 'Proceed',
+          cancelButtonText: 'Cancel'
         });
-        return;
+        if (!result.isConfirmed) return;
       }
       proceedToCheckout(
         quickPhone,
@@ -467,9 +605,12 @@
   const saveBeneficiaryCheckbox = document.getElementById('saveBeneficiaryCheckbox');
   const beneficiaryNicknameInput = document.getElementById('beneficiaryNicknameInput');
 
+  let networkWarningDismissed = false;
+
   function resetBuyModalForm() {
     phoneInput.value = '';
     phoneError.style.display = 'none';
+    networkWarningDismissed = false;
     if (beneficiaryChips) {
       beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
     }
@@ -485,6 +626,8 @@
 
   phoneInput.addEventListener('input', function() {
     this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    networkWarningDismissed = false;
+    phoneError.style.display = 'none';
     if (beneficiaryChips) {
       beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(c => c.classList.remove('active'));
     }
@@ -520,12 +663,15 @@
       phoneError.style.display = 'block';
       return;
     }
-    if (!phoneMatchesNetwork(phone, selectedNetwork)) {
-      phoneError.textContent = 'This number doesn\'t look like a ' + selectedNetwork + ' number';
+    const networkMatch = phoneMatchesNetwork(phone, selectedNetwork);
+    if (networkMatch === false && !networkWarningDismissed) {
+      phoneError.textContent = 'This number may not be a ' + selectedNetwork + ' number (could be ported). Tap Proceed again to continue anyway.';
       phoneError.style.display = 'block';
+      networkWarningDismissed = true;
       return;
     }
     phoneError.style.display = 'none';
+    networkWarningDismissed = false;
 
     await proceedToCheckout(
       phone,
