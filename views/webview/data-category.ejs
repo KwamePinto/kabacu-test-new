@@ -16,22 +16,29 @@
     </div>
 
     <%
-      /* No packages for this market. A signed-in user is locked to their own
-         country, so this is a "not launched here yet" state rather than an
-         empty search result. */
+      /* A market with no packages is "not launched here yet", not an empty
+         search. Shown whenever a country is in play — for signed-in users that
+         is their profile country, for visitors it is the one they picked. With
+         no country selected at all, every package is listed and this is skipped. */
+      var _locked        = locals.viewerCountry && viewerCountry.locked;
+      var _hasCountry    = locals.viewerCountry && viewerCountry.code;
       var _noneForMarket = Object.keys(groupedProducts).length === 0;
     %>
-    <% if (_noneForMarket && locals.viewerCountry && viewerCountry.locked) { %>
+    <% if (_noneForMarket && _hasCountry) { %>
     <div class="market-soon">
       <div class="market-soon__icon"><i data-lucide="rocket"></i></div>
       <h2 class="market-soon__title">Coming soon<%= viewerCountryName ? ' to ' + viewerCountryName : '' %></h2>
       <p class="market-soon__text">
-        We haven't launched data bundles in your country yet. We're working on it —
-        you'll be able to buy here as soon as we go live.
+        We haven't launched data bundles in <%= viewerCountryName || 'your country' %> yet.
+        We're working on it — you'll be able to buy here as soon as we go live.
       </p>
       <a href="/" class="market-soon__btn">Back to home</a>
       <p class="market-soon__hint">
-        Wrong country? Update it in <a href="/user-profile">your profile</a>.
+        <% if (_locked) { %>
+          Wrong country? Update it in <a href="/user-profile">your profile</a>.
+        <% } else { %>
+          Browsing from somewhere else? Pick another country from the flag in the header.
+        <% } %>
       </p>
     </div>
     <% } else { %>

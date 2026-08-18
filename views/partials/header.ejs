@@ -16,7 +16,10 @@
         <span class="app-header__avatar" aria-hidden="true"><%= _initials %></span>
         <span class="app-header__greet-text">
           <span class="app-header__greet-line">Hello <strong><%= _firstName %></strong></span>
-          <span class="app-header__greet-sub js-country-name">Nigeria</span>
+          <!-- Signed-in users are locked to their profile country, so this is
+               rendered server-side and deliberately has no js-country-name
+               class — the header picker must not be able to overwrite it. -->
+          <span class="app-header__greet-sub"><%= locals.viewerCountryName || 'Set your country' %></span>
         </span>
       </a>
 
@@ -238,7 +241,8 @@
 <!-- Country selector (frontend-only, persisted in localStorage) -->
 <script>
 (function () {
-  var STORAGE_KEY = 'kbc_country';
+  var STORAGE_KEY  = 'kbc_country';
+  var IS_SIGNED_IN = <%= user ? 'true' : 'false' %>;
 
   function flagEmoji(code) {
     return code.toUpperCase().replace(/./g, function (c) {
@@ -271,8 +275,21 @@
 
   var countries = buildCountries();
 
+  /* The server filters products from the cookie, so the cookie is the source
+     of truth. localStorage is only a fallback for the very first visit. */
+  function readCookie(name) {
+    var m = document.cookie.match('(^|;)\s*' + name + '\s*=\s*([^;]+)');
+    return m ? decodeURIComponent(m.pop()) : null;
+  }
+
+  function writeCookie(name, value) {
+    /* one year, site-wide */
+    document.cookie = name + '=' + encodeURIComponent(value) +
+      ';path=/;max-age=' + (365 * 24 * 60 * 60) + ';samesite=lax';
+  }
+
   function getCurrentCode() {
-    return localStorage.getItem(STORAGE_KEY) || 'NG';
+    return readCookie(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY) || 'NG';
   }
 
   function getCurrentCountry() {
@@ -400,10 +417,21 @@
   }
 
   function selectCountry(code) {
+    var changed = code !== getCurrentCode();
+
     localStorage.setItem(STORAGE_KEY, code);
+    writeCookie(STORAGE_KEY, code);
+
     updateTriggers();
     closeModal();
     window.dispatchEvent(new CustomEvent('kbc:countrychange', { detail: { code: code } }));
+
+    /* Which products exist is decided server-side, so the page has to be
+       re-fetched for the new market to take effect. Only signed-out visitors
+       can change market — signed-in users are locked to their profile. */
+    if (changed && !IS_SIGNED_IN) {
+      setTimeout(function () { window.location.reload(); }, 150);
+    }
   }
 
   listEl.addEventListener('click', function (e) {

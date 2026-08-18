@@ -6,7 +6,7 @@
 
 /* Single checkout card */
 .checkout-card {
-  background: var(--white);
+  background: var(--surface);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-md);
   overflow: hidden;
@@ -140,7 +140,7 @@
 .cart-table-wrap {
   overflow-x: auto;
   border-radius: var(--r-md);
-  background: var(--white);
+  background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
 
@@ -187,7 +187,7 @@
 
 /* Order summary card */
 .order-summary {
-  background: var(--white);
+  background: var(--surface);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
   padding: 24px;

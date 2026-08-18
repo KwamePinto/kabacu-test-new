@@ -190,6 +190,29 @@
         </div>
         <i data-lucide="chevron-right" class="acct-link__arrow"></i>
       </button>
+
+      <!-- Appearance. Defaults to following the device setting. -->
+      <div class="acct-link acct-link--static">
+        <div class="acct-link__icon" style="background:var(--input-bg);">
+          <i data-lucide="moon-star"></i>
+        </div>
+        <div class="acct-link__body">
+          <span class="acct-link__label">Appearance</span>
+          <span class="acct-link__sub" id="themeSubLabel">Following your device</span>
+        </div>
+      </div>
+
+      <div class="theme-choice" role="radiogroup" aria-label="Appearance">
+        <button type="button" class="theme-opt" data-theme-choice="system">
+          <i data-lucide="smartphone"></i><span>System</span>
+        </button>
+        <button type="button" class="theme-opt" data-theme-choice="light">
+          <i data-lucide="sun"></i><span>Light</span>
+        </button>
+        <button type="button" class="theme-opt" data-theme-choice="dark">
+          <i data-lucide="moon"></i><span>Dark</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -481,5 +504,64 @@
       }
     });
   }
+})();
+</script>
+
+<script>
+/* ── Appearance: system / light / dark ────────────────────────────────────
+   "system" is represented by removing data-theme entirely and clearing the
+   stored value, so the CSS media query takes over again. */
+(function () {
+  var KEY  = 'kbc_theme';
+  var root = document.documentElement;
+  var opts = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
+  var label = document.getElementById('themeSubLabel');
+  if (!opts.length) return;
+
+  var LABELS = {
+    system: 'Following your device',
+    light:  'Always light',
+    dark:   'Always dark',
+  };
+
+  function stored() {
+    try {
+      var v = localStorage.getItem(KEY);
+      return (v === 'dark' || v === 'light') ? v : 'system';
+    } catch (e) { return 'system'; }
+  }
+
+  function paint(choice) {
+    opts.forEach(function (b) {
+      var on = b.dataset.themeChoice === choice;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    if (label) label.textContent = LABELS[choice] || LABELS.system;
+  }
+
+  function apply(choice) {
+    try {
+      if (choice === 'system') {
+        localStorage.removeItem(KEY);
+        root.removeAttribute('data-theme');
+      } else {
+        localStorage.setItem(KEY, choice);
+        root.setAttribute('data-theme', choice);
+      }
+    } catch (e) {
+      /* storage blocked — still apply for this page view */
+      if (choice === 'system') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', choice);
+    }
+    paint(choice);
+  }
+
+  opts.forEach(function (b) {
+    b.setAttribute('role', 'radio');
+    b.addEventListener('click', function () { apply(this.dataset.themeChoice); });
+  });
+
+  paint(stored());
 })();
 </script>

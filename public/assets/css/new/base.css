@@ -14,10 +14,31 @@
   --text-sub:       #555;
   --muted:          #999;
   --border:         #ebebeb;
-  --white:          #ffffff;
   --bg:             #f4f4f4;   /* app background */
-  --card:           #ffffff;   /* card surface */
   --input-bg:       #f0f0f0;  /* gray input background */
+
+  /* --white stays literally white in both themes: it is the text colour on
+     filled buttons and coloured chips, where it must never darken. Card and
+     panel surfaces use --surface instead, which is what flips in dark mode. */
+  --white:          #ffffff;
+  --surface:        #ffffff;   /* cards, panels, sheets */
+  --card:           #ffffff;   /* legacy alias */
+  --surface-2:      #fafafa;   /* subtly raised surface */
+  --input-focus:    #e8e8e8;
+
+  /* Chrome that is translucent white by design */
+  --header-bg:      rgba(255, 255, 255, 0.97);
+  --header-bg-desk: rgba(255, 255, 255, 0.88);
+  --header-hairline: rgba(255, 255, 255, 0.8);
+  --icon-btn-bg:    rgba(0, 0, 0, 0.09);
+  --icon-btn-hover: rgba(0, 0, 0, 0.15);
+
+  /* The footer / mobile-about band is dark in light mode and must stay dark in
+     dark mode, so it gets its own tokens rather than reusing --text. */
+  --band-bg:        #1a1a2e;
+  --band-text:      rgba(255, 255, 255, .70);
+  --band-text-dim:  rgba(255, 255, 255, .45);
+  --band-surface:   rgba(255, 255, 255, .10);
 
   /* Status */
   --success:  #15a844;
@@ -154,3 +175,115 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 
 .empty-state svg { width: 48px; height: 48px; color: #ccc; }
 .empty-state p   { font-size: 14px; color: var(--muted); }
+
+/* =========================================================
+   DARK THEME
+   =========================================================
+   Three states have to agree:
+
+     no data-theme attribute  -> follow the operating system
+     data-theme="dark"        -> forced dark, even on a light OS
+     data-theme="light"       -> forced light, even on a dark OS
+
+   Only tokens are redefined here. Components always read tokens, never these
+   blocks directly, so a single palette swap themes the whole app. The system
+   rule is guarded with :not([data-theme="light"]) so an explicit light choice
+   still wins on a dark OS.
+   ========================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:        #22c55e;   /* lifted for contrast on a dark ground */
+    --primary-dark:   #16a34a;
+    --primary-light:  #16301f;   /* dark green tint, not pale mint */
+    --primary-rgb:    34, 197, 94;
+
+    --text:           #eceef4;
+    --text-sub:       #b4b9c6;
+    --muted:          #868c9c;
+    --border:         #2a2d3a;
+    --bg:             #101219;
+    --input-bg:       #1e212c;
+    --input-focus:    #262a37;
+
+    --surface:        #191c25;
+    --card:           #191c25;
+    --surface-2:      #1f222d;
+
+    --header-bg:       rgba(16, 18, 25, 0.97);
+    --header-bg-desk:  rgba(25, 28, 37, 0.88);
+    --header-hairline: rgba(255, 255, 255, 0.08);
+    --icon-btn-bg:     rgba(255, 255, 255, 0.10);
+    --icon-btn-hover:  rgba(255, 255, 255, 0.18);
+
+    /* The band is already dark; nudge it away from the page so it reads as
+       a distinct surface rather than blending into the background. */
+    --band-bg:        #080a0f;
+
+    --error:          #f87171;
+    --warning:        #fbbf24;
+
+    --shadow-xs: 0 1px 4px rgba(0,0,0,0.40);
+    --shadow-sm: 0 2px 10px rgba(0,0,0,0.45);
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.55);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.65);
+  }
+}
+
+:root[data-theme="dark"] {
+  --primary:        #22c55e;
+  --primary-dark:   #16a34a;
+  --primary-light:  #16301f;
+  --primary-rgb:    34, 197, 94;
+
+  --text:           #eceef4;
+  --text-sub:       #b4b9c6;
+  --muted:          #868c9c;
+  --border:         #2a2d3a;
+  --bg:             #101219;
+  --input-bg:       #1e212c;
+  --input-focus:    #262a37;
+
+  --surface:        #191c25;
+  --card:           #191c25;
+  --surface-2:      #1f222d;
+
+  --header-bg:       rgba(16, 18, 25, 0.97);
+  --header-bg-desk:  rgba(25, 28, 37, 0.88);
+  --header-hairline: rgba(255, 255, 255, 0.08);
+  --icon-btn-bg:     rgba(255, 255, 255, 0.10);
+  --icon-btn-hover:  rgba(255, 255, 255, 0.18);
+
+  --band-bg:        #080a0f;
+
+  --error:          #f87171;
+  --warning:        #fbbf24;
+
+  --shadow-xs: 0 1px 4px rgba(0,0,0,0.40);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.45);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.55);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.65);
+}
+
+/* Forced light needs no overrides — :root already holds the light palette —
+   but it must be declared so the selector exists and beats the media query. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+/* Tell the browser to theme form controls and scrollbars to match the OS when
+   the user has not made an explicit choice. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+}
+
+/* Product card image wells are a warm off-white in light mode; that reads as a
+   bright patch in dark mode, so soften it. */
+:root[data-theme="dark"] .product-card__img,
+:root:not([data-theme="light"]) .product-card__img {
+  background: var(--surface-2);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .product-card__img { background: #f8f5f0; }
+}
+:root[data-theme="light"] .product-card__img { background: #f8f5f0; }

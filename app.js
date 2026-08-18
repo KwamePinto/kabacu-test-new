@@ -120,6 +120,9 @@ app.use(require('./server/middleware/maintenanceMiddleware'));
 // ── Announcements (banners / strips / popups) available to every view ─────────
 app.use(require('./server/middleware/announcementsMiddleware'));
 
+// ── Viewer market (country) available to every view ──────────────────────────
+app.use(require('./server/middleware/countryMiddleware'));
+
 // ── Web routes ────────────────────────────────────────────────────────────────
 app.use('/', require('./server/routes/webviewRoutes/packagesRoute'));
 app.use('/user', require('./server/routes/webviewRoutes/userRoute'));

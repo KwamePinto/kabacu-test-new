@@ -11,7 +11,7 @@
 }
 
 .auth-card {
-  background: var(--white);
+  background: var(--surface);
   border-radius: var(--r-xl);
   padding: 20px 20px 24px;
   width: 100%;

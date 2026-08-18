@@ -64,7 +64,7 @@
   left: 0;
   right: 0;
   z-index: 20;
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   box-shadow: var(--shadow-md);
@@ -139,7 +139,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--white);
+  background: var(--surface);
   color: var(--primary);
   flex-shrink: 0;
 }
@@ -199,7 +199,7 @@
 
 /* Bundle card — single-column, entirely clickable */
 .bundle-card {
-  background: var(--white);
+  background: var(--surface);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -335,3 +335,65 @@
 /* Network panel */
 .network-panel        { display: none; }
 .network-panel.active { display: block; }
+
+/* ── Market not launched yet ──────────────────────────────── */
+.market-soon {
+  text-align: center;
+  max-width: 420px;
+  margin: 32px auto 64px;
+  padding: 32px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.market-soon__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.market-soon__icon svg { width: 28px; height: 28px; color: var(--primary); }
+
+.market-soon__title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-wrap: balance;
+}
+
+.market-soon__text {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.market-soon__btn {
+  display: inline-block;
+  padding: 10px 24px;
+  border-radius: var(--r-sm);
+  background: var(--primary);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+
+.market-soon__btn:hover { opacity: .9; color: var(--white); }
+
+.market-soon__hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 16px;
+}
+
+.market-soon__hint a { color: var(--primary); text-decoration: none; }
+.market-soon__hint a:hover { text-decoration: underline; }
