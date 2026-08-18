@@ -1592,6 +1592,30 @@ exports.userProfile = async (req, res) => {
     ]);
 
     // ── Referrals ────────────────────────────────────────────────────────
+    // Full referral detail (code, list, rewards) now lives on its own page
+    // (GET /referrals) — the profile just needs enough for a summary link.
+    const [referralsCount, referralsRewarded] = await Promise.all([
+      Referral.countDocuments({ referrer: userId }),
+      Referral.countDocuments({ referrer: userId, status: 'rewarded' }),
+    ]);
+
+    res.render("webview/profile", {
+      user,
+      recentOrders,
+      recentTopups,
+      totalTopups,
+      referralsCount,
+      referralsRewarded,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+exports.referralsPage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
     // Existing accounts were backfilled by scripts/backfill-referral-codes.js;
     // this also covers anyone created since.
     const referralCode = await referralService.ensureReferralCode(userId);
@@ -1605,16 +1629,30 @@ exports.userProfile = async (req, res) => {
         .lean(),
     ]);
 
-    res.render("webview/profile", {
-      user,
-      recentOrders,
-      recentTopups,
-      totalTopups,
+    // TODO: no per-reward-type aggregation exists yet (rewardType/rewardAmount
+    // are only snapshotted per-Referral at payout time) — placeholder totals
+    // until that reporting is built.
+    const rewardStats = {
+      rp:   { total: 1200, claimed: 800, unclaimed: 400 },
+      usdt: { total: 15,   claimed: 10,  unclaimed: 5 },
+      data: { total: 8,    claimed: 5,   unclaimed: 3 },
+    };
+
+    // The referral list itself is paginated — everything else on the page
+    // (stats, rewards) is computed from the full unpaginated set above.
+    const perPage = 10;
+    const pages   = Math.ceil(myReferrals.length / perPage) || 1;
+    const page    = Math.min(Math.max(parseInt(req.query.page) || 1, 1), pages);
+
+    res.render("webview/referrals", {
       referralCode,
       referralSettings,
       myReferral,
       myReferrals,
+      myReferralsPage: myReferrals.slice((page - 1) * perPage, page * perPage),
+      referralPagination: { pages, current: page, hasNext: page < pages, hasPrev: page > 1 },
       referralsRewarded: myReferrals.filter(r => r.status === 'rewarded').length,
+      rewardStats,
     });
   } catch (error) {
     console.log(error);

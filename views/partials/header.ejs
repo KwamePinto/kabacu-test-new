@@ -2,26 +2,9 @@
   <div class="container">
     <div class="app-header__inner">
 
-      <%
-        /* Initials for the avatar: first letter of each of the first two words */
-        var _uname = (user && user.username) ? String(user.username).trim() : '';
-        var _parts = _uname.split(/\s+/).filter(Boolean);
-        var _initials = _parts.slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase() || '?';
-        var _firstName = _parts[0] || _uname;
-      %>
-
       <% if (user) { %>
-      <!-- Signed in — mobile: avatar + greeting takes the left slot -->
-      <a href="/user-profile" class="app-header__greet">
-        <span class="app-header__avatar" aria-hidden="true"><%= _initials %></span>
-        <span class="app-header__greet-text">
-          <span class="app-header__greet-line">Hello <strong><%= _firstName %></strong></span>
-          <span class="app-header__greet-sub js-country-name">Nigeria</span>
-        </span>
-      </a>
-
-      <!-- The only logo when signed in: the square mark centred on mobile,
-           the full wordmark left-aligned once there's room for it -->
+      <!-- The only logo when signed in: the square mark on mobile,
+           the full wordmark once there's room for it — both left-aligned -->
       <a href="/" class="app-header__center-logo" aria-label="Kabacu home">
         <picture>
           <source media="(min-width: 768px)" srcset="/assets/images/new.PNG">

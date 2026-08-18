@@ -50,6 +50,8 @@ router.get('/user-profile', authenticateUser, getPackages.userProfile);
 
 router.post('/edit-user-profile', authenticateUser, getPackages.editUserProfile);
 
+router.get('/referrals', authenticateUser, getPackages.referralsPage);
+
 router.post('/referral/apply', authenticateUser, getPackages.applyReferral);
 
 router.post('/wallet/convert-usdt', authenticateUser, getPackages.convertUSDTtoNaira);

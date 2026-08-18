@@ -50,69 +50,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 0;
-  position: relative; /* anchors the centred brand mark */
-}
-
-/* ── Signed-in mobile header: greeting | brand mark | actions ─────── */
-.app-header__greet {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  min-width: 0;
-  flex-shrink: 1;
-  /* nudged in from the edge so left, centre and right sit evenly apart */
-  margin-left: 10px;
-  /* never grow far enough to sit under the centred brand mark */
-  max-width: calc(50% - 42px);
-}
-
-.app-header__avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: .02em;
-  flex-shrink: 0;
-}
-
-.app-header__greet-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.15;
-}
-
-.app-header__greet-line {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.app-header__greet-line strong { font-weight: 800; }
-
-.app-header__greet-sub {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .app-header__center-logo {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   pointer-events: auto;
@@ -128,15 +68,6 @@
 }
 
 @media (min-width: 768px) {
-  /* Desktop: greeting drops away and the brand mark returns to the left,
-     restoring the normal logo | nav | actions row */
-  .app-header__greet { display: none; }
-
-  .app-header__center-logo {
-    position: static;
-    transform: none;
-  }
-
   .app-header__center-logo img { height: 40px; }
 }
 

@@ -31,79 +31,21 @@
     </div>
   </div>
 
-  <!-- ── Referrals ────────────────────────────────────────── -->
-  <div class="acct-section">
-    <h3 class="acct-section__title">Referrals</h3>
-
-    <div class="referral-card">
-      <p class="referral-card__label">Your referral code</p>
-      <div class="referral-code-row">
-        <code class="referral-code" id="referralCode"><%= referralCode || '—' %></code>
-        <button type="button" class="referral-copy-btn" id="referralCopyBtn"
-                data-code="<%= referralCode || '' %>" aria-label="Copy referral code">
-          <i data-lucide="copy"></i>
-          <span>Copy</span>
-        </button>
-      </div>
-
-      <p class="referral-card__hint">
-        <% if (referralSettings && referralSettings.isActive) { %>
-          Share this code. You are rewarded once someone who used it makes their first purchase.
-        <% } else { %>
-          The referral programme is currently paused.
-        <% } %>
-      </p>
-
-      <div class="referral-stats">
-        <div class="referral-stat">
-          <span class="referral-stat__num"><%= (myReferrals || []).length %></span>
-          <span class="referral-stat__lbl">Signed up</span>
-        </div>
-        <div class="referral-stat">
-          <span class="referral-stat__num"><%= referralsRewarded || 0 %></span>
-          <span class="referral-stat__lbl">Rewarded</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Entering someone else's code. Only offered when this account has not
-         already been referred — the link can never be changed once set. -->
-    <div class="referral-card">
-      <% if (myReferral) { %>
-      <p class="referral-card__label">Referred by</p>
-      <p class="referral-applied">
-        <i data-lucide="check-circle"></i>
-        <span><%= (myReferral.referrer && myReferral.referrer.username) || 'a Kabacu user' %>
-          <small>(<%= myReferral.codeUsed %>)</small></span>
-      </p>
-      <p class="referral-card__hint">A referral code can only be used once, so this cannot be changed.</p>
-      <% } else { %>
-      <p class="referral-card__label">Have a referral code?</p>
-      <div class="referral-apply-row">
-        <input type="text" id="referralInput" class="form-input referral-input"
-               placeholder="Enter code" autocomplete="off" maxlength="12">
-        <button type="button" class="btn-primary referral-apply-btn" id="referralApplyBtn">Apply</button>
-      </div>
-      <p class="referral-card__hint">You can only ever apply one code, and it must belong to an account older than yours.</p>
-      <% } %>
-    </div>
-
-    <% if ((myReferrals || []).length) { %>
-    <div class="referral-list">
-      <% myReferrals.slice(0, 8).forEach(function (r) { %>
-      <div class="referral-list__row">
-        <span class="referral-list__name"><%= (r.referred && r.referred.username) || 'User' %></span>
-        <span class="referral-badge referral-badge--<%= r.status %>"><%= r.status %></span>
-      </div>
-      <% }) %>
-    </div>
-    <% } %>
-  </div>
-
   <!-- ── Quick links ──────────────────────────────────────── -->
   <div class="acct-section">
     <h3 class="acct-section__title">Account Activity</h3>
     <div class="acct-links">
+
+      <a href="/referrals" class="acct-link">
+        <div class="acct-link__icon">
+          <i data-lucide="gift"></i>
+        </div>
+        <div class="acct-link__body">
+          <span class="acct-link__label">Referrals</span>
+          <span class="acct-link__sub"><%= referralsCount || 0 %> referred · <%= referralsRewarded || 0 %> rewarded</span>
+        </div>
+        <i data-lucide="chevron-right" class="acct-link__arrow"></i>
+      </a>
 
       <a href="/history" class="acct-link">
         <div class="acct-link__icon">
@@ -389,96 +331,6 @@
           Swal.fire({ icon: 'error', text: 'Network error' });
         }
       });
-    });
-  }
-})();
-</script>
-
-<script>
-/* ── Referrals: copy own code, apply someone else's ───────────────────── */
-(function () {
-  var copyBtn  = document.getElementById('referralCopyBtn');
-  var applyBtn = document.getElementById('referralApplyBtn');
-  var input    = document.getElementById('referralInput');
-
-  function toast(icon, text) {
-    if (typeof Swal === 'undefined') return alert(text);
-    Swal.fire({ icon: icon, text: text, toast: true, position: 'top',
-                timer: 2400, showConfirmButton: false });
-  }
-
-  if (copyBtn) {
-    copyBtn.addEventListener('click', function () {
-      var code = this.dataset.code;
-      if (!code) return;
-
-      var done = function () {
-        var label = copyBtn.querySelector('span');
-        var original = label.textContent;
-        label.textContent = 'Copied';
-        setTimeout(function () { label.textContent = original; }, 1600);
-      };
-
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(code).then(done).catch(fallback);
-      } else {
-        fallback();
-      }
-
-      /* clipboard API needs HTTPS, so keep a plain-HTTP path working too */
-      function fallback() {
-        var ta = document.createElement('textarea');
-        ta.value = code;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); done(); }
-        catch (e) { toast('error', 'Could not copy. Your code is ' + code); }
-        document.body.removeChild(ta);
-      }
-    });
-  }
-
-  if (applyBtn && input) {
-    input.addEventListener('input', function () {
-      this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    });
-
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); applyBtn.click(); }
-    });
-
-    applyBtn.addEventListener('click', async function () {
-      var code = input.value.trim();
-      if (!code) return toast('warning', 'Enter a referral code.');
-
-      applyBtn.disabled = true;
-      var original = applyBtn.textContent;
-      applyBtn.textContent = 'Applying…';
-
-      try {
-        var res = await fetch('/referral/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-          credentials: 'same-origin',
-          body: JSON.stringify({ code: code }),
-        });
-        var data = await res.json();
-
-        if (data.success) {
-          toast('success', data.message);
-          setTimeout(function () { location.reload(); }, 1400);
-        } else {
-          toast('error', data.message);
-          applyBtn.disabled = false;
-          applyBtn.textContent = original;
-        }
-      } catch (e) {
-        toast('error', 'Network error. Please try again.');
-        applyBtn.disabled = false;
-        applyBtn.textContent = original;
-      }
     });
   }
 })();
