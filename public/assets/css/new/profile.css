@@ -484,7 +484,9 @@
 }
 
 .reward-stat-card {
-  background: var(--white);
+  /* --surface, not --white: --white stays literally white for text on filled
+     buttons, so using it as a panel background renders white in dark mode. */
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   padding: 14px;
@@ -527,3 +529,41 @@
 
 .reward-stat-card__claimed   { font-weight: 700; color: var(--primary); }
 .reward-stat-card__unclaimed { font-weight: 700; color: var(--error); }
+
+/* ── Appearance picker ───────────────────────────────────── */
+/* Restored after the referral-page refactor removed these rules while the
+   buttons stayed in profile.ejs, leaving the control unstyled. */
+.theme-choice {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.theme-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--text-sub);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+
+.theme-opt svg { width: 20px; height: 20px; }
+.theme-opt:hover { border-color: var(--muted); }
+
+.theme-opt.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.theme-opt:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

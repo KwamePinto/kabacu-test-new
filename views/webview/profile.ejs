@@ -358,3 +358,54 @@
   }
 })();
 </script>
+
+<script>
+/* ── Appearance: system / light / dark ────────────────────────────────────
+   Restored after the referral-page refactor removed this block while leaving
+   the picker buttons in place, which left the control inert.
+   "system" means no data-theme attribute at all, so the CSS media query
+   takes over again. */
+(function () {
+  var KEY  = 'kbc_theme';
+  var root = document.documentElement;
+  var opts = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
+  var label = document.getElementById('themeSubLabel');
+  if (!opts.length) return;
+
+  var LABELS = { system: 'Following your device', light: 'Always light', dark: 'Always dark' };
+
+  function stored() {
+    try {
+      var v = localStorage.getItem(KEY);
+      return (v === 'dark' || v === 'light') ? v : 'system';
+    } catch (e) { return 'system'; }
+  }
+
+  function paint(choice) {
+    opts.forEach(function (b) {
+      var on = b.dataset.themeChoice === choice;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    if (label) label.textContent = LABELS[choice] || LABELS.system;
+  }
+
+  function apply(choice) {
+    try {
+      if (choice === 'system') { localStorage.removeItem(KEY); root.removeAttribute('data-theme'); }
+      else { localStorage.setItem(KEY, choice); root.setAttribute('data-theme', choice); }
+    } catch (e) {
+      if (choice === 'system') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', choice);
+    }
+    paint(choice);
+  }
+
+  opts.forEach(function (b) {
+    b.setAttribute('role', 'radio');
+    b.addEventListener('click', function () { apply(this.dataset.themeChoice); });
+  });
+
+  paint(stored());
+})();
+</script>
