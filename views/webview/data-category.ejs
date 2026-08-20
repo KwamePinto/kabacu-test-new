@@ -8,9 +8,9 @@
       </h1>
       <p class="page-hero__sub">
         <% if (locals.viewerCountryName) { %>
-          Instant delivery in <%= viewerCountryName %>
+        Instant delivery in <%= viewerCountryName %>
         <% } else { %>
-          Instant delivery to any number
+        Instant delivery to any number
         <% } %>
       </p>
     </div>
@@ -89,22 +89,6 @@
     </div>
 
     <%
-      /* validate_period is free text ("1 Month Validity", "14 Days Validity",
-         "Weekly Validity", "1 month"…) so normalise it into three buckets. */
-      function durationBucket(vp) {
-        const s = String(vp || '').toLowerCase();
-        if (s.indexOf('month') !== -1) return 'Monthly';
-        if (s.indexOf('week')  !== -1) return 'Weekly';
-        const m = s.match(/(\d+)\s*day/);
-        if (m) {
-          const d = parseInt(m[1], 10);
-          if (d <= 3)  return 'Daily';
-          if (d <= 20) return 'Weekly';
-          return 'Monthly';
-        }
-        if (s.indexOf('day') !== -1) return 'Daily';
-        return 'Other';
-      }
       /* plan_type is "2GB Data Plan" / "10 GB Data Plan" — pull out just the size */
       function sizeLabel(pt) {
         const s = String(pt || '');
@@ -118,7 +102,6 @@
         const v = parseFloat(m[1]), u = m[2].toUpperCase();
         return u === 'TB' ? v * 1048576 : u === 'GB' ? v * 1024 : v;
       }
-      const DURATION_ORDER = ['Daily', 'Weekly', 'Monthly', 'Other'];
     %>
 
     <!-- Network panels — each has its own pagination if needed -->
@@ -128,24 +111,25 @@
     <div id="net_<%= panelIdx %>" class="tab-panel network-panel <%= provider === activeNetwork ? 'active' : '' %>">
       <%
         const panelItems = groupedProducts[provider];
-        const durations  = DURATION_ORDER.filter(function(d) {
-          return panelItems.some(function(p) { return durationBucket(p.dataDetails.validate_period) === d; });
-        });
+        const networks = [...new Set(panelItems.map(function(p) { return p.dataDetails.network; }).filter(Boolean))]
+          .sort();
         const sizes = [...new Set(panelItems.map(function(p) { return sizeLabel(p.dataDetails.plan_type); }).filter(Boolean))]
           .sort(function(a, b) { return sizeMB(a) - sizeMB(b); });
       %>
 
-      <!-- Primary filter: how long the plan lasts -->
-      <% if (durations.length > 1) { %>
-      <div class="tabs-bar duration-tabs-bar">
-        <button class="tab-btn duration-tab-btn active" data-duration="all">All</button>
-        <% durations.forEach(function(d) { %>
-        <button class="tab-btn duration-tab-btn" data-duration="<%= d %>"><%= d %></button>
-        <% }) %>
+      <!-- Primary filter: which network variant the plan runs on -->
+      <% if (networks.length > 1) { %>
+      <div class="network-filter-wrap">
+        <select class="network-filter-select" aria-label="Filter by network">
+          <option value="all">All Networks</option>
+          <% networks.forEach(function(n) { %>
+          <option value="<%= n.toLowerCase() %>"><%= n %></option>
+          <% }) %>
+        </select>
       </div>
       <% } %>
 
-      <!-- Secondary filter: bundle size, narrowed by the duration above -->
+      <!-- Secondary filter: bundle size, narrowed by the network above -->
       <% if (sizes.length > 1) { %>
       <div class="tabs-bar size-tabs-bar">
         <button class="tab-btn size-tab-btn active" data-size="all">All Sizes</button>
@@ -157,7 +141,7 @@
       <div class="bundle-grid">
         <% groupedProducts[provider].forEach(function(product) { %>
         <% const extras = product.dataDetails.extras; %>
-        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>" data-duration="<%= durationBucket(product.dataDetails.validate_period) %>" data-size="<%= sizeLabel(product.dataDetails.plan_type) %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= product.dataDetails.plan_name %> <%= product.dataDetails.network %> bundle for ₦<%= product.dataDetails.amount %>">
+        <div class="bundle-card" data-plan-type="<%= product.dataDetails.plan_type %>" data-size="<%= sizeLabel(product.dataDetails.plan_type) %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= product.dataDetails.plan_name %> <%= product.dataDetails.network %> bundle for ₦<%= product.dataDetails.amount %>">
           <div class="bundle-card__body">
             <div class="bundle-card__amount"><%= product.dataDetails.plan_name %></div>
             <div class="bundle-card__validity"><%= product.dataDetails.validate_period %></div>
@@ -165,6 +149,7 @@
               <span class="bundle-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
               <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount) { %>
               <span class="bundle-card__price-old"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
+              <span class="bundle-card__cashback">₦<%= product.dataDetails.oldPrice - product.dataDetails.amount %> Cashback</span>
               <% } %>
             </div>
             <div class="bundle-card__meta">
@@ -212,7 +197,8 @@
     <% panelIdx++; %>
     <% } %>
 
-    <% } %><!-- / market has packages -->
+    <% } %>
+    <!-- / market has packages -->
 
   </div>
 </section>
@@ -282,56 +268,52 @@
     });
   }
 
-  // ── Duration → size sub-tabs (per network panel) ──
-  // Duration is the primary filter; the size bar only offers sizes that exist
-  // within the chosen duration, and resets to "All Sizes" when duration changes.
+  // ── Network → size sub-filters (per network panel) ──
+  // Network is the primary filter; the size bar only offers sizes that exist
+  // within the chosen network, and resets to "All Sizes" when network changes.
   document.querySelectorAll('.network-panel').forEach(panel => {
-    const durationBar = panel.querySelector('.duration-tabs-bar');
-    const sizeBar     = panel.querySelector('.size-tabs-bar');
-    const cards       = Array.from(panel.querySelectorAll('.bundle-card'));
-    if (!durationBar && !sizeBar) return;
+    const networkFilterSelect = panel.querySelector('.network-filter-select');
+    const sizeBar = panel.querySelector('.size-tabs-bar');
+    const cards = Array.from(panel.querySelectorAll('.bundle-card'));
+    if (!networkFilterSelect && !sizeBar) return;
 
-    let activeDuration = 'all';
-    let activeSize     = 'all';
+    let activeNetworkFilter = 'all';
+    let activeSize = 'all';
 
-    function matchesDuration(card) {
-      return activeDuration === 'all' || card.dataset.duration === activeDuration;
+    function matchesNetworkFilter(card) {
+      return activeNetworkFilter === 'all' || card.dataset.brand === activeNetworkFilter;
     }
 
     function apply() {
       cards.forEach(card => {
-        const show = matchesDuration(card) &&
-                     (activeSize === 'all' || card.dataset.size === activeSize);
+        const show = matchesNetworkFilter(card) &&
+          (activeSize === 'all' || card.dataset.size === activeSize);
         card.style.display = show ? '' : 'none';
       });
 
-      // Hide size buttons that have nothing behind them for this duration
+      // Hide size buttons that have nothing behind them for this network
       if (sizeBar) {
         sizeBar.querySelectorAll('.size-tab-btn').forEach(btn => {
           const size = btn.dataset.size;
           if (size === 'all') return;
-          const available = cards.some(c => matchesDuration(c) && c.dataset.size === size);
+          const available = cards.some(c => matchesNetworkFilter(c) && c.dataset.size === size);
           btn.style.display = available ? '' : 'none';
         });
       }
     }
 
-    if (durationBar) {
-      durationBar.querySelectorAll('.duration-tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          durationBar.querySelectorAll('.duration-tab-btn').forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          activeDuration = this.dataset.duration;
+    if (networkFilterSelect) {
+      networkFilterSelect.addEventListener('change', function() {
+        activeNetworkFilter = this.value;
 
-          // Changing duration resets the size filter
-          activeSize = 'all';
-          if (sizeBar) {
-            sizeBar.querySelectorAll('.size-tab-btn').forEach(b => b.classList.remove('active'));
-            const allBtn = sizeBar.querySelector('.size-tab-btn[data-size="all"]');
-            if (allBtn) allBtn.classList.add('active');
-          }
-          apply();
-        });
+        // Changing network resets the size filter
+        activeSize = 'all';
+        if (sizeBar) {
+          sizeBar.querySelectorAll('.size-tab-btn').forEach(b => b.classList.remove('active'));
+          const allBtn = sizeBar.querySelector('.size-tab-btn[data-size="all"]');
+          if (allBtn) allBtn.classList.add('active');
+        }
+        apply();
       });
     }
 

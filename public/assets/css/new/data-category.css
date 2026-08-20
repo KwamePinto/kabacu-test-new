@@ -148,9 +148,8 @@
 
 .quick-phone-nickname { height: 40px; margin-top: 8px; }
 
-/* Sub-tabs within a network panel: duration first, then size */
+/* Sub-tabs within a network panel: size */
 .plan-tabs-bar,
-.duration-tabs-bar,
 .size-tabs-bar {
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -158,27 +157,23 @@
   scrollbar-width: none;
 }
 .plan-tabs-bar::-webkit-scrollbar,
-.duration-tabs-bar::-webkit-scrollbar,
 .size-tabs-bar::-webkit-scrollbar { display: none; }
 
 .plan-tabs-bar     { margin-bottom: 16px; }
-.duration-tabs-bar { margin-bottom: 8px; }
 .size-tabs-bar     { margin-bottom: 16px; }
 
 .plan-tab-btn,
-.duration-tab-btn,
 .size-tab-btn {
   flex-shrink: 0;
   white-space: nowrap;
 }
 
-.plan-tab-btn,
-.duration-tab-btn {
+.plan-tab-btn {
   padding: 6px 14px;
   font-size: 12px;
 }
 
-/* Size is the secondary filter — render it lighter than the duration row */
+/* Size is the secondary filter — render it lighter */
 .size-tab-btn {
   padding: 4px 12px;
   font-size: 11px;
@@ -186,6 +181,26 @@
 }
 
 .size-tab-btn.active { opacity: 1; }
+
+/* Primary filter: small network-variant dropdown (replaces the old duration tabs) */
+.network-filter-wrap { margin-bottom: 8px; }
+
+.network-filter-select {
+  height: 30px;
+  padding: 0 30px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background-color: var(--white);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
 
 /* Bundle cards grid */
 .bundle-grid {
@@ -266,6 +281,15 @@
   font-weight: 400;
 }
 
+.bundle-card__cashback {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--success);
+  background: #d4edda;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+}
+
 .bundle-card__meta {
   display: flex;
   align-items: center;
@@ -287,22 +311,27 @@
     align-items: flex-start;
     gap: 6px;
   }
+
+  .bundle-card__network { width: 100%; }
 }
 
+/* Raw network names are free text and can run long ("CTC Weekly Special-MTN"),
+   so this reads as a plain truncating label rather than a tight uppercase pill. */
 .bundle-card__network {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--primary);
-  background: var(--primary-light);
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bundle-card__rp {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 4px;
   font-size: 10px;
   font-weight: 600;

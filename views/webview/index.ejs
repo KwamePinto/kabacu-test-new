@@ -1,21 +1,4 @@
 <!-- ══ HOME ════════════════════════════════════════════════ -->
-<script>
-  /* Image fallback chain for product cards. Defined before any card markup so
-     it exists by the time an <img> error fires during parsing.
-     own image → per-network default artwork → styled text card */
-  function kbImgFallback(img) {
-    var next = img.getAttribute('data-fallback');
-    if (next) {
-      img.removeAttribute('data-fallback');
-      img.classList.add('product-card__img--default');
-      img.src = next;
-      return;
-    }
-    img.style.display = 'none';
-    var panel = img.nextElementSibling;
-    if (panel) panel.removeAttribute('hidden');
-  }
-</script>
 
 <div id="homeContent">
 
@@ -204,57 +187,23 @@
       <a href="/category/data-category" class="sec-link">See All</a>
     </div>
 
-    <%
-      /* Per-network fallback artwork for data plans whose own image is missing
-         or fails to load. Network names are free text ("CTC Weekly Special-MTN",
-         "MTN Awoof", "GLO"), so match on the keyword rather than the whole value.
-         Anything unrecognised — the in-house "CTC Awoof Monthly" style names —
-         falls back to the MTN artwork, since every CTC special runs on MTN. */
-      function defaultDataImg(network) {
-        var n = String(network || '').toLowerCase();
-        if (n.indexOf('glo')    !== -1) return '/assets/images/glodatadefault.png';
-        if (n.indexOf('airtel') !== -1) return '/assets/images/airteldatadefault.png';
-        return '/assets/images/mtndatadefault.png';
-      }
-      function dataImgFor(p) {
-        return (p.images && p.images[0]) || defaultDataImg(p.dataDetails.network);
-      }
-      var arrivalProducts = (dataProducts || []).filter(function(p) { return dataImgFor(p); });
-      var noImageProducts = (dataProducts || []).filter(function(p) { return !dataImgFor(p); });
-    %>
+    <% var arrivalProducts = dataProducts || []; %>
     <% if (arrivalProducts.length > 0) { %>
     <div class="product-grid" id="homeProductGrid">
       <% arrivalProducts.slice(0, 8).forEach(function(product) { %>
-      <%
-        var netDefault = defaultDataImg(product.dataDetails.network);
-        var ownImg     = (product.images && product.images[0]) || null;
-        var primary    = ownImg || netDefault;
-      %>
       <div class="product-card" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>">
-        <div class="product-card__img">
-          <img src="<%= primary %>" alt="<%= product.dataDetails.plan_type %>"
-               class="<%= ownImg ? '' : 'product-card__img--default' %>"
-               <% if (ownImg && netDefault) { %>data-fallback="<%= netDefault %>"<% } %>
-               onerror="kbImgFallback(this)">
-          <div class="product-card__img-fallback" hidden>
-            <span class="pcf__amount"><%= product.dataDetails.plan_name %></span>
-            <span class="pcf__validity"><%= product.dataDetails.validate_period %></span>
-            <span class="pcf__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
-            <span class="pcf__net"><%= product.dataDetails.network %></span>
-          </div>
-          <button class="product-card__fav" aria-label="Favourite">
-            <i data-lucide="heart"></i>
-          </button>
-        </div>
         <div class="product-card__body">
           <h4 class="product-card__name" style="min-height: 35px; font-size: medium;"><%= product.dataDetails.plan_type %> · <%= product.dataDetails.validate_period %></h4>
           <p class="product-card__brand"><%= product.dataDetails.network %></p>
           <div class="product-card__footer">
-            <div>
-              <span class="product-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
-              <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount){ %>
-              <span class="" style="text-decoration: line-through; font-size: smaller; color: #f63232;"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
-              <% } %>
+            <div class="product-card__price-col">
+              <span class="product-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
+              <div class="product-card__price-row">
+                <span class="product-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
+                <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount){ %>
+                <span class="product-card__price-old"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
+                <% } %>
+              </div>
             </div>
             <% if (user) { %>
             <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
@@ -272,48 +221,7 @@
     </div>
     <% } %>
 
-    <!-- No-image data products — rendered as bundle cards -->
-    <% if (noImageProducts.length > 0) { %>
-    <div class="bundle-grid" style="margin-top:12px;">
-      <% noImageProducts.slice(0, 8).forEach(function(product) { %>
-      <% var extras = product.dataDetails.extras; %>
-      <div class="bundle-card">
-        <div class="bundle-card__body">
-          <div class="bundle-card__amount"><%= product.dataDetails.plan_name %></div>
-          <div class="bundle-card__validity"><%= product.dataDetails.validate_period %></div>
-          <div class="bundle-card__pricing">
-            <span class="bundle-card__price"><span class="js-currency-symbol">₦</span><%= product.dataDetails.amount %></span>
-            <% if (product.dataDetails.oldPrice && product.dataDetails.oldPrice > product.dataDetails.amount) { %>
-            <span class="bundle-card__price-old"><span class="js-currency-symbol">₦</span><%= product.dataDetails.oldPrice %></span>
-            <% } %>
-          </div>
-          <div class="bundle-card__meta">
-            <span class="bundle-card__network"><%= product.dataDetails.network %></span>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span class="bundle-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
-              <% if (user) { %>
-              <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
-                <i data-lucide="plus"></i>
-              </button>
-              <% } else { %>
-              <a href="/user/login" class="product-card__buy" aria-label="Login to buy"><i data-lucide="plus"></i></a>
-              <% } %>
-            </div>
-          </div>
-        </div>
-        <% if (extras && extras.length > 0) { %>
-        <div class="bundle-card__extras">
-          <% extras.forEach(function(extra) { %>
-          <span class="bundle-card__extras-chip"><i data-lucide="gift"></i><%= extra %></span>
-          <% }) %>
-        </div>
-        <% } %>
-      </div>
-      <% }) %>
-    </div>
-    <% } %>
-
-    <% if (arrivalProducts.length === 0 && noImageProducts.length === 0) { %>
+    <% if (arrivalProducts.length === 0) { %>
     <div class="empty-state">
       <i data-lucide="package"></i>
       <p>No products available yet</p>
@@ -336,8 +244,7 @@
         <% electronicProducts.slice(0, 4).forEach(function(p) { %>
         <a href="/category/electronic-category" class="cat-strip__card">
           <% if (p.images && p.images[0]) { %>
-          <img src="<%= p.images[0] %>" alt="<%= p.electronicDetails && p.electronicDetails.itemName || 'Electronic' %>" class="cat-strip__img"
-               onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
+          <img src="<%= p.images[0] %>" alt="<%= p.electronicDetails && p.electronicDetails.itemName || 'Electronic' %>" class="cat-strip__img" onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
           <div class="cat-strip__img--placeholder" hidden><i data-lucide="monitor-smartphone"></i></div>
           <% } else { %>
           <div class="cat-strip__img--placeholder"><i data-lucide="monitor-smartphone"></i></div>
@@ -377,8 +284,7 @@
         <% automobileProducts.slice(0, 4).forEach(function(p) { %>
         <a href="/category/automobile-category" class="cat-strip__card">
           <% if (p.images && p.images[0]) { %>
-          <img src="<%= p.images[0] %>" alt="<%= p.automobileDetails && p.automobileDetails.brand || 'Auto' %>" class="cat-strip__img"
-               onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
+          <img src="<%= p.images[0] %>" alt="<%= p.automobileDetails && p.automobileDetails.brand || 'Auto' %>" class="cat-strip__img" onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
           <div class="cat-strip__img--placeholder" hidden><i data-lucide="car"></i></div>
           <% } else { %>
           <div class="cat-strip__img--placeholder"><i data-lucide="car"></i></div>
@@ -418,8 +324,7 @@
         <% coursesProducts.slice(0, 4).forEach(function(p) { %>
         <a href="/category/course-category" class="cat-strip__card">
           <% if (p.images && p.images[0]) { %>
-          <img src="<%= p.images[0] %>" alt="<%= p.coursesDetails && p.coursesDetails.title || 'Course' %>" class="cat-strip__img"
-               onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
+          <img src="<%= p.images[0] %>" alt="<%= p.coursesDetails && p.coursesDetails.title || 'Course' %>" class="cat-strip__img" onerror="this.style.display='none';this.nextElementSibling.removeAttribute('hidden');">
           <div class="cat-strip__img--placeholder" hidden><i data-lucide="book-open"></i></div>
           <% } else { %>
           <div class="cat-strip__img--placeholder"><i data-lucide="book-open"></i></div>
@@ -535,8 +440,7 @@
         <input type="checkbox" id="saveBeneficiaryCheckbox" aria-label="Save this number as a beneficiary">
         Save this number as a beneficiary
       </label>
-      <input type="text" id="beneficiaryNicknameInput" class="form-input form-input--plain"
-             placeholder="Nickname (optional)" style="display:none;margin-top:8px;" maxlength="30">
+      <input type="text" id="beneficiaryNicknameInput" class="form-input form-input--plain" placeholder="Nickname (optional)" style="display:none;margin-top:8px;" maxlength="30">
     </div>
 
     <div class="modal-actions">
@@ -683,21 +587,21 @@
 
   /* ── Buy modal ────────────────────────────────────────── */
   var selectedPackageId = null;
-  var selectedNetwork   = null;
+  var selectedNetwork = null;
 
   // Nigerian network prefixes — soft hint only (number portability means these
   // are not authoritative; OurDataStore validates the actual network on purchase).
   var NETWORK_PREFIXES = {
-    MTN:    ['0803','0806','0703','0706','0707','0810','0813','0814','0816','0903','0906','0913','0916'],
-    AIRTEL: ['0802','0808','0701','0708','0812','0901','0902','0904','0907','0912'],
-    GLO:    ['0805','0807','0705','0811','0815','0905','0915']
+    MTN: ['0803', '0806', '0703', '0706', '0707', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916'],
+    AIRTEL: ['0802', '0808', '0701', '0708', '0812', '0901', '0902', '0904', '0907', '0912'],
+    GLO: ['0805', '0807', '0705', '0811', '0815', '0905', '0915']
   };
 
   function detectNetworkKey(name) {
     var n = (name || '').toUpperCase();
-    if (n.indexOf('MTN') !== -1)    return 'MTN';
+    if (n.indexOf('MTN') !== -1) return 'MTN';
     if (n.indexOf('AIRTEL') !== -1) return 'AIRTEL';
-    if (n.indexOf('GLO') !== -1)    return 'GLO';
+    if (n.indexOf('GLO') !== -1) return 'GLO';
     return null;
   }
 
@@ -713,7 +617,7 @@
       e.preventDefault();
       e.stopPropagation();
       selectedPackageId = this.dataset.id;
-      selectedNetwork   = this.dataset.network || null;
+      selectedNetwork = this.dataset.network || null;
       resetBuyModalForm();
       document.getElementById('buyModal').classList.add('open');
       document.documentElement.style.overflow = 'hidden';
@@ -737,8 +641,8 @@
 
   var phoneInput = document.getElementById('phoneInput');
   var phoneError = document.getElementById('phoneError');
-  var beneficiaryChips         = document.getElementById('beneficiaryChips');
-  var saveBeneficiaryCheckbox  = document.getElementById('saveBeneficiaryCheckbox');
+  var beneficiaryChips = document.getElementById('beneficiaryChips');
+  var saveBeneficiaryCheckbox = document.getElementById('saveBeneficiaryCheckbox');
   var beneficiaryNicknameInput = document.getElementById('beneficiaryNicknameInput');
 
   var networkWarningDismissed = false;
@@ -748,7 +652,9 @@
     phoneError.style.display = 'none';
     networkWarningDismissed = false;
     if (beneficiaryChips) {
-      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) { c.classList.remove('active'); });
+      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) {
+        c.classList.remove('active');
+      });
     }
     if (saveBeneficiaryCheckbox) {
       saveBeneficiaryCheckbox.checked = false;
@@ -765,7 +671,9 @@
     networkWarningDismissed = false;
     phoneError.style.display = 'none';
     if (beneficiaryChips) {
-      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) { c.classList.remove('active'); });
+      beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) {
+        c.classList.remove('active');
+      });
     }
     if (saveBeneficiaryCheckbox) saveBeneficiaryCheckbox.disabled = false;
   });
@@ -773,7 +681,9 @@
   if (beneficiaryChips) {
     beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(chip) {
       chip.addEventListener('click', function() {
-        beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) { c.classList.remove('active'); });
+        beneficiaryChips.querySelectorAll('.beneficiary-chip').forEach(function(c) {
+          c.classList.remove('active');
+        });
         this.classList.add('active');
         phoneInput.value = this.dataset.phone;
         phoneError.style.display = 'none';
@@ -817,8 +727,15 @@
     if (saveBeneficiaryCheckbox && saveBeneficiaryCheckbox.checked) {
       fetch('/beneficiaries/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ phone: phone, network: selectedNetwork, nickname: beneficiaryNicknameInput.value.trim() })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify({
+          phone: phone,
+          network: selectedNetwork,
+          nickname: beneficiaryNicknameInput.value.trim()
+        })
       }).catch(function() {});
     }
     try {
@@ -857,7 +774,7 @@
      and CSS alone decides where it shows, so resizing from mobile to desktop
      (or opening devtools on load) can no longer leave it blank. -->
 <script>
-  (function () {
+  (function() {
     var el = document.getElementById('heroBgPattern');
     if (!el || el.textContent.trim()) return;
     var words = ['Data', 'MTN', 'Airtel', 'Glo', 'Electronics', 'Courses', 'Automobiles'];

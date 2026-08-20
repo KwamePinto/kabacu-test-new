@@ -33,7 +33,7 @@
   color: var(--white);
   text-transform: uppercase;
   margin-bottom: 14px;
-  box-shadow: 0 6px 24px rgba(21, 168, 68, .28);
+  box-shadow: 0 6px 24px rgba(21, 168, 68, 0.28);
 }
 
 .acct-name {
@@ -72,7 +72,7 @@
 }
 
 .acct-balance-card__val {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   color: var(--text);
   line-height: 1;
@@ -82,6 +82,10 @@
   font-size: 12px;
   color: var(--muted);
   font-weight: 500;
+}
+
+@media (max-width: 639px) {
+  .acct-balance-card__val { font-size: 16px; }
 }
 
 /* ── Sections ───────────────────────────────────────────── */
@@ -94,10 +98,11 @@
 .acct-section__title {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: .07em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
   padding: 0 2px;
+  margin-top: 20px
 }
 
 /* ── Quick-link rows ────────────────────────────────────── */
@@ -117,14 +122,22 @@
   gap: 14px;
   padding: 16px;
   text-decoration: none;
-  transition: background .15s;
+  transition: background 0.15s;
   border-bottom: 1px solid var(--border);
 }
 
-.acct-link:last-child { border-bottom: none; }
-.acct-link:hover { background: var(--bg); }
-.acct-link--static { cursor: default; }
-.acct-link--static:hover { background: transparent; }
+.acct-link:last-child {
+  border-bottom: none;
+}
+.acct-link:hover {
+  background: var(--bg);
+}
+.acct-link--static {
+  cursor: default;
+}
+.acct-link--static:hover {
+  background: transparent;
+}
 
 .acct-link__icon {
   width: 40px;
@@ -199,7 +212,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-.beneficiary-manage-row:last-child { border-bottom: none; }
+.beneficiary-manage-row:last-child {
+  border-bottom: none;
+}
 
 .beneficiary-manage-row__info {
   display: flex;
@@ -207,8 +222,15 @@
   gap: 2px;
 }
 
-.beneficiary-manage-row__name  { font-size: 14px; font-weight: 600; color: var(--text); }
-.beneficiary-manage-row__phone { font-size: 12px; color: var(--muted); }
+.beneficiary-manage-row__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.beneficiary-manage-row__phone {
+  font-size: 12px;
+  color: var(--muted);
+}
 
 .beneficiary-manage-row__delete {
   width: 34px;
@@ -223,7 +245,11 @@
   flex-shrink: 0;
 }
 
-.beneficiary-manage-row__delete svg { width: 16px; height: 16px; color: var(--error); }
+.beneficiary-manage-row__delete svg {
+  width: 16px;
+  height: 16px;
+  color: var(--error);
+}
 
 .acct-empty-note {
   font-size: 13px;
@@ -244,7 +270,7 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -268,7 +294,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: 0.16em;
   color: var(--text);
   background: var(--input-bg);
   border: 1px dashed var(--border);
@@ -293,11 +319,16 @@
   font-family: var(--font);
   cursor: pointer;
   flex-shrink: 0;
-  transition: opacity .15s;
+  transition: opacity 0.15s;
 }
 
-.referral-copy-btn:hover  { opacity: .9; }
-.referral-copy-btn svg    { width: 14px; height: 14px; }
+.referral-copy-btn:hover {
+  opacity: 0.9;
+}
+.referral-copy-btn svg {
+  width: 14px;
+  height: 14px;
+}
 
 .referral-stats {
   display: flex;
@@ -337,7 +368,7 @@
   flex: 1;
   min-width: 0;
   text-transform: uppercase;
-  letter-spacing: .1em;
+  letter-spacing: 0.1em;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -356,77 +387,143 @@
   color: var(--text);
 }
 
-.referral-applied svg   { width: 18px; height: 18px; color: var(--primary); flex-shrink: 0; }
-.referral-applied small { color: var(--muted); font-weight: 500; }
-
-.referral-list {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  overflow: hidden;
+.referral-applied svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.referral-applied small {
+  color: var(--muted);
+  font-weight: 500;
 }
 
-.referral-list__row {
+/* ── Referral tracking list (dedicated /referrals page) ──── */
+/* Paginated server-side (10/page), so no max-height/scroll needed here. */
+.referral-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.referral-track-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--border);
+  background: var(--input-bg);
 }
 
-.referral-list__row:last-child { border-bottom: none; }
-.referral-list__name { font-size: 13px; color: var(--text); }
-
-.referral-badge {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  padding: 3px 9px;
-  border-radius: var(--r-pill);
-}
-
-.referral-badge--pending   { background: #fef3c7; color: #92400e; }
-.referral-badge--qualified { background: #dbeafe; color: #1e40af; }
-.referral-badge--rewarded  { background: var(--primary-light); color: #166534; }
-.referral-badge--void      { background: #f3f4f6; color: #6b7280; }
-
-/* ── Appearance picker ───────────────────────────────────── */
-.theme-choice {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.theme-opt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 8px;
-  border-radius: var(--r-md);
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  color: var(--text-sub);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
-}
-
-.theme-opt svg { width: 20px; height: 20px; }
-
-.theme-opt:hover { border-color: var(--muted); }
-
-.theme-opt.active {
-  border-color: var(--primary);
-  color: var(--primary);
+.referral-track-row--fulfilled {
+  border-left-color: var(--primary);
   background: var(--primary-light);
 }
 
-.theme-opt:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+.referral-track-row--unfulfilled {
+  border-left-color: var(--error);
+  background: rgba(229, 62, 62, 0.06);
 }
+
+.referral-track-row__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.referral-track-row--fulfilled .referral-track-row__name {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.referral-track-row--unfulfilled .referral-track-row__name {
+  color: var(--error);
+}
+
+.referral-track-row__reward {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.referral-track-row--fulfilled .referral-track-row__reward {
+  color: var(--primary);
+}
+.referral-track-row--unfulfilled .referral-track-row__reward {
+  color: var(--error);
+}
+
+.referral-track-list--placeholder {
+  opacity: 0.55;
+  margin-bottom: 10px;
+}
+
+.referral-track-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 24px 0;
+}
+
+.referral-track-list--placeholder + .referral-track-empty {
+  padding-top: 0;
+}
+
+/* ── Reward totals by type (dedicated /referrals page) ────── */
+.reward-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .reward-stats-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.reward-stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px;
+}
+
+.reward-stat-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.reward-stat-card__header svg { width: 14px; height: 14px; }
+
+.reward-stat-card--rp   .reward-stat-card__header svg { color: var(--orange); }
+.reward-stat-card--usdt .reward-stat-card__header svg { color: var(--primary); }
+.reward-stat-card--data .reward-stat-card__header svg { color: #1e40af; }
+
+.reward-stat-card__total {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.reward-stat-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.reward-stat-card__row + .reward-stat-card__row { margin-top: 6px; }
+
+.reward-stat-card__claimed   { font-weight: 700; color: var(--primary); }
+.reward-stat-card__unclaimed { font-weight: 700; color: var(--error); }
