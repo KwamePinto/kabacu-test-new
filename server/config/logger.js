@@ -17,7 +17,7 @@ const rotateOptions = (filename) => ({
   auditFile:     path.join(LOG_DIR, `.${filename}-audit.json`),
 });
 
-const { combine, timestamp, printf, colorize, errors } = winston.format;
+const { combine, timestamp, printf, colorize, errors, splat } = winston.format;
 
 const logLine = printf(({ level, message, timestamp, stack }) => {
   return `${timestamp} [${level.toUpperCase()}] ${stack || message}`;
@@ -28,6 +28,7 @@ const logger = winston.createLogger({
   format: combine(
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     errors({ stack: true }),
+    splat(),
     logLine,
   ),
   transports: [
@@ -51,6 +52,7 @@ if (process.env.NODE_ENV !== 'production') {
       colorize(),
       timestamp({ format: 'HH:mm:ss' }),
       errors({ stack: true }),
+      splat(),
       logLine,
     ),
   }));
