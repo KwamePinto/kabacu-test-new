@@ -367,6 +367,10 @@ exports.coursePurchase = async (req, res) => {
     // A paid course counts as a qualifying first purchase for referrals.
     await referralService.handlePurchase(user._id, { amount: price });
 
+    // Ongoing commission — additive, taken from neither the price nor the
+    // buyer's reward points.
+    await referralService.handleCommission(user._id, { amount: price, rpEarned });
+
     const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
     sendEmail({
       to:      email,

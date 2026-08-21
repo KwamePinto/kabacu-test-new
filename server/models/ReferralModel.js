@@ -38,6 +38,16 @@ const referralSchema = new mongoose.Schema({
   rewardProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
   rewardNote:    { type: String, default: '' },
   rewardedAt:    { type: Date, default: null },
+
+  // ── Ongoing commission ────────────────────────────────────────────────────
+  // Running total of what this one referred user has earned their referrer
+  // from purchases made AFTER qualifying. Kept here rather than recomputed so
+  // the per-referred-user cap can be enforced with a single read, and so the
+  // history survives a change to the commission settings.
+  commissionEarned: { type: Number, default: 0 },   // naira, or RP, per type
+  commissionType:   { type: String, enum: ['cashback', 'rewardpoint', null], default: null },
+  commissionCount:  { type: Number, default: 0 },   // how many payouts
+  commissionLastAt: { type: Date, default: null },
 }, { timestamps: true });
 
 referralSchema.index({ referrer: 1, status: 1 });

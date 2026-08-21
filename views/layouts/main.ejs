@@ -218,11 +218,42 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
       </a>
     </div>
+    <!-- Shop + Account columns, mirroring the desktop footer that is hidden
+         below 768px. Without these the mobile About was missing the category
+         and account navigation the footer provides. -->
+    <div class="mobile-about__cols">
+      <div class="mobile-about__col">
+        <h4 class="mobile-about__col-title">Shop</h4>
+        <a href="/category/data-category" class="mobile-about__link">Data Bundles</a>
+        <a href="/category/electronic-category" class="mobile-about__link">Electronics</a>
+        <a href="/category/automobile-category" class="mobile-about__link">Automobiles</a>
+        <a href="/category/course-category" class="mobile-about__link">Courses</a>
+        <a href="/category/p2p-category" class="mobile-about__link">P2P</a>
+      </div>
+      <div class="mobile-about__col">
+        <h4 class="mobile-about__col-title">Account</h4>
+        <% if (user) { %>
+        <a href="/user-profile" class="mobile-about__link">My Profile</a>
+        <a href="/my-wallet" class="mobile-about__link">My Wallet</a>
+        <a href="/history" class="mobile-about__link">Order History</a>
+        <a href="/user/logout" class="mobile-about__link">Logout</a>
+        <% } else { %>
+        <a href="/user/login" class="mobile-about__link">Sign In</a>
+        <a href="/user/signup" class="mobile-about__link">Register</a>
+        <% } %>
+        <a href="/faq" class="mobile-about__link">FAQ</a>
+      </div>
+    </div>
+
     <div class="mobile-about__links">
-      <a href="/faq" class="mobile-about__link">FAQ</a>
+      <a href="mailto:support@kabacu.com" class="mobile-about__link">support@kabacu.com</a>
+      <a href="https://wa.me/971568263520" target="_blank" rel="noopener" class="mobile-about__link">WhatsApp</a>
+      <span class="mobile-about__link">24/7 Support</span>
+    </div>
+
+    <div class="mobile-about__links">
       <a href="/privacy-policy" class="mobile-about__link">Privacy Policy</a>
       <a href="/terms" class="mobile-about__link">Terms of Use</a>
-      <a href="mailto:support@kabacu.com" class="mobile-about__link">support@kabacu.com</a>
     </div>
     <p class="mobile-about__copy">&copy; <%= new Date().getFullYear() %> Creative Time Center. All rights reserved.</p>
   </div>

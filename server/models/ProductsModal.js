@@ -49,13 +49,22 @@ const productSchema = new mongoose.Schema({
 
   // DATA PRODUCT
   dataDetails: {
+    // Inherited from the selected Data Plan (NetworkModel.planId), never typed
+    // on the product form. Sent to the provider as `data_plan` on purchase.
     plan_id: Number,
+    // The plan this bundle belongs to, by name, e.g. "CTC Weekly Special-MTN"
     network: String,
+    // Card headline, e.g. "2GB Data Plan"
     plan_type: String,
+    // Kept in step with plan_type for older records and search
     plan_name: String,
     amount: Number,
+    // Optional. When set and higher than amount, the card shows it struck
+    // through plus a cashback badge for the difference (display only).
     oldPrice:Number,
-    validate_period: String
+    validate_period: String,
+    // Optional freebie shown as a chip, e.g. "2GB YouTube"
+    bonus: String
   },
 
   // AUTOMOBILE PRODUCT

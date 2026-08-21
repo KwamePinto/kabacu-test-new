@@ -54,40 +54,51 @@
                       <!-- DATA fields -->
                       <div id="dataFields" style="display:none;">
                         <div class="form-group">
-                          <label>Plan ID</label>
-                          <input type="number" name="plan_id" class="form-control">
-                        </div>
-                        <div class="form-group">
-                          <label>Network</label>
+                          <label>Select Plan <span class="text-danger">*</span></label>
                           <select name="network" class="form-control" required>
-                            <option value="" disabled selected>Select network…</option>
+                            <option value="" disabled selected>Select plan…</option>
                             <% if (typeof networks !== 'undefined') { networks.forEach(n => { %>
                             <option value="<%= n.name %>"><%= n.name %></option>
                             <% }) } %>
                           </select>
                           <small class="text-muted">
-                            Networks not listed? <a href="/admin/networks" target="_blank">Manage Networks</a>
+                            The plan carries its own network, so that isn't entered here.
+                            Plan not listed? <a href="/admin/networks" target="_blank">Manage Data Plans</a>
                           </small>
                         </div>
                         <div class="form-group">
-                          <label>Plan Type</label>
-                          <input type="text" name="plan_type" class="form-control">
+                          <label>Bundle ID <span class="text-danger">*</span></label>
+                          <input type="number" name="plan_id" class="form-control" placeholder="e.g. 244" min="0" required>
+                          <small class="text-muted">
+                            The provider's id for <em>this exact size</em>. It cannot come from the
+                            plan — every size under a plan has its own id (1GB, 2GB and 15GB on the
+                            same plan are all different), and a wrong id delivers the wrong bundle.
+                          </small>
                         </div>
                         <div class="form-group">
-                          <label>Plan Name</label>
-                          <input type="text" name="plan_name" class="form-control">
+                          <label>Plan Type <span class="text-danger">*</span></label>
+                          <input type="text" name="plan_type" class="form-control" placeholder="e.g. 2GB Data Plan">
                         </div>
                         <div class="form-group">
-                          <label>Amount</label>
-                          <input type="number" name="amount" class="form-control">
+                          <label>Validity Period <span class="text-danger">*</span></label>
+                          <input type="text" name="validate_period" class="form-control" placeholder="e.g. 1 Week Validity">
                         </div>
                         <div class="form-group">
-                          <label>Old Price</label>
-                          <input type="number" name="oldPrice" class="form-control">
+                          <label>Price <span class="text-danger">*</span></label>
+                          <input type="number" name="amount" class="form-control" placeholder="e.g. 300" min="0" step="any">
                         </div>
                         <div class="form-group">
-                          <label>Validate Period</label>
-                          <input type="text" name="validate_period" class="form-control">
+                          <label>Old Price <small class="text-muted">(optional)</small></label>
+                          <input type="number" name="oldPrice" class="form-control" placeholder="e.g. 600" min="0" step="any">
+                          <small class="text-muted">
+                            Shown struck through beside the price. When set, the card also shows the
+                            difference as a cashback badge — that figure is displayed only, nothing
+                            is credited.
+                          </small>
+                        </div>
+                        <div class="form-group">
+                          <label>Bonus <small class="text-muted">(optional)</small></label>
+                          <input type="text" name="bonus" class="form-control" placeholder="e.g. 2GB YouTube">
                         </div>
                       </div>
 

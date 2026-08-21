@@ -702,3 +702,37 @@
 }
 
 .ann-popup__cta:hover { opacity: .9; color: var(--white); }
+
+/* ── Data card: cashback + bonus (home page) ─────────────── */
+/* Mirrors the data-section card so both read identically. Cashback is the
+   saving against the struck-through old price — display only, never credited. */
+.product-card__cashback {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--success);
+  background: var(--primary-light);
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+
+.product-card__bonus {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-card__bonus svg { width: 9px; height: 9px; flex-shrink: 0; }

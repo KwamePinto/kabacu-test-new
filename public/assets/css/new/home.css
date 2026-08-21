@@ -224,23 +224,25 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 2px dashed var(--primary);
+  /* One continuous ring, dimmed off the full brand green so it reads as a
+     container rather than competing with the icon inside it. */
+  border: 2px solid var(--cat-ring);
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--primary-light);
-  transition: background .15s, border-style .15s;
+  transition: background .15s, border-color .15s;
 }
 
 .mobile-cat:active .mobile-cat__circle {
-  background: #d0eddc;
-  border-style: solid;
+  background: var(--cat-ring-active);
+  border-color: var(--primary);
 }
 
 .mobile-cat__circle svg {
   width: 22px;
   height: 22px;
-  color: var(--primary);
+  color: var(--cat-icon);
 }
 
 .mobile-cat__name {
@@ -498,7 +500,7 @@
 
   /* ── Hero section — green bg, curved wave base ──────────── */
   .hero-section {
-    background: #155e34;
+    background: var(--hero-bg);
     padding: 108px 0 0;
     position: relative;
     overflow: visible;
@@ -562,6 +564,14 @@
     display: block;
     width: 100%;
     height: 120px;
+  }
+
+  /* The wave's job is to blend the hero into the page below, so its fill has
+     to BE the page background. The markup carries fill="#f4f4f4" as a no-CSS
+     fallback; the CSS fill property overrides that presentation attribute and
+     follows the theme, otherwise dark mode showed a bright white curve. */
+  .hero-wave svg path {
+    fill: var(--bg);
   }
 
   /* ── Carousel — centred card, floats above the wave ─────── */

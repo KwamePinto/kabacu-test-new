@@ -23,6 +23,7 @@ exports.addNetwork = [authenticateAdminUser, async (req, res) => {
     }
     const exists = await Network.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') }, is_deleted: { $ne: 1 } });
     if (exists) return res.redirect('/admin/networks?error=duplicate');
+
     await Network.create({ name, apiCode });
     res.redirect('/admin/networks?added=1');
   } catch (err) {

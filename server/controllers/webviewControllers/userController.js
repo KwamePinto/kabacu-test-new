@@ -6,6 +6,7 @@ const countries = require("i18n-iso-countries");
 const UserModel = require('../../models/UserModel');
 const {generateUserToken} = require('../../config/authUtils');
 const sendEmail = require('../../utils/emailService');
+const referralService = require('../../services/referralService');
 
 exports.login = async (req, res) => {
     const a = Math.floor(Math.random() * 9) + 1;
@@ -738,6 +739,18 @@ exports.verifyOTPPost = async (req, res) => {
     await user.save();
 
     delete req.session.pendingVerificationEmail;
+
+    // Signup-bonus promotion. Paid here rather than at signup so a working
+    // inbox is proven first — otherwise the bonus can be farmed with throwaway
+    // addresses. Idempotent, and never blocks verification if it fails.
+    const bonus = await referralService.grantSignupBonus(user._id);
+    if (bonus) {
+      const label = bonus.type === 'money'
+        ? `₦${bonus.amount.toLocaleString()}`
+        : `${bonus.amount} RP`;
+      req.flash('success', `Email verified! Your ${label} signup bonus has been added. Please log in.`);
+      return res.redirect('/user/login');
+    }
 
     req.flash('success', 'Email verified successfully! Please log in.');
     return res.redirect('/user/login');

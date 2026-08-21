@@ -148,49 +148,33 @@
 
 .quick-phone-nickname { height: 40px; margin-top: 8px; }
 
-/* Sub-tabs within a network panel: size */
-.plan-tabs-bar,
-.size-tabs-bar {
+/* Legacy plan pill row — kept for any view still using it */
+.plan-tabs-bar {
   flex-wrap: nowrap;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  margin-bottom: 16px;
 }
-.plan-tabs-bar::-webkit-scrollbar,
-.size-tabs-bar::-webkit-scrollbar { display: none; }
-
-.plan-tabs-bar     { margin-bottom: 16px; }
-.size-tabs-bar     { margin-bottom: 16px; }
-
-.plan-tab-btn,
-.size-tab-btn {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
+.plan-tabs-bar::-webkit-scrollbar { display: none; }
 
 .plan-tab-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 6px 14px;
   font-size: 12px;
 }
 
-/* Size is the secondary filter — render it lighter */
-.size-tab-btn {
-  padding: 4px 12px;
-  font-size: 11px;
-  opacity: .85;
-}
-
-.size-tab-btn.active { opacity: 1; }
-
-/* Primary filter: small network-variant dropdown (replaces the old duration tabs) */
-.network-filter-wrap { margin-bottom: 8px; }
+/* Plan filter — a compact dropdown (AsuraX-X's design). Single filter; there
+   is no secondary size row. */
+.network-filter-wrap { margin-bottom: 16px; }
 
 .network-filter-select {
   height: 30px;
   padding: 0 30px 0 12px;
   border: 1px solid var(--border);
   border-radius: var(--r-pill);
-  background-color: var(--white);
+  background-color: var(--surface);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
@@ -200,6 +184,7 @@
   outline: none;
   appearance: none;
   cursor: pointer;
+  max-width: 100%;
 }
 
 /* Bundle cards grid */
@@ -281,13 +266,18 @@
   font-weight: 400;
 }
 
+/* Cashback sits on its own line beneath the pricing row. Display only — it
+   reports the saving against the struck-through old price, nothing is paid. */
 .bundle-card__cashback {
+  align-self: flex-start;
+  margin-top: 4px;
   font-size: 10px;
   font-weight: 700;
   color: var(--success);
-  background: #d4edda;
+  background: var(--primary-light);
   padding: 2px 7px;
   border-radius: var(--r-pill);
+  white-space: nowrap;
 }
 
 .bundle-card__meta {

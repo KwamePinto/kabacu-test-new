@@ -22,10 +22,10 @@
     <div class="main-content">
       <section class="section">
         <div class="section-header">
-          <h1>Referrals</h1>
+          <h1>Growth &amp; Rewards</h1>
           <div class="section-header-breadcrumb">
             <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-            <div class="breadcrumb-item">Referrals</div>
+            <div class="breadcrumb-item">Growth &amp; Rewards</div>
           </div>
         </div>
 
@@ -159,6 +159,208 @@
             </div>
           </div>
 
+          <!-- ── Signup bonus promotion ─────────────────────────────────── -->
+          <%
+            var sb = settings.signupBonus || {};
+            var rc = settings.referralCommission || {};
+          %>
+          <div class="card">
+            <div class="card-header">
+              <h4>Signup Bonus <small class="text-muted">— promotion, can be switched on and off</small></h4>
+            </div>
+            <div class="card-body">
+
+              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
+                Applies to <strong>every new user</strong>, not only those who signed up with a
+                referral code. Credited when the user <strong>verifies their email</strong>, not at
+                signup — signing up is free and unlimited, so paying before a working inbox is
+                proven would let one person farm the bonus with throwaway addresses.
+                <br><small class="text-muted">Paid once per account, and never twice even if verification is retried.</small>
+              </div>
+
+              <div class="row">
+                <div class="col-12 col-md-3">
+                  <div class="form-group">
+                    <label>Promotion</label>
+                    <select id="sb-active" class="form-control">
+                      <option value="true"  <%= sb.isActive  ? 'selected' : '' %>>Running</option>
+                      <option value="false" <%= !sb.isActive ? 'selected' : '' %>>Off</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Bonus type</label>
+                    <select id="sb-type" class="form-control" onchange="onSignupBonusTypeChange()">
+                      <option value="money"       <%= sb.rewardType === 'money'       ? 'selected' : '' %>>Money — credited to wallet</option>
+                      <option value="rewardpoint" <%= sb.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
+                    </select>
+                    <div class="rf-help">Data isn't offered — a bundle needs a phone number a new account hasn't given.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="sb-amount" class="form-control" min="0" step="any"
+                           value="<%= sb.amount || '' %>" placeholder="e.g. 100">
+                    <div class="rf-help" id="sb-amount-help">Naira per verified signup.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Ongoing referral commission ────────────────────────────── -->
+          <div class="card">
+            <div class="card-header">
+              <h4>Referral Commission <small class="text-muted">— ongoing, per purchase</small></h4>
+            </div>
+            <div class="card-body">
+
+              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
+                Once a referred user has <strong>qualified</strong> (met the threshold and paid out
+                the one-off reward above), <strong>every later purchase</strong> they make earns
+                their referrer a percentage.
+                <br>
+                <strong>This is always a gift on top, never a deduction.</strong> The buyer is
+                charged the full amount and keeps their full reward points; the commission is
+                credited to the referrer separately, so revenue and profit reporting are unaffected.
+              </div>
+
+              <div class="row">
+                <div class="col-12 col-md-3">
+                  <div class="form-group">
+                    <label>Commission</label>
+                    <select id="rc-active" class="form-control">
+                      <option value="true"  <%= rc.isActive  ? 'selected' : '' %>>Running</option>
+                      <option value="false" <%= !rc.isActive ? 'selected' : '' %>>Off</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Type</label>
+                    <select id="rc-type" class="form-control" onchange="onCommissionTypeChange()">
+                      <option value="cashback"    <%= rc.type === 'cashback'    ? 'selected' : '' %>>Cash back — % of the purchase value</option>
+                      <option value="rewardpoint" <%= rc.type === 'rewardpoint' ? 'selected' : '' %>>Reward Points — % of the RP earned</option>
+                    </select>
+                    <div class="rf-help" id="rc-type-help"></div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-2">
+                  <div class="form-group">
+                    <label>Percentage</label>
+                    <div class="input-group">
+                      <input type="number" id="rc-percent" class="form-control" min="0" max="100" step="any"
+                             value="<%= rc.percent || '' %>" placeholder="5">
+                      <div class="input-group-append"><span class="input-group-text">%</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="form-group">
+                    <label>Cap per referred user</label>
+                    <input type="number" id="rc-cap" class="form-control" min="0" step="any"
+                           value="<%= rc.maxPerReferredUser || 0 %>">
+                    <div class="rf-help">Lifetime ceiling per referred user. 0 = unlimited.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Special / vanity codes ──────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header">
+              <h4>Special Codes <small class="text-muted">— premium codes sold to users</small></h4>
+            </div>
+            <div class="card-body">
+
+              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
+                A special code may use <strong>any characters</strong> — it is exempt from the
+                <code>KB########</code> shape system codes use. It is
+                <strong>reserved and blocked from the system</strong> the moment you create it, and
+                becomes usable only once you assign it to a user. Assigning replaces that user's
+                current code; their old one is kept so the assignment can be reversed.
+                <br><small class="text-muted">Admin-only — there is no customer-facing purchase flow yet.</small>
+              </div>
+
+              <div class="row">
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Code <span class="text-danger">*</span></label>
+                    <input type="text" id="sc-code" class="form-control" placeholder="e.g. KABACU01 or 07000000"
+                           style="text-transform:uppercase;">
+                    <div class="rf-help">No spaces. Any other characters allowed.</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="form-group">
+                    <label>Price</label>
+                    <input type="number" id="sc-price" class="form-control" min="0" step="any" placeholder="0">
+                    <div class="rf-help">0 = free / promotional.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-5">
+                  <div class="form-group">
+                    <label>Note</label>
+                    <input type="text" id="sc-note" class="form-control" placeholder="Who it's held for, or why">
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" id="sc-create-btn" onclick="createSpecialCode()">Reserve Code</button>
+            </div>
+
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                  <thead>
+                    <tr><th>Code</th><th>Price</th><th>Status</th><th>Held by</th><th>Note</th><th class="text-right">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    <% if (!specialCodes || !specialCodes.length) { %>
+                    <tr><td colspan="6" class="text-center text-muted py-4">No special codes reserved yet.</td></tr>
+                    <% } %>
+                    <% (specialCodes || []).forEach(function(sc) { %>
+                    <tr>
+                      <td><code style="font-size:13px;"><%= sc.code %></code></td>
+                      <td>&#8358;<%= (sc.price || 0).toLocaleString() %></td>
+                      <td>
+                        <% if (!sc.isActive) { %>
+                          <span class="badge badge-secondary">Inactive</span>
+                        <% } else if (sc.permittedUser) { %>
+                          <span class="badge badge-success">Assigned</span>
+                        <% } else { %>
+                          <span class="badge badge-warning">Reserved &mdash; blocked</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (sc.permittedUser) { %>
+                          <strong><%= sc.permittedUser.username %></strong><br>
+                          <small class="text-muted"><%= sc.permittedUser.email %></small>
+                        <% } else { %>
+                          <small class="text-muted">&mdash;</small>
+                        <% } %>
+                      </td>
+                      <td><small><%= sc.note || '—' %></small></td>
+                      <td class="text-right" style="white-space:nowrap;">
+                        <% if (sc.permittedUser) { %>
+                        <button class="btn btn-sm btn-warning" onclick="unassignSpecialCode('<%= sc._id %>')">Unassign</button>
+                        <% } else { %>
+                        <button class="btn btn-sm btn-info" onclick="assignSpecialCode('<%= sc._id %>', '<%= sc.code %>')">Assign</button>
+                        <button class="btn btn-sm btn-secondary" onclick="toggleSpecialCode('<%= sc._id %>')"><%= sc.isActive ? 'Disable' : 'Enable' %></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSpecialCode('<%= sc._id %>')">Delete</button>
+                        <% } %>
+                      </td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- ── Recent referrals ────────────────────────────────────────── -->
           <div class="card">
             <div class="card-header"><h4>Recent Referrals</h4></div>
@@ -233,7 +435,25 @@ async function saveSettings() {
     minPurchaseAmount: document.getElementById('f-minpurchase').value,
     maxRewardsPerReferrer: document.getElementById('f-maxrewards').value,
     isActive: document.getElementById('f-active').value,
+
+    // Signup bonus promotion
+    signupBonusActive: document.getElementById('sb-active').value,
+    signupBonusType:   document.getElementById('sb-type').value,
+    signupBonusAmount: document.getElementById('sb-amount').value,
+
+    // Ongoing referral commission
+    commissionActive:  document.getElementById('rc-active').value,
+    commissionType:    document.getElementById('rc-type').value,
+    commissionPercent: document.getElementById('rc-percent').value,
+    commissionMaxPerReferredUser: document.getElementById('rc-cap').value,
   };
+
+  if (payload.signupBonusActive === 'true' && !(Number(payload.signupBonusAmount) > 0)) {
+    return Swal.fire({ icon: 'warning', text: 'Set a signup bonus amount above zero, or switch the promotion off.', confirmButtonColor: '#6777ef' });
+  }
+  if (payload.commissionActive === 'true' && !(Number(payload.commissionPercent) > 0)) {
+    return Swal.fire({ icon: 'warning', text: 'Set a commission percentage above zero, or switch it off.', confirmButtonColor: '#6777ef' });
+  }
 
   if (type === 'data' && !selectedPackageId) {
     return Swal.fire({ icon: 'warning', text: 'Choose the data package to award.', confirmButtonColor: '#6777ef' });
@@ -268,12 +488,137 @@ async function saveSettings() {
 }
 
 /* Reflect any already-saved data package on load */
+function onSignupBonusTypeChange() {
+  var t = document.getElementById('sb-type').value;
+  document.getElementById('sb-amount-help').textContent =
+    t === 'money' ? 'Naira per verified signup.' : 'Reward Points per verified signup.';
+}
+
+function onCommissionTypeChange() {
+  var t = document.getElementById('rc-type').value;
+  document.getElementById('rc-type-help').textContent = t === 'cashback'
+    ? 'Referrer receives this % of the purchase value as cash. The buyer still pays in full.'
+    : 'Referrer receives this % of the RP the buyer earned. The buyer still keeps all their RP.';
+}
+
 (function () {
   onRewardTypeChange();
+  onSignupBonusTypeChange();
+  onCommissionTypeChange();
   var sel = document.querySelector('.rf-pkg-row.selected');
   if (sel) {
     document.getElementById('chosen-wrap').style.display = '';
     document.getElementById('chosen-label').textContent = sel.dataset.label;
   }
 })();
+</script>
+
+<script>
+/* ── Special / vanity codes ──────────────────────────────────────────────── */
+
+async function scPost(url, body) {
+  var opts = { method: 'POST', headers: { 'X-CSRF-Token': CSRF } };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  var res = await fetch(url, opts);
+  return res.json();
+}
+
+async function createSpecialCode() {
+  var code = document.getElementById('sc-code').value.trim().toUpperCase();
+  if (!code) {
+    return Swal.fire({ icon: 'warning', text: 'Enter a code.', confirmButtonColor: '#6777ef' });
+  }
+  if (/\s/.test(code)) {
+    return Swal.fire({ icon: 'warning', text: 'A code cannot contain spaces.', confirmButtonColor: '#6777ef' });
+  }
+
+  var btn = document.getElementById('sc-create-btn');
+  btn.disabled = true;
+  btn.textContent = 'Reserving…';
+
+  try {
+    var data = await scPost('/admin/referrals/special', {
+      code: code,
+      price: document.getElementById('sc-price').value,
+      note: document.getElementById('sc-note').value,
+    });
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 2200, showConfirmButton: false });
+      setTimeout(function () { location.reload(); }, 1000);
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Reserve Code';
+}
+
+async function assignSpecialCode(id, code) {
+  var r = await Swal.fire({
+    title: 'Assign ' + code,
+    input: 'text',
+    inputLabel: "User's email or username",
+    inputPlaceholder: 'someone@example.com',
+    showCancelButton: true,
+    confirmButtonText: 'Assign',
+    confirmButtonColor: '#6777ef',
+  });
+  if (!r.isConfirmed || !r.value || !r.value.trim()) return;
+
+  var data = await scPost('/admin/referrals/special/' + id + '/assign', { user: r.value.trim() });
+  if (data.success) {
+    Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
+      .then(function () { location.reload(); });
+  } else {
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  }
+}
+
+async function unassignSpecialCode(id) {
+  var r = await Swal.fire({
+    icon: 'warning',
+    title: 'Release this code?',
+    text: "The user's previous referral code will be restored.",
+    showCancelButton: true,
+    confirmButtonText: 'Unassign',
+    confirmButtonColor: '#dc3545',
+  });
+  if (!r.isConfirmed) return;
+
+  var data = await scPost('/admin/referrals/special/' + id + '/unassign');
+  if (data.success) {
+    Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
+      .then(function () { location.reload(); });
+  } else {
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  }
+}
+
+async function toggleSpecialCode(id) {
+  var data = await scPost('/admin/referrals/special/' + id + '/toggle');
+  if (data.success) location.reload();
+  else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+}
+
+async function deleteSpecialCode(id) {
+  var r = await Swal.fire({
+    icon: 'warning',
+    title: 'Delete this reserved code?',
+    text: 'This cannot be undone.',
+    showCancelButton: true,
+    confirmButtonText: 'Delete',
+    confirmButtonColor: '#dc3545',
+  });
+  if (!r.isConfirmed) return;
+
+  var data = await scPost('/admin/referrals/special/' + id + '/delete');
+  if (data.success) location.reload();
+  else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+}
 </script>

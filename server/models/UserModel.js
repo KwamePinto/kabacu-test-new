@@ -70,6 +70,13 @@ forgotPasswordTokenExpires: Date,
     // Flipped the first time this user completes a purchase, which is the
     // moment their referrer becomes eligible for a reward.
     hasMadeFirstPurchase: { type: Boolean, default: false },
+
+    // ── Signup bonus ─────────────────────────────────────────────────────
+    // Set when the promotion paid out, so it can never be credited twice —
+    // OTP verification can be retried, and a resend must not pay again.
+    signupBonusPaidAt:  { type: Date, default: null },
+    signupBonusType:    { type: String, enum: ['money', 'rewardpoint', null], default: null },
+    signupBonusAmount:  { type: Number, default: 0 },
 })
 
 userSchema.index({ createdAt: -1 });

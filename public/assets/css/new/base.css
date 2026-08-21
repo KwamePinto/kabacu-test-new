@@ -33,6 +33,16 @@
   --icon-btn-bg:    rgba(0, 0, 0, 0.09);
   --icon-btn-hover: rgba(0, 0, 0, 0.15);
 
+  /* Desktop hero. The green is a brand surface rather than a neutral, so it
+     needs its own token — it can't be derived from --surface or --primary. */
+  --hero-bg:        #155e34;
+
+  /* Category circles: a dimmed brand green so the ring frames the icon
+     instead of shouting over it. */
+  --cat-ring:        rgba(21, 168, 68, .45);
+  --cat-ring-active: #d0eddc;
+  --cat-icon:        #4a9c68;
+
   /* The footer / mobile-about band is dark in light mode and must stay dark in
      dark mode, so it gets its own tokens rather than reusing --text. */
   --band-bg:        #1a1a2e;
@@ -195,30 +205,38 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   :root:not([data-theme="light"]) {
     --primary:        #22c55e;   /* lifted for contrast on a dark ground */
     --primary-dark:   #16a34a;
-    --primary-light:  #16301f;   /* dark green tint, not pale mint */
+    --primary-light: #1f3a26;   /* dark green tint, not pale mint */
     --primary-rgb:    34, 197, 94;
 
-    --text:           #eceef4;
-    --text-sub:       #b4b9c6;
-    --muted:          #868c9c;
-    --border:         #2a2d3a;
-    --bg:             #101219;
-    --input-bg:       #1e212c;
-    --input-focus:    #262a37;
+    --text: #eef1ec;
+    --text-sub: #c2cbbf;
+    --muted: #a1af9d;
+    --border: #44523f;
+    --bg: #2a3629;
+    --input-bg: #222d21;
+    --input-focus: #2f3d2d;
 
-    --surface:        #191c25;
-    --card:           #191c25;
-    --surface-2:      #1f222d;
+    --surface: #33412f;
+    --card: #33412f;
+    --surface-2: #3a4a36;
 
-    --header-bg:       rgba(16, 18, 25, 0.97);
-    --header-bg-desk:  rgba(25, 28, 37, 0.88);
+    --header-bg: rgba(42, 54, 41, 0.97);
+    --header-bg-desk: rgba(51, 65, 47, 0.88);
     --header-hairline: rgba(255, 255, 255, 0.08);
     --icon-btn-bg:     rgba(255, 255, 255, 0.10);
     --icon-btn-hover:  rgba(255, 255, 255, 0.18);
 
+    /* Deep brand green — still recognisably Kabacu, but dark enough to sit
+       beside the page ground instead of glowing against it. */
+    --hero-bg: #101f14;
+
+    --cat-ring:        rgba(34, 197, 94, .38);
+    --cat-ring-active: #2b4a33;
+    --cat-icon: #6fbc8b;
+
     /* The band is already dark; nudge it away from the page so it reads as
        a distinct surface rather than blending into the background. */
-    --band-bg:        #080a0f;
+    --band-bg: #1a2419;
 
     --error:          #f87171;
     --warning:        #fbbf24;
@@ -233,28 +251,34 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 :root[data-theme="dark"] {
   --primary:        #22c55e;
   --primary-dark:   #16a34a;
-  --primary-light:  #16301f;
+  --primary-light: #1f3a26;
   --primary-rgb:    34, 197, 94;
 
-  --text:           #eceef4;
-  --text-sub:       #b4b9c6;
-  --muted:          #868c9c;
-  --border:         #2a2d3a;
-  --bg:             #101219;
-  --input-bg:       #1e212c;
-  --input-focus:    #262a37;
+  --text: #eef1ec;
+  --text-sub: #c2cbbf;
+  --muted: #a1af9d;
+  --border: #44523f;
+  --bg: #2a3629;
+  --input-bg: #222d21;
+  --input-focus: #2f3d2d;
 
-  --surface:        #191c25;
-  --card:           #191c25;
-  --surface-2:      #1f222d;
+  --surface: #33412f;
+  --card: #33412f;
+  --surface-2: #3a4a36;
 
-  --header-bg:       rgba(16, 18, 25, 0.97);
-  --header-bg-desk:  rgba(25, 28, 37, 0.88);
+  --header-bg: rgba(42, 54, 41, 0.97);
+  --header-bg-desk: rgba(51, 65, 47, 0.88);
   --header-hairline: rgba(255, 255, 255, 0.08);
   --icon-btn-bg:     rgba(255, 255, 255, 0.10);
   --icon-btn-hover:  rgba(255, 255, 255, 0.18);
 
-  --band-bg:        #080a0f;
+  --hero-bg: #101f14;
+
+  --cat-ring:        rgba(34, 197, 94, .38);
+  --cat-ring-active: #2b4a33;
+  --cat-icon: #6fbc8b;
+
+  --band-bg: #1a2419;
 
   --error:          #f87171;
   --warning:        #fbbf24;

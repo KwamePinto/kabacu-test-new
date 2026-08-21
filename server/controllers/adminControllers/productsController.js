@@ -61,14 +61,22 @@ exports.addProduct = [
       }
 
       if (category === "DATA") {
+        // plan_id MUST stay per-product. It identifies the exact bundle at the
+        // provider (sent as `data_plan` on purchase), and every size under a
+        // plan has its own: "CTC Monthly Special-MTN" alone spans 244, 243, 4,
+        // 3, 2 and 240 for 15GB/10GB/5GB/3GB/2GB/1GB. Inheriting one id from
+        // the plan record would deliver the same bundle for every size.
         productData.dataDetails = {
           plan_id: req.body.plan_id,
           network: req.body.network,
           plan_type: req.body.plan_type,
-          plan_name: req.body.plan_name,
+          // plan_name is kept in step with plan_type: the card now leads with
+          // plan_type, but older records and search still read plan_name.
+          plan_name: req.body.plan_type,
           amount: req.body.amount,
           oldPrice: req.body.oldPrice,
           validate_period: req.body.validate_period,
+          bonus: (req.body.bonus || "").trim(),
         };
       } else if (category === "ELECTRONICS") {
         productData.electronicDetails = {

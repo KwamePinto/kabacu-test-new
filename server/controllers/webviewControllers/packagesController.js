@@ -1087,6 +1087,11 @@ exports.payWithWallet = async (req, res) => {
     // purchase. Swallows its own errors so it can never fail a completed sale.
     await referralService.handlePurchase(userId, { amount: total });
 
+    // Ongoing commission for the referrer, once this buyer has qualified.
+    // Paid on top — the buyer was charged `total` in full and keeps all
+    // `totalRP`, so revenue and profit reporting are unaffected.
+    await referralService.handleCommission(userId, { amount: total, rpEarned: totalRP });
+
     // =====================================
     // ✅ SUCCESS RESPONSE
     // =====================================
@@ -1626,17 +1631,98 @@ exports.referralsPage = async (req, res) => {
       Referral.find({ referrer: userId })
         .sort({ createdAt: -1 })
         .populate('referred', 'username')
+        .populate('rewardProduct', 'dataDetails')
         .lean(),
     ]);
 
-    // TODO: no per-reward-type aggregation exists yet (rewardType/rewardAmount
-    // are only snapshotted per-Referral at payout time) — placeholder totals
-    // until that reporting is built.
+    // =====================================
+    // REWARD TOTALS
+    // =====================================
+    // "claimed"   already paid out — the referred user hit the threshold
+    // "unclaimed" still owed — they signed up but haven't purchased yet
+    //
+    // Paid rewards read their own snapshot (rewardType/rewardAmount are frozen
+    // per-Referral at payout, so changing the settings never rewrites history).
+    // Outstanding ones are *projected* from today's settings, because what they
+    // will eventually be worth isn't decided until they qualify.
+    //
+    // The three cards map onto the three reward types the system supports:
+    //   rewardpoint -> RP,  money -> the currency card,  data -> bundle count.
+    // A data reward has no amount — it grants a package — so it is counted in
+    // bundles rather than summed.
     const rewardStats = {
-      rp:   { total: 1200, claimed: 800, unclaimed: 400 },
-      usdt: { total: 15,   claimed: 10,  unclaimed: 5 },
-      data: { total: 8,    claimed: 5,   unclaimed: 3 },
+      rp:   { total: 0, claimed: 0, unclaimed: 0 },
+      usdt: { total: 0, claimed: 0, unclaimed: 0 },
+      data: { total: 0, claimed: 0, unclaimed: 0 },
     };
+
+    const CARD_FOR_TYPE = { rewardpoint: 'rp', money: 'usdt', data: 'data' };
+
+    myReferrals.forEach(r => {
+      if (r.status === 'rewarded') {
+        const card = CARD_FOR_TYPE[r.rewardType];
+        if (!card) return;
+        // data is a bundle grant, so one referral counts as one bundle
+        rewardStats[card].claimed += card === 'data' ? 1 : (r.rewardAmount || 0);
+      }
+    });
+
+    // Anything not yet paid and not void is still in play.
+    const outstanding = myReferrals.filter(r => r.status === 'pending' || r.status === 'qualified').length;
+
+    if (outstanding > 0 && referralSettings.isActive) {
+      const card = CARD_FOR_TYPE[referralSettings.rewardType];
+      if (card === 'data') {
+        rewardStats.data.unclaimed = referralSettings.dataProduct ? outstanding : 0;
+      } else if (card) {
+        rewardStats[card].unclaimed = outstanding * (referralSettings.amount || 0);
+      }
+    }
+
+    Object.keys(rewardStats).forEach(k => {
+      const s = rewardStats[k];
+      s.total = Math.round((s.claimed + s.unclaimed) * 100) / 100;
+      s.claimed = Math.round(s.claimed * 100) / 100;
+      s.unclaimed = Math.round(s.unclaimed * 100) / 100;
+    });
+
+    // =====================================
+    // PER-REFERRAL REWARD LABEL
+    // =====================================
+    // What each row is worth: the real figure once paid, otherwise what it
+    // would be worth on today's settings if that person completes a purchase.
+    let projectedLabel = 'No reward set';
+    if (referralSettings.isActive) {
+      if (referralSettings.rewardType === 'rewardpoint' && referralSettings.amount > 0) {
+        projectedLabel = `+${referralSettings.amount} RP`;
+      } else if (referralSettings.rewardType === 'money' && referralSettings.amount > 0) {
+        projectedLabel = `₦${referralSettings.amount.toLocaleString()}`;
+      } else if (referralSettings.rewardType === 'data' && referralSettings.dataProduct) {
+        const p = await Product.findById(referralSettings.dataProduct).select('dataDetails').lean();
+        projectedLabel = p && p.dataDetails
+          ? `${p.dataDetails.plan_type || 'Data'}`
+          : 'Data bundle';
+      }
+    } else {
+      projectedLabel = 'Programme paused';
+    }
+
+    function rewardLabelFor(r) {
+      if (r.status === 'rewarded') {
+        if (r.rewardType === 'rewardpoint') return `+${r.rewardAmount || 0} RP`;
+        if (r.rewardType === 'money')       return `₦${(r.rewardAmount || 0).toLocaleString()}`;
+        if (r.rewardType === 'data') {
+          const d = r.rewardProduct && r.rewardProduct.dataDetails;
+          return d ? `${d.plan_type || 'Data'}` : 'Data bundle';
+        }
+        return 'Rewarded';
+      }
+      if (r.status === 'void') return 'Not eligible';
+      // pending / qualified — awaiting the referred user's first purchase
+      return projectedLabel;
+    }
+
+    myReferrals.forEach(r => { r.rewardLabel = rewardLabelFor(r); });
 
     // The referral list itself is paginated — everything else on the page
     // (stats, rewards) is computed from the full unpaginated set above.

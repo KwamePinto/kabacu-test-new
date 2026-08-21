@@ -5,16 +5,30 @@ const Referral         = require('../models/ReferralModel');
 const ReferralSettings = require('../models/ReferralSettingsModel');
 const Wallet           = require('../models/WalletModal');
 const Product          = require('../models/ProductsModal');
+const SpecialCode      = require('../models/SpecialReferralCodeModel');
 
-/* Unambiguous alphabet — no O/0, I/1, so codes survive being read aloud. */
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const CODE_LEN = 8;
+/**
+ * System-generated codes are always KB + 8 digits, 10 characters in total:
+ *   KB48120375
+ *
+ * Digits only after the prefix, so a code can be read aloud or typed on a
+ * numeric keypad without letter/number confusion. Admin-created special codes
+ * are exempt from this shape entirely — see SpecialReferralCodeModel.
+ */
+const CODE_PREFIX = 'KB';
+const CODE_DIGITS = 8;
+const CODE_LEN    = CODE_PREFIX.length + CODE_DIGITS; // 10
+
+/** True for anything matching the system's own KB######## shape. */
+function isSystemCode(code) {
+  return new RegExp(`^${CODE_PREFIX}\\d{${CODE_DIGITS}}$`).test(String(code || '').toUpperCase());
+}
 
 function randomCode() {
-  const bytes = crypto.randomBytes(CODE_LEN);
-  let out = '';
-  for (let i = 0; i < CODE_LEN; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
-  return out;
+  // crypto.randomInt avoids the modulo bias a randomBytes%10 would introduce
+  let digits = '';
+  for (let i = 0; i < CODE_DIGITS; i++) digits += crypto.randomInt(0, 10);
+  return CODE_PREFIX + digits;
 }
 
 /**
@@ -26,8 +40,13 @@ async function ensureReferralCode(userId) {
   if (!user) return null;
   if (user.referralCode) return user.referralCode;
 
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     const code = randomCode();
+
+    // Never hand out a code being held back for sale, even if an admin has
+    // reserved something that happens to match the KB######## shape.
+    if (await SpecialCode.exists({ code })) continue;
+
     try {
       await User.updateOne({ _id: userId }, { $set: { referralCode: code } });
       return code;
@@ -64,13 +83,26 @@ async function applyReferralCode(userId, rawCode) {
     return { success: false, message: 'The referral programme is currently closed.' };
   }
 
+  // Deliberately no format check. Admin-created special codes can be any
+  // characters and any length, so the only question that matters is whether
+  // the code actually belongs to somebody.
   const [referred, referrer] = await Promise.all([
     User.findById(userId),
     User.findOne({ referralCode: code }),
   ]);
 
   if (!referred) return { success: false, message: 'Account not found.' };
-  if (!referrer) return { success: false, message: 'That referral code does not exist.' };
+
+  if (!referrer) {
+    // Distinguish "reserved for sale, not yet issued" from "no such code", so
+    // support can tell a mistyped code from a premium one that hasn't been
+    // handed out. Either way it cannot be used.
+    const reserved = await SpecialCode.findOne({ code }).lean();
+    if (reserved) {
+      return { success: false, message: 'That code is reserved and has not been issued yet.' };
+    }
+    return { success: false, message: 'That referral code does not exist.' };
+  }
 
   // 2. self-referral
   if (String(referrer._id) === String(referred._id)) {
@@ -219,9 +251,138 @@ async function handlePurchase(userId, { amount = 0, transactionId = null } = {})
   }
 }
 
+/**
+ * Pays the signup-bonus promotion, if it is switched on.
+ *
+ * Called at EMAIL VERIFICATION, not at signup — creating an account is free and
+ * unlimited, so paying before a working inbox is proven makes the promotion
+ * trivially farmable. Applies to every verified user, referred or not.
+ *
+ * Idempotent: the paid-at stamp is claimed with a conditional update, so a
+ * retried or replayed verification cannot pay twice.
+ */
+async function grantSignupBonus(userId) {
+  try {
+    const settings = await ReferralSettings.getSettings();
+    const bonus = settings.signupBonus || {};
+
+    if (!bonus.isActive) return null;
+    if (!(bonus.amount > 0)) return null;
+
+    // Claim the payout atomically — only the first caller gets a document back.
+    const claimed = await User.findOneAndUpdate(
+      { _id: userId, signupBonusPaidAt: null },
+      {
+        $set: {
+          signupBonusPaidAt: new Date(),
+          signupBonusType:   bonus.rewardType,
+          signupBonusAmount: bonus.amount,
+        },
+      },
+      { new: false },
+    );
+    if (!claimed) return null;   // already paid, or no such user
+
+    if (bonus.rewardType === 'money') {
+      await Wallet.updateOne(
+        { user: userId },
+        { $inc: { 'balances.NAIRA': bonus.amount } },
+        { upsert: true, setOnInsert: { user: userId } },
+      );
+    } else {
+      await User.updateOne({ _id: userId }, { $inc: { rpBalance: bonus.amount } });
+    }
+
+    return { type: bonus.rewardType, amount: bonus.amount };
+  } catch (err) {
+    // A promotion must never block a user from verifying their account.
+    console.error('[referralService grantSignupBonus]', err);
+    return null;
+  }
+}
+
+/**
+ * Ongoing commission: once a referred user has QUALIFIED, every later purchase
+ * earns their referrer a percentage.
+ *
+ * This is always a gift on top, never a deduction. The referred user is charged
+ * the full amount and keeps their full RP — taking the commission out of the
+ * sale would understate revenue and distort profit reporting, so it is credited
+ * separately to the referrer.
+ *
+ *   cashback    -> percent of the purchase value, into the referrer's wallet
+ *   rewardpoint -> percent of the RP the referred user earned, as RP
+ *
+ * Bounded by maxPerReferredUser so a single referral cannot generate an
+ * open-ended liability.
+ */
+async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {}) {
+  try {
+    const settings = await ReferralSettings.getSettings();
+    const cfg = settings.referralCommission || {};
+
+    if (!cfg.isActive) return null;
+    if (!(cfg.percent > 0)) return null;
+
+    // Only referrals that already paid out their one-off reward qualify.
+    const referral = await Referral.findOne({ referred: referredUserId, status: 'rewarded' });
+    if (!referral) return null;
+
+    // Base differs by type: money is a share of the sale, RP a share of the
+    // points the referred user just earned.
+    const base = cfg.type === 'cashback' ? amount : rpEarned;
+    if (!(base > 0)) return null;
+
+    let payout = (base * cfg.percent) / 100;
+
+    // Apply the lifetime ceiling for this referred user.
+    if (cfg.maxPerReferredUser > 0) {
+      const alreadyEarned = referral.commissionEarned || 0;
+      const headroom = cfg.maxPerReferredUser - alreadyEarned;
+      if (headroom <= 0) return null;             // cap already reached
+      if (payout > headroom) payout = headroom;   // partial final payout
+    }
+
+    // Round money to kobo; RP to whole points.
+    payout = cfg.type === 'cashback'
+      ? Math.round(payout * 100) / 100
+      : Math.floor(payout);
+    if (!(payout > 0)) return null;
+
+    if (cfg.type === 'cashback') {
+      await Wallet.updateOne(
+        { user: referral.referrer },
+        { $inc: { 'balances.NAIRA': payout } },
+        { upsert: true, setOnInsert: { user: referral.referrer } },
+      );
+    } else {
+      await User.updateOne({ _id: referral.referrer }, { $inc: { rpBalance: payout } });
+    }
+
+    await Referral.updateOne(
+      { _id: referral._id },
+      {
+        $inc: { commissionEarned: payout, commissionCount: 1 },
+        $set: { commissionType: cfg.type, commissionLastAt: new Date() },
+      },
+    );
+
+    return { type: cfg.type, payout, referrer: referral.referrer };
+  } catch (err) {
+    // Commission is a bonus — it must never fail a completed purchase.
+    console.error('[referralService handleCommission]', err);
+    return null;
+  }
+}
+
 module.exports = {
+  grantSignupBonus,
+  handleCommission,
   ensureReferralCode,
   applyReferralCode,
   handlePurchase,
   randomCode,
+  isSystemCode,
+  CODE_PREFIX,
+  CODE_LEN,
 };

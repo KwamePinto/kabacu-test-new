@@ -549,8 +549,11 @@ cursor: pointer;
   }
 
   /* ── Transparent mode — hero section visible behind header ── */
+  /* This is the strip the user sees as "the top of the hero": the header
+     paints the same green so the two read as one surface. It therefore has to
+     follow --hero-bg, or dark mode leaves a light-green band across the top. */
   .app-header.hero-transparent {
-    background: #155e34 !important;
+    background: var(--hero-bg) !important;
     -webkit-backdrop-filter: none !important;
             backdrop-filter: none !important;
     box-shadow: none !important;
@@ -838,3 +841,30 @@ cursor: pointer;
   color: var(--band-text-dim);
   padding-bottom: 76px; /* clear the fixed bottom nav */
 }
+
+/* Shop / Account columns inside the mobile About — the desktop footer's
+   navigation, which is hidden below 768px. */
+.mobile-about__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 0 4px;
+}
+
+.mobile-about__col {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.mobile-about__col-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: rgba(255,255,255,.85);
+  margin-bottom: 2px;
+}
+
+.mobile-about__col .mobile-about__link { text-align: left; }

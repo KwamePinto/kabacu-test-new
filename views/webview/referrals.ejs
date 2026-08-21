@@ -81,9 +81,11 @@
 
     <!-- ── Reward totals by type ────────────────────────────── -->
     <%
-      /* TODO: no per-reward-type aggregation exists yet (rewardType/rewardAmount
-         are only snapshotted per-Referral at payout time) — rewardStats is a
-         placeholder from the controller until that reporting is built. */
+      /* rewardStats is computed for real in referralsPage:
+           claimed   = paid out, read from each Referral's own frozen snapshot
+           unclaimed = still owed, projected from the current reward settings
+         Data rewards grant a package rather than an amount, so that card
+         counts bundles instead of summing a value. */
     %>
     <div class="acct-section">
       <h3 class="acct-section__title">Your Rewards</h3>
@@ -140,9 +142,10 @@
 
     <!-- ── Everyone who's used your code ────────────────────── -->
     <%
-      /* TODO: reward type/amount are placeholders until reward payouts are
-         surfaced per-referral — real values live on r.rewardType/rewardAmount
-         once a reward has actually been paid out. */
+      /* Each row's reward comes from r.rewardLabel, set in referralsPage:
+         the real figure once paid, otherwise what that referral would be
+         worth on today's settings if the person completes a purchase.
+         REWARD_PLACEHOLDERS is only used by the empty-state preview below. */
       var REWARD_PLACEHOLDERS = ['1GB Data', '$2 USDT', '+500 RP'];
     %>
     <div class="acct-section">
@@ -150,12 +153,16 @@
 
       <% if ((myReferrals || []).length) { %>
       <div class="referral-track-list">
-        <% (myReferralsPage || []).forEach(function (r, i) { %>
-        <% var fulfilled = r.status === 'qualified' || r.status === 'rewarded'; %>
-        <% var rewardIdx = ((referralPagination.current - 1) * 10 + i) % REWARD_PLACEHOLDERS.length; %>
+        <% (myReferralsPage || []).forEach(function (r) { %>
+        <%
+          /* Green only once the reward is actually paid. 'qualified' means the
+             threshold was met but the payout hasn't completed, so it is not yet
+             money in hand and stays on the unfulfilled styling. */
+          var fulfilled = r.status === 'rewarded';
+        %>
         <div class="referral-track-row <%= fulfilled ? 'referral-track-row--fulfilled' : 'referral-track-row--unfulfilled' %>">
           <span class="referral-track-row__name"><%= (r.referred && r.referred.username) || 'User' %></span>
-          <span class="referral-track-row__reward"><%= REWARD_PLACEHOLDERS[rewardIdx] %></span>
+          <span class="referral-track-row__reward"><%= r.rewardLabel || '—' %></span>
         </div>
         <% }) %>
       </div>
