@@ -278,10 +278,76 @@
       <i data-lucide="user"></i>
       <span>My Account</span>
     </a>
+    <button type="button" class="bottom-nav__item" id="moreNavBtn">
+      <i data-lucide="more-horizontal"></i>
+      <span>More</span>
+    </button>
     <% if (user) { %>
     <button class="<%= user._id %>" id="user_ID" style="display:none;"></button>
     <% } %>
   </nav>
+
+  <!-- More popover (mobile) -->
+  <div id="morePopover" class="more-popover" aria-hidden="true">
+    <a href="/privacy-policy" class="more-popover__option">
+      <i data-lucide="shield"></i>
+      <span>Privacy Policy</span>
+    </a>
+    <a href="/terms" class="more-popover__option">
+      <i data-lucide="file-text"></i>
+      <span>Terms of Use</span>
+    </a>
+  </div>
+  <div id="morePopoverBackdrop" class="more-popover__backdrop"></div>
+
+  <style>
+  .more-popover {
+    position: fixed;
+    right: 8px;
+    bottom: calc(var(--bottom-nav-h) + 8px);
+    z-index: 501;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    padding: 6px;
+    min-width: 180px;
+    opacity: 0;
+    transform: translateY(6px) scale(.97);
+    transform-origin: bottom right;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .more-popover.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    visibility: visible;
+  }
+  .more-popover__option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 13px; font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+    transition: background .15s;
+  }
+  .more-popover__option:hover,
+  .more-popover__option:active { background: var(--primary-light); }
+  .more-popover__option svg { width: 17px; height: 17px; color: var(--muted); flex-shrink: 0; }
+
+  .more-popover__backdrop {
+    position: fixed; inset: 0;
+    z-index: 500;
+    background: transparent;
+    display: none;
+  }
+  .more-popover__backdrop.open { display: block; }
+
+  @media (min-width: 768px) { .more-popover, .more-popover__backdrop { display: none; } }
+  </style>
 
   <!-- Support bottom sheet (mobile) -->
   <div id="supportSheet" class="support-sheet" aria-hidden="true">
@@ -622,6 +688,36 @@
           }
         });
       }
+    })();
+  </script>
+
+  <!-- More popover logic -->
+  <script>
+    (function() {
+      var popover  = document.getElementById('morePopover');
+      var backdrop = document.getElementById('morePopoverBackdrop');
+      var moreBtn  = document.getElementById('moreNavBtn');
+
+      if (!popover || !moreBtn) return;
+
+      function openPopover()  {
+        popover.classList.add('open');
+        backdrop.classList.add('open');
+        popover.setAttribute('aria-hidden', 'false');
+        lucide.createIcons();
+      }
+      function closePopover() {
+        popover.classList.remove('open');
+        backdrop.classList.remove('open');
+        popover.setAttribute('aria-hidden', 'true');
+      }
+
+      moreBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (popover.classList.contains('open')) closePopover();
+        else openPopover();
+      });
+      backdrop.addEventListener('click', closePopover);
     })();
   </script>
 
