@@ -106,11 +106,20 @@ async function refundAndFail(tx, reason) {
       await wallet.save();
 
       tx.walletCredited = true;
+      // The refund restores the balance, so the row's net effect is zero.
+      // Recording after == before keeps the statement chain continuous —
+      // leaving the original debit here is what made 266 historic rows
+      // discontinuous.
+      tx.balanceAfter  = wallet.balances.NAIRA;
+      if (tx.balanceBefore == null) tx.balanceBefore = wallet.balances.NAIRA;
+      tx.balanceSource = 'live';
       tx.apiResponse = {
         ...(tx.apiResponse || {}),
         _pollerRefunded: true,
         _pollerRefundedAt: new Date().toISOString(),
         _pollerReason: reason,
+        _refundBalBefore: before,
+        _refundBalAfter: wallet.balances.NAIRA,
       };
       tx.markModified('apiResponse');
     }

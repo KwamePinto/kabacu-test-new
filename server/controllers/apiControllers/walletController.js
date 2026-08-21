@@ -295,10 +295,19 @@ exports.confirmTopUp = async (req, res) => {
       wallet = new Wallet({ user: user._id, balances: { BTT: 0, RP: 0, USDT: 0 } });
     }
 
+    // Snapshot before mutating so this shows a real before/after on the admin
+    // account statement instead of a blank cell.
+    // NOTE: token top-ups store `amount` as the RAW amount, unlike PalmPay
+    // NAIRA top-ups which store kobo. Do not divide by 100 here.
+    const btBefore = wallet.balances[topup.balanceType] || 0;
+
     wallet.balances[topup.balanceType] += topup.amount;
     await wallet.save();
 
-    topup.status = 'COMPLETED';
+    topup.status        = 'COMPLETED';
+    topup.balanceBefore = btBefore;
+    topup.balanceAfter  = btBefore + topup.amount;
+    topup.balanceSource = 'live';
     await topup.save();
 
     res.json({ success: true, message: response.data.message || 'Top-up confirmed', balances: wallet.balances });
