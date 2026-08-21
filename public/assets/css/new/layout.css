@@ -534,7 +534,7 @@ cursor: pointer;
     left: 0;
     right: 0;
     border-radius: 0;
-    background: rgba(255, 255, 255, .98);
+    background: var(--header-bg-desk);
     -webkit-backdrop-filter: none;
             backdrop-filter: none;
     border: none;
