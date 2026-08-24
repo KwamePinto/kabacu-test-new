@@ -133,20 +133,31 @@ exports.loginAdminPost = async (req, res) => {
         "Your account has been deactivated. Contact a super admin.",
       );
 
-    const token = generateUserAdminToken(user);
-    res.cookie("admin_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    // ── 2FA gate ──────────────────────────────────────────────────────────
+    // The password is correct, but that is not enough to authenticate. No
+    // admin_token is issued here — only a PENDING marker in the session, which
+    // grants access to nothing. The token is set in verifyOtpPost once the
+    // emailed code checks out.
+    req.session.pendingAdmin2fa = {
+      id: String(user._id),
+      email: user.email,
+      at: Date.now(),
+    };
 
-    req.session.info = { role: user.role };
-
-    if (!user.profileCompleted) {
-      return res.redirect("/admin/profile?firstLogin=1");
+    try {
+      await issueAdminOtp(user);
+    } catch (mailErr) {
+      // If the code could not be delivered there is no way to complete login,
+      // so fail closed rather than waving the admin through.
+      console.error("[admin 2FA send]", mailErr);
+      delete req.session.pendingAdmin2fa;
+      return renderLogin(
+        res,
+        "We could not send your verification code. Please try again or contact a super admin.",
+      );
     }
 
-    res.redirect("/admin/main/dashboard");
+    return res.redirect("/command/verify");
   } catch (error) {
     console.log("Login error:", error);
     return renderLogin(res, "Something went wrong. Please try again.");
@@ -800,3 +811,238 @@ exports.getNotifications = [
     }
   },
 ];
+
+/* ── Admin login 2FA ─────────────────────────────────────────────────────────
+   A password alone never authenticates an admin. A correct password issues a
+   one-time code by email and puts the request into a PENDING state held in the
+   session; the admin_token cookie — the only thing authenticateAdminUser
+   accepts — is not set until that code is verified. A pending session can
+   therefore reach no admin route at all.                                    */
+
+const OTP_TTL_MS       = 10 * 60 * 1000;  // code lifetime
+const OTP_MAX_ATTEMPTS = 5;               // guesses before the code is burned
+const OTP_RESEND_MS    = 60 * 1000;       // cooldown between sends
+
+function generateOtp() {
+  // crypto, not Math.random — this is an authentication factor.
+  return String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+}
+
+function adminOtpEmail({ username, code, minutes }) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <tr>
+          <td style="background:#15a844;padding:24px 32px;text-align:center;">
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Admin Login Verification</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 32px 24px;">
+            <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">
+              Hi ${username || "there"}, use this code to finish signing in to the Kabacu admin dashboard.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+              <tr><td align="center">
+                <div style="display:inline-block;background:#f0fdf4;border:1px dashed #15a844;border-radius:8px;padding:16px 32px;">
+                  <span style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:.28em;color:#111827;">${code}</span>
+                </div>
+              </td></tr>
+            </table>
+            <p style="margin:0 0 14px;color:#6b7280;font-size:13px;line-height:1.7;">
+              It expires in <strong>${minutes} minutes</strong> and can only be used once.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;">
+              <tr><td style="padding:12px 16px;">
+                <p style="margin:0;color:#991b1b;font-size:13px;line-height:1.6;">
+                  If you did not just try to sign in, someone may have your password.
+                  Change it immediately and tell a super admin.
+                </p>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} Kabacu. All rights reserved.</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+/** Issues a fresh code, stores only its hash, and emails it via Brevo. */
+async function issueAdminOtp(admin) {
+  const code = generateOtp();
+
+  // Stored hashed, never in plain text: a dump of the admin collection would
+  // otherwise hand over a live second factor.
+  admin.twoFactorCodeHash   = await bcrypt.hash(code, saltRounds);
+  admin.twoFactorExpires    = new Date(Date.now() + OTP_TTL_MS);
+  admin.twoFactorAttempts   = 0;
+  admin.twoFactorLastSentAt = new Date();
+  await admin.save();
+
+  const minutes = Math.round(OTP_TTL_MS / 60000);
+
+  try {
+    // Sent through the app's existing SES mailer — the same transport that
+    // already delivers user verification OTPs, so there is no second provider
+    // to keep configured or monitor.
+    await sendEmail({
+      to: admin.email,
+      subject: `Your Kabacu admin code: ${code}`,
+      html: adminOtpEmail({ username: admin.username, code, minutes }),
+      text: `Your Kabacu admin verification code is ${code}. It expires in ${minutes} minutes.`,
+    });
+  } catch (err) {
+    // Roll the record back if delivery failed. Otherwise an undelivered code
+    // sits there for 10 minutes and twoFactorLastSentAt starts a resend
+    // cooldown for a message that was never actually sent.
+    admin.twoFactorCodeHash   = null;
+    admin.twoFactorExpires    = null;
+    admin.twoFactorAttempts   = 0;
+    admin.twoFactorLastSentAt = null;
+    await admin.save().catch(() => {});
+    throw err;
+  }
+}
+
+function renderOtp(res, opts = {}) {
+  res.render("adminview/users/auth-verify-otp", {
+    layout: adminLayouts,
+    error:  opts.error  || null,
+    notice: opts.notice || null,
+    email:  opts.email  || "",
+  });
+}
+
+/** victor@kabacu.com -> v*****r@kabacu.com */
+function maskEmail(email) {
+  const parts = String(email || "").split("@");
+  const name = parts[0], domain = parts[1];
+  if (!name || !domain) return "";
+  if (name.length <= 2) return `${name[0]}*@${domain}`;
+  return `${name[0]}${"*".repeat(Math.max(1, name.length - 2))}${name[name.length - 1]}@${domain}`;
+}
+
+/** Completes the login once the code checks out. */
+function grantAdminSession(req, res, admin) {
+  const token = generateUserAdminToken(admin);
+  res.cookie("admin_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+
+  req.session.info = { role: admin.role };
+  delete req.session.pendingAdmin2fa;
+
+  return admin.profileCompleted
+    ? res.redirect("/admin/main/dashboard")
+    : res.redirect("/admin/profile?firstLogin=1");
+}
+
+exports.verifyOtpPage = (req, res) => {
+  const pending = req.session.pendingAdmin2fa;
+  if (!pending) return res.redirect("/command");
+  renderOtp(res, { email: maskEmail(pending.email) });
+};
+
+exports.verifyOtpPost = async (req, res) => {
+  try {
+    const pending = req.session.pendingAdmin2fa;
+    if (!pending) return res.redirect("/command");
+
+    const masked = maskEmail(pending.email);
+    const code = String(req.body.code || "").replace(/\D/g, "");
+
+    if (code.length !== 6) {
+      return renderOtp(res, { email: masked, error: "Enter the 6-digit code from your email." });
+    }
+
+    const admin = await UserAdminModel.findById(pending.id);
+    if (!admin) {
+      delete req.session.pendingAdmin2fa;
+      return renderLogin(res, "Something went wrong. Please sign in again.");
+    }
+
+    if (!admin.twoFactorCodeHash || !admin.twoFactorExpires) {
+      return renderOtp(res, { email: masked, error: "No active code. Request a new one." });
+    }
+
+    if (admin.twoFactorExpires.getTime() < Date.now()) {
+      return renderOtp(res, { email: masked, error: "That code has expired. Request a new one." });
+    }
+
+    // Count the attempt before comparing, so a crash mid-request cannot buy a
+    // free retry.
+    admin.twoFactorAttempts = (admin.twoFactorAttempts || 0) + 1;
+
+    if (admin.twoFactorAttempts > OTP_MAX_ATTEMPTS) {
+      // Burn the code rather than allow unlimited guesses at six digits.
+      admin.twoFactorCodeHash = null;
+      admin.twoFactorExpires  = null;
+      await admin.save();
+      delete req.session.pendingAdmin2fa;
+      return renderLogin(res, "Too many incorrect codes. Please sign in again.");
+    }
+
+    const ok = await bcrypt.compare(code, admin.twoFactorCodeHash);
+    if (!ok) {
+      await admin.save();
+      const left = OTP_MAX_ATTEMPTS - admin.twoFactorAttempts;
+      const suffix = left > 0 ? ` ${left} attempt${left === 1 ? "" : "s"} left.` : "";
+      return renderOtp(res, { email: masked, error: `Incorrect code.${suffix}` });
+    }
+
+    // Single use — cleared so the same code cannot be replayed.
+    admin.twoFactorCodeHash = null;
+    admin.twoFactorExpires  = null;
+    admin.twoFactorAttempts = 0;
+    await admin.save();
+
+    return grantAdminSession(req, res, admin);
+  } catch (err) {
+    console.error("[admin 2FA verify]", err);
+    return renderOtp(res, { error: "Something went wrong. Please try again." });
+  }
+};
+
+exports.resendOtp = async (req, res) => {
+  try {
+    const pending = req.session.pendingAdmin2fa;
+    if (!pending) return res.redirect("/command");
+
+    const masked = maskEmail(pending.email);
+    const admin = await UserAdminModel.findById(pending.id);
+    if (!admin) {
+      delete req.session.pendingAdmin2fa;
+      return renderLogin(res, "Something went wrong. Please sign in again.");
+    }
+
+    const last = admin.twoFactorLastSentAt ? admin.twoFactorLastSentAt.getTime() : 0;
+    const wait = OTP_RESEND_MS - (Date.now() - last);
+    if (wait > 0) {
+      return renderOtp(res, {
+        email: masked,
+        error: `Please wait ${Math.ceil(wait / 1000)}s before requesting another code.`,
+      });
+    }
+
+    await issueAdminOtp(admin);
+    return renderOtp(res, { email: masked, notice: "A new code is on its way." });
+  } catch (err) {
+    console.error("[admin 2FA resend]", err);
+    return renderOtp(res, { error: "Could not send a new code. Please try again." });
+  }
+};

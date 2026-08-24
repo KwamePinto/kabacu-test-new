@@ -132,6 +132,13 @@ const adminUserCtrl = require('./server/controllers/adminControllers/userAdminCo
 app.get('/command', adminUserCtrl.loginAdmin);
 app.post('/command', adminUserCtrl.loginAdminPost);
 
+// Admin login 2FA. These sit outside /admin on purpose: the admin_token cookie
+// does not exist yet at this point, so anything behind authenticateAdminUser
+// would bounce the user straight back to the login page.
+app.get('/command/verify',         adminUserCtrl.verifyOtpPage);
+app.post('/command/verify',        adminUserCtrl.verifyOtpPost);
+app.post('/command/verify/resend', adminUserCtrl.resendOtp);
+
 app.use('/admin', require('./server/routes/adminRoutes/userAdminRoute'));
 app.use('/admin/main', require('./server/routes/adminRoutes/dashboardRoute'));
 app.use('/admin/category', require('./server/routes/adminRoutes/categoryRoute'));
@@ -160,6 +167,11 @@ app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
     if (req.originalUrl === '/command') {
       return res.redirect('/command');
+    }
+    // Keep a stale token on the 2FA step on the 2FA step, rather than bouncing
+    // to the referer and losing the pending login.
+    if (req.originalUrl.startsWith('/command/verify')) {
+      return res.redirect('/command/verify');
     }
     if (req.originalUrl.startsWith('/admin')) {
       return res.redirect('/admin/main/dashboard');

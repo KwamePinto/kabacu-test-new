@@ -1,0 +1,176 @@
+<style>
+  body { background: #f0f4f8; }
+  .login-brand { text-align: center; margin-bottom: 28px; }
+  .login-brand img { height: 48px; width: auto; }
+  .login-brand-title {
+    margin: 10px 0 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #6b7280;
+  }
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .login-box { width: 100%; max-width: 400px; }
+  .login-footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  /* One wide, monospaced field rather than six boxes: it pastes cleanly from
+     an email client and works with password managers and mobile autofill. */
+  .otp-input {
+    width: 100%;
+    height: 58px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: .34em;
+    text-indent: .34em;   /* keeps the glyphs visually centred despite tracking */
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    color: #111827;
+  }
+  .otp-input:focus {
+    outline: none;
+    border-color: #15a844;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(21,168,68,.12);
+  }
+  .otp-hint {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.7;
+    margin-bottom: 18px;
+  }
+  .otp-hint strong { color: #111827; }
+  .otp-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .otp-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    color: #15a844;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .otp-link:disabled { color: #9ca3af; cursor: not-allowed; }
+  .otp-back { font-size: 13px; color: #6b7280; text-decoration: none; }
+</style>
+
+<div class="loader"></div>
+<div id="app">
+  <div class="login-wrap">
+    <div class="login-box">
+
+      <div class="login-brand">
+        <img src="/assets/images/new.PNG" alt="Kabacu">
+        <p class="login-brand-title">Admin Portal</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h4>Two-Factor Verification</h4>
+        </div>
+        <div class="card-body">
+
+          <% if (typeof error !== 'undefined' && error) { %>
+          <div class="alert alert-danger" style="font-size:13px;border-radius:6px;padding:10px 14px;margin-bottom:18px;">
+            <i class="fas fa-exclamation-circle mr-1"></i> <%= error %>
+          </div>
+          <% } %>
+
+          <% if (typeof notice !== 'undefined' && notice) { %>
+          <div class="alert alert-success" style="font-size:13px;border-radius:6px;padding:10px 14px;margin-bottom:18px;">
+            <i class="fas fa-check-circle mr-1"></i> <%= notice %>
+          </div>
+          <% } %>
+
+          <p class="otp-hint">
+            We've emailed a 6-digit code to
+            <strong><%= typeof email !== 'undefined' && email ? email : 'your registered address' %></strong>.
+            Enter it below to finish signing in. It expires in 10 minutes.
+          </p>
+
+          <form method="POST" action="/command/verify" id="otpForm">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <div class="form-group">
+              <label for="code">Verification Code</label>
+              <input id="code" name="code" class="otp-input"
+                     type="text" inputmode="numeric" autocomplete="one-time-code"
+                     maxlength="6" pattern="[0-9]{6}" placeholder="––––––"
+                     required autofocus aria-describedby="codeHelp">
+              <small id="codeHelp" class="text-muted" style="display:block;margin-top:8px;font-size:12px;">
+                Six digits, from the email we just sent.
+              </small>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <button type="submit" id="otpSubmit"
+                      class="btn btn-primary btn-lg btn-block"
+                      style="font-weight:700;border-radius:8px;">
+                Verify &amp; Continue
+              </button>
+            </div>
+          </form>
+
+          <div class="otp-actions">
+            <form method="POST" action="/command/verify/resend" style="margin:0;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="otp-link">Resend code</button>
+            </form>
+            <a href="/command" class="otp-back">Back to sign in</a>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="login-footer">
+        &copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var input  = document.getElementById('code');
+    var form   = document.getElementById('otpForm');
+    var submit = document.getElementById('otpSubmit');
+    if (!input || !form) return;
+
+    // Digits only, and tolerate a pasted code that arrives with spaces or dashes.
+    input.addEventListener('input', function () {
+      var cleaned = this.value.replace(/\D/g, '').slice(0, 6);
+      if (cleaned !== this.value) this.value = cleaned;
+
+      // Submit as soon as six digits are in — saves a tap on mobile, where the
+      // code is usually pasted from the mail app.
+      if (cleaned.length === 6) form.submit();
+    });
+
+    // Guard against a double submit burning two of the five attempts.
+    form.addEventListener('submit', function () {
+      submit.disabled = true;
+      submit.textContent = 'Verifying…';
+    });
+  })();
+</script>

@@ -17,6 +17,18 @@ const userAdminSchema = new Schema({
   resetPasswordRequestedAt:   { type: Date, default: null },
   resetPasswordToken:         { type: String, default: null },
   resetPasswordExpires:       { type: Date, default: null },
+
+  // ── Login 2FA ─────────────────────────────────────────────────────────────
+  // Every admin login issues a one-time code by email; the session is not
+  // authenticated until it is verified.
+  //
+  // The code is stored HASHED, never in plain text: an admin collection dump
+  // would otherwise hand over a live second factor. Attempts are counted so a
+  // 6-digit code cannot be brute-forced, and the expiry bounds the window.
+  twoFactorCodeHash:  { type: String, default: null },
+  twoFactorExpires:   { type: Date,   default: null },
+  twoFactorAttempts:  { type: Number, default: 0 },
+  twoFactorLastSentAt:{ type: Date,   default: null },
 }, { timestamps: true });
 
 const UserAdminModel = mongoose.model('userAdmin', userAdminSchema);
