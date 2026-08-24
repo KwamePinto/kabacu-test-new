@@ -137,6 +137,8 @@ app.use('/admin/ourdatastore',    require('./server/routes/adminRoutes/ourdatast
 app.use('/admin/push-notifications', require('./server/routes/adminRoutes/notificationsRoute'));
 app.use('/admin/profit',             require('./server/routes/adminRoutes/profitRoute'));
 app.use('/admin/flagged-transactions', require('./server/routes/adminRoutes/damageControlRoute'));
+// TEMPORARY — short-delivery audit for management review. See TEMP-AUDIT-REMOVAL.md
+app.use('/admin/temp',                 require('./server/routes/adminRoutes/tempAuditRoute'));
 app.use('/admin/notifications',       require('./server/routes/adminRoutes/adminNotificationsRoute'));
 app.use('/admin/transactions',        require('./server/routes/adminRoutes/transactionsAdminRoute'));
 app.use('/admin/faq',                 require('./server/routes/adminRoutes/faqRoute'));

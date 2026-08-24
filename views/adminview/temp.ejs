@@ -1,0 +1,233 @@
+<%
+  /* TEMPORARY page — short-delivery audit for management review.
+     See TEMP-AUDIT-REMOVAL.md for removal steps. */
+  var snap   = typeof snapshot !== 'undefined' ? snapshot : null;
+  var rows   = snap && snap.rows ? snap.rows : [];
+  var totals = (snap && snap.totals) || { rows: 0, customers: 0, paidOnAffected: 0, missingGb: 0, lostValue: 0 };
+  var stats  = (snap && snap.stats)  || {};
+  var naira  = function (n) { return '₦' + Number(n || 0).toLocaleString(); };
+%>
+<style>
+  .tmp-banner {
+    background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+    padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #856404;
+  }
+  .tmp-stat        { text-align: center; padding: 16px 8px; }
+  .tmp-stat__num   { font-size: 26px; font-weight: 700; line-height: 1; }
+  .tmp-stat__lbl   { font-size: 11px; color: #6c757d; margin-top: 5px; text-transform: uppercase; letter-spacing: .05em; }
+  .tmp-table td, .tmp-table th { vertical-align: middle; font-size: 13px; }
+  .tmp-num         { font-variant-numeric: tabular-nums; text-align: right; }
+  .tmp-ref         { font-family: 'Courier New', monospace; font-size: 11px; color: #6b7280; }
+  .tmp-short       { color: #b91c1c; font-weight: 700; }
+  .tmp-ok          { color: #15803d; font-weight: 600; }
+  .tmp-coverage    { font-size: 12px; color: #6c757d; }
+  .tmp-coverage strong { color: #111827; }
+</style>
+
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    <div class="navbar-bg"></div>
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
+
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h1>Temp — Short Delivery Audit</h1>
+          <div class="section-header-breadcrumb">
+            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
+            <div class="breadcrumb-item">Temp</div>
+          </div>
+        </div>
+
+        <div class="section-body">
+
+          <div class="tmp-banner">
+            <strong>Temporary page.</strong> Built for a one-off review — safe to remove once the
+            audit is done. Large bundles are split by OurDataStore into 5GB legs; when a leg fails,
+            their API still reports overall success and the message we store still claims the full
+            amount was shared. These rows were found by reading the per-leg summary on the
+            OurDataStore record and matching it to our transaction by request ID.
+          </div>
+
+          <!-- ── Headline figures ─────────────────────────────────────────── -->
+          <div class="row">
+            <div class="col-6 col-md-3"><div class="card"><div class="tmp-stat">
+              <div class="tmp-stat__num text-danger"><%= totals.rows %></div>
+              <div class="tmp-stat__lbl">Short-delivered</div>
+            </div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="tmp-stat">
+              <div class="tmp-stat__num"><%= totals.customers %></div>
+              <div class="tmp-stat__lbl">Customers affected</div>
+            </div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="tmp-stat">
+              <div class="tmp-stat__num"><%= totals.missingGb %>GB</div>
+              <div class="tmp-stat__lbl">Data not delivered</div>
+            </div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="tmp-stat">
+              <div class="tmp-stat__num text-danger"><%= naira(totals.lostValue) %></div>
+              <div class="tmp-stat__lbl">Value not delivered</div>
+            </div></div></div>
+          </div>
+
+          <!-- ── Controls + coverage ──────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-12 col-md-7">
+                  <% if (snap) { %>
+                  <p class="tmp-coverage mb-1">
+                    Snapshot taken <strong><%= new Date(snap.generatedAt).toLocaleString('en-GB') %></strong>
+                    by <strong><%= snap.generatedBy || 'admin' %></strong>.
+                  </p>
+                  <p class="tmp-coverage mb-0">
+                    Checked <strong><%= stats.joined || 0 %></strong> of
+                    <strong><%= stats.ourSuccesses || 0 %></strong> successful transactions against
+                    <strong><%= stats.odsRows || 0 %></strong> OurDataStore records.
+                    <% if (stats.noRequestId) { %>
+                      <span class="text-danger">
+                        <%= stats.noRequestId %> could not be checked — no provider request ID was stored.
+                      </span>
+                    <% } %>
+                  </p>
+                  <% } else { %>
+                  <p class="tmp-coverage mb-0">No audit has been run yet.</p>
+                  <% } %>
+                </div>
+                <div class="col-12 col-md-5 text-md-right mt-3 mt-md-0">
+                  <button class="btn btn-primary" id="run-btn" onclick="runTempAudit()">
+                    <%= snap ? 'Re-run audit' : 'Run audit' %>
+                  </button>
+                  <% if (snap && rows.length) { %>
+                  <a href="/admin/temp/export.csv" class="btn btn-outline-secondary">Export CSV</a>
+                  <% } %>
+                </div>
+              </div>
+              <p class="tmp-coverage mt-2 mb-0">
+                The audit pages through the full OurDataStore history, so it takes around half a
+                minute. It only reads — nothing is refunded or changed.
+              </p>
+            </div>
+          </div>
+
+          <!-- ── The table ────────────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header"><h4>Short-Delivered Transactions</h4></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped tmp-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Transaction ID</th>
+                      <th>Customer</th>
+                      <th>Plan</th>
+                      <th class="tmp-num">Bought</th>
+                      <th class="tmp-num">Delivered</th>
+                      <th class="tmp-num">Missing</th>
+                      <th class="tmp-num">Paid</th>
+                      <th class="tmp-num">Not Delivered</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% if (!rows.length) { %>
+                    <tr>
+                      <td colspan="9" class="text-center text-muted py-4">
+                        <%= snap ? 'No short-delivered transactions found.' : 'Run the audit to populate this table.' %>
+                      </td>
+                    </tr>
+                    <% } %>
+                    <% rows.forEach(function (r) { %>
+                    <tr>
+                      <td><%= new Date(r.date).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></td>
+                      <td>
+                        <span class="tmp-ref"><%= r.transid %></span><br>
+                        <span class="tmp-ref"><%= r.reference %></span>
+                      </td>
+                      <td>
+                        <%= r.username || '—' %><br>
+                        <span class="tmp-ref"><%= r.phone %></span>
+                      </td>
+                      <td>
+                        <%= r.planType %><br>
+                        <span class="tmp-ref"><%= r.network %></span>
+                      </td>
+                      <td class="tmp-num"><%= r.boughtGb %>GB</td>
+                      <td class="tmp-num tmp-short"><%= r.deliveredGb %>GB</td>
+                      <td class="tmp-num tmp-short"><%= r.missingGb %>GB</td>
+                      <td class="tmp-num"><%= naira(r.amountPaid) %></td>
+                      <td class="tmp-num tmp-short"><%= naira(r.lostValue) %></td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                  <% if (rows.length) { %>
+                  <tfoot>
+                    <tr style="background:#f9fafb;font-weight:700;">
+                      <td colspan="6" class="text-right">Total</td>
+                      <td class="tmp-num tmp-short"><%= totals.missingGb %>GB</td>
+                      <td class="tmp-num"><%= naira(totals.paidOnAffected) %></td>
+                      <td class="tmp-num tmp-short"><%= naira(totals.lostValue) %></td>
+                    </tr>
+                  </tfoot>
+                  <% } %>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <% if (rows.length) { %>
+          <div class="card">
+            <div class="card-header"><h4>Provider Message Per Transaction</h4></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm tmp-table mb-0">
+                  <thead><tr><th>Transaction ID</th><th>Legs</th><th>OurDataStore said</th></tr></thead>
+                  <tbody>
+                    <% rows.forEach(function (r) { %>
+                    <tr>
+                      <td><span class="tmp-ref"><%= r.transid %></span></td>
+                      <td><span class="tmp-ok"><%= r.legsOk %></span> / <%= r.legs %></td>
+                      <td><small><%= r.odsMessage %></small></td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <% } %>
+
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+async function runTempAudit() {
+  var btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running… (up to a minute)';
+
+  try {
+    var res = await fetch('/admin/temp/run', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': '<%= csrfToken %>' },
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
+        .then(function () { location.reload(); });
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Audit request failed. Please try again.', confirmButtonColor: '#6777ef' });
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run audit';
+}
+</script>

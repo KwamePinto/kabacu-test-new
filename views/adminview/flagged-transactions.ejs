@@ -157,6 +157,14 @@
                                   <% if (tx.hasSuccessRetry) { %>
                                     <span style="display:block;color:#856404;font-size:11px;">Paid Retry</span>
                                   <% } %>
+                                  <%
+                                    /* Held deliberately: the 2h auto-refund was skipped because
+                                       OurDataStore could not be reached, so we do not know whether
+                                       the data was delivered. Needs a human decision, not more waiting. */
+                                  %>
+                                  <% if (tx.apiResponse && tx.apiResponse._odsUnreachable) { %>
+                                    <span style="display:block;color:#9a3412;font-size:11px;font-weight:600;">Provider unreachable — needs review</span>
+                                  <% } %>
                                 </div>
                               <% } else if (tx.hasSuccessRetry) { %>
                                 <div style="display:inline-block;background:#fff3cd;border:1px solid #ffeeba;border-radius:4px;padding:4px 10px;line-height:1.6;">

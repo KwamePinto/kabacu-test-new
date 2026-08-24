@@ -127,7 +127,7 @@ exports.payWithWallet = async (req, res) => {
               phone,
               data_plan: product.dataDetails.plan_id
             }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 25000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 60000))
           ]);
         } catch (err) {
           if (err.response) {

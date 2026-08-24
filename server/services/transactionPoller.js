@@ -31,6 +31,8 @@ async function pollPendingTransactions() {
           odsResult = await lookupByPhoneAndTime(tx.phone, tx.createdAt);
         } catch (odsErr) {
           logger.error(`[POLLER] TX ${tx._id}: OurDataStore lookup error: ${odsErr.message}`);
+          // A thrown lookup is also "could not ask", never "not delivered".
+          odsResult = { found: false, unreachable: true, error: odsErr.message };
         }
 
         if (odsResult?.found && odsResult.planStatus === 1) {
@@ -54,9 +56,27 @@ async function pollPendingTransactions() {
           // OurDataStore confirms failure — refund is correct.
           await refundAndFail(tx, 'OurDataStore confirmed failure');
 
-        } else if (age > HARD_REFUND_AFTER_MS) {
-          // Still uncertain after 2 hours — refund and flag for admin review.
-          await refundAndFail(tx, 'auto-refund after 2h: OurDataStore status uncertain');
+        } else if (age > HARD_REFUND_AFTER_MS && !odsResult?.unreachable) {
+          // Still uncertain after 2 hours, and we DID manage to ask — the
+          // window was searched and no delivery was found. Refunding is
+          // justified. Flagged for admin review either way.
+          await refundAndFail(tx, 'auto-refund after 2h: OurDataStore searched, no delivery found');
+
+        } else if (age > HARD_REFUND_AFTER_MS && odsResult?.unreachable) {
+          // We could NOT ask. Refunding here is exactly how a delivered order
+          // gets its money returned too: an outage on their side would look
+          // identical to a failed delivery. Hold the transaction pending and
+          // surface it for a human instead of guessing.
+          tx.apiResponse = {
+            ...(tx.apiResponse || {}),
+            _odsUnreachable: true,
+            _odsUnreachableAt: new Date().toISOString(),
+            _odsUnreachableError: odsResult.error || '',
+            _needsManualReview: true,
+          };
+          tx.markModified('apiResponse');
+          await tx.save();
+          logger.warn(`[POLLER] TX ${tx._id}: past 2h but OurDataStore is UNREACHABLE (${odsResult.error}) — holding pending for manual review rather than refunding`);
 
         } else {
           // OurDataStore is uncertain or still processing — check again next poll cycle.
