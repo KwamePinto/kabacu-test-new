@@ -105,6 +105,11 @@
                 Cleared <span class="badge badge-secondary ml-1" id="cleared-badge">...</span>
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link" id="short-tab" data-toggle="tab" href="#tab-short" role="tab">
+                Short Delivery <span class="badge badge-warning ml-1" id="short-badge">...</span>
+              </a>
+            </li>
           </ul>
 
           <div class="tab-content">
@@ -291,6 +296,42 @@
                         <tr><td colspan="7" class="text-center py-4 text-muted">
                           <span class="spinner-border spinner-border-sm" role="status"></span> Loading…
                         </td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- ── Tab 5: Short Delivery ──
+                 The provider splits large bundles into 5GB legs. When a leg
+                 fails it still reports overall success, so this is invisible in
+                 our own data — a background sweep stamps the affected rows. -->
+            <div class="tab-pane fade" id="tab-short" role="tabpanel">
+              <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
+                <div class="card-body">
+                  <div class="alert alert-warning" style="font-size:13px;margin-bottom:0;">
+                    Bundles above 5GB are delivered in legs. These orders had at least one leg fail,
+                    so the customer paid in full but received less. Use <strong>Send data</strong> to
+                    deliver the shortfall, or <strong>Refund</strong> to return its value.
+                    <span id="short-summary" class="d-block mt-1"></span>
+                  </div>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-striped mb-0" id="short-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th><th>User</th><th>Phone</th><th>Plan</th>
+                          <th class="text-right">Bought</th>
+                          <th class="text-right">Delivered</th>
+                          <th class="text-right">Shortfall</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -709,4 +750,115 @@ async function loadTab(tabName) {
 $('#flaggedTabs a[data-lazy]').on('shown.bs.tab', function () {
   loadTab($(this).data('lazy'));
 });
+
+// ── Short Delivery tab ────────────────────────────────────────────────
+// Loaded lazily like the other tabs. Rows come from a plain Mongo query on the
+// flag the background sweep stamps, so nothing here talks to the provider until
+// an admin actually presses a button.
+var _shortLoaded = false;
+
+function shortRowHtml(r) {
+  var ar = r.apiResponse || {};
+  var user = r.user ? r.user.username : 'Unknown';
+  var when = new Date(r.createdAt).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  // "Send data" is only possible when a bundle for exactly the shortfall exists
+  // on the same plan. AIRTEL has no 5GB, so those can only be refunded.
+  var canTopUp = !!r._topUp;
+  var topUpBtn = canTopUp
+    ? '<button class="btn btn-sm btn-primary short-topup" data-id="' + r._id + '" data-gb="' + ar._shortMissingGb + '">Send ' + ar._shortMissingGb + 'GB</button>'
+    : '<button class="btn btn-sm btn-secondary" disabled title="No ' + ar._shortMissingGb + 'GB bundle exists on this plan — refund instead">Send data</button>';
+
+  return '<tr id="short-row-' + r._id + '">'
+    + '<td><small>' + when + '</small></td>'
+    + '<td><strong>' + user + '</strong><br><small class="text-muted">' + (r.user ? r.user.email : '') + '</small></td>'
+    + '<td><code>' + (r.phone || '—') + '</code></td>'
+    + '<td><small>' + (ar._shortPlanType || '') + '<br><span class="text-muted">' + (ar._shortNetwork || '') + '</span></small></td>'
+    + '<td class="text-right">' + ar._shortBoughtGb + 'GB</td>'
+    + '<td class="text-right text-danger"><strong>' + ar._shortDeliveredGb + 'GB</strong></td>'
+    + '<td class="text-right text-danger"><strong>' + ar._shortMissingGb + 'GB</strong><br><small>₦' + Number(ar._shortLostValue || 0).toLocaleString() + '</small></td>'
+    + '<td style="white-space:nowrap;">' + topUpBtn
+    + ' <button class="btn btn-sm btn-outline-danger short-refund" data-id="' + r._id + '" data-amt="' + (ar._shortLostValue || 0) + '">Refund ₦' + Number(ar._shortLostValue || 0).toLocaleString() + '</button></td>'
+    + '</tr>';
+}
+
+async function loadShortDelivery(force) {
+  if (_shortLoaded && !force) return;
+  var tbody = document.querySelector('#short-table tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>';
+
+  try {
+    var res  = await fetch('/admin/flagged-transactions/short-delivery');
+    var data = await res.json();
+    var rows = data.rows || [];
+
+    document.getElementById('short-badge').textContent = rows.length;
+    document.getElementById('short-summary').innerHTML = rows.length
+      ? '<strong>' + rows.length + '</strong> unresolved — <strong>' + data.totals.missingGb
+        + 'GB</strong> undelivered, worth <strong>₦' + Number(data.totals.lostValue).toLocaleString() + '</strong>.'
+      : 'Nothing outstanding.';
+
+    tbody.innerHTML = rows.length
+      ? rows.map(shortRowHtml).join('')
+      : '<tr><td colspan="8" class="text-center py-4 text-muted">No short-delivered transactions.</td></tr>';
+
+    _shortLoaded = true;
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-danger">Could not load. Please retry.</td></tr>';
+  }
+}
+
+// Event delegation — rows are injected after load
+document.getElementById('tab-short').addEventListener('click', async function (e) {
+  var topBtn = e.target.closest('.short-topup');
+  var refBtn = e.target.closest('.short-refund');
+  if (!topBtn && !refBtn) return;
+
+  var btn = topBtn || refBtn;
+  var id  = btn.dataset.id;
+
+  var confirmed = await Swal.fire({
+    icon: 'question',
+    title: topBtn ? 'Send ' + btn.dataset.gb + 'GB?' : 'Refund ₦' + Number(btn.dataset.amt).toLocaleString() + '?',
+    text: topBtn
+      ? 'The missing data will be sent to this number. The customer is not charged — they already paid for the full bundle.'
+      : 'The undelivered portion will be credited to the customer\\'s wallet.',
+    showCancelButton: true,
+    confirmButtonText: topBtn ? 'Send data' : 'Refund',
+    confirmButtonColor: '#6777ef',
+  });
+  if (!confirmed.isConfirmed) return;
+
+  var original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = topBtn ? 'Sending…' : 'Refunding…';
+
+  try {
+    var url = '/admin/flagged-transactions/short-delivery/' + id + (topBtn ? '/topup' : '/refund');
+    var res = await fetch(url, { method: 'POST', headers: { 'X-CSRF-Token': _csrf } });
+    var data = await res.json();
+
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 2400, showConfirmButton: false });
+      var row = document.getElementById('short-row-' + id);
+      if (row) { row.style.opacity = '0.35'; row.style.pointerEvents = 'none'; }
+      loadShortDelivery(true);
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  } catch (_) {
+    Swal.fire({ icon: 'error', text: 'Request failed. Check the provider dashboard before retrying.', confirmButtonColor: '#6777ef' });
+  }
+
+  btn.disabled = false;
+  btn.textContent = original;
+});
+
+$('#short-tab').on('shown.bs.tab', function () { loadShortDelivery(false); });
+
+// Populate the badge on page load so the count is visible without opening the tab
+loadShortDelivery(false);
+
 </script>

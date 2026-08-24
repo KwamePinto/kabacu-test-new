@@ -43,6 +43,26 @@ function gbOf(text) {
   return m ? parseFloat(m[1]) : null;
 }
 
+
+/**
+ * The OurDataStore transaction id for one of our transactions. It lives in
+ * three different places depending on when and how the purchase completed:
+ *
+ *   requestId      current path — added by buyData to the provider response
+ *   'request-id'   July rows — the provider's own field name, before buyData
+ *                  started attaching its own camelCase copy
+ *   _odsTransid    timed-out purchases — the response was never stored, but the
+ *                  poller recorded the id when it later confirmed delivery
+ *
+ * Checking all three lifts coverage from ~2,435 to ~3,106 of 3,127 successful
+ * transactions. The remainder are admin adjustments and BitToken transfers,
+ * which have no provider record at all.
+ */
+function odsKeyOf(tx) {
+  const ar = tx.apiResponse || {};
+  return ar.requestId || ar['request-id'] || ar._odsTransid || null;
+}
+
 async function runAudit({ onProgress } = {}) {
   // Required lazily: the module reads site settings from Mongo on first use.
   const { fetchDataTransactions } = require('./ourdatastore');
@@ -77,7 +97,7 @@ async function runAudit({ onProgress } = {}) {
   };
 
   for (const tx of ours) {
-    const rid = (tx.apiResponse || {}).requestId;
+    const rid = odsKeyOf(tx);
     if (!rid) { stats.noRequestId++; continue; }
 
     const row = odsByTransid.get(String(rid));
@@ -126,4 +146,84 @@ async function runAudit({ onProgress } = {}) {
   return { short, totals, stats, generatedAt: new Date() };
 }
 
-module.exports = { runAudit, parseLegs, gbOf };
+
+/**
+ * Checks ONE transaction for short delivery, using a targeted provider search
+ * rather than the full history sweep. One API request instead of ~48, so this
+ * is cheap enough to run continuously in the background.
+ *
+ * Returns:
+ *   null                              not applicable / could not determine
+ *   { short:false }                   delivered in full
+ *   { short:true, boughtGb, ... }     partially delivered
+ */
+async function checkOne(tx, { productById } = {}) {
+  const { fetchDataTransactions } = require('./ourdatastore');
+
+  const key = odsKeyOf(tx);
+  if (!key || !tx.phone) return null;
+
+  // Only bundles large enough to be split into legs can be short-delivered.
+  let prod = null;
+  if (productById && tx.product) prod = productById.get(String(tx.product));
+  if (!prod && tx.product) prod = await Product.findById(tx.product).lean();
+
+  const boughtGb = gbOf(prod && prod.dataDetails && prod.dataDetails.plan_type);
+  if (!boughtGb || boughtGb <= 5) return null;
+
+  // Search by the last 10 digits of the phone — the provider stores numbers in
+  // several formats (0803…, 234803…), so a substring match is more reliable
+  // than an exact one.
+  const needle = String(tx.phone).replace(/\D/g, '').slice(-10);
+  let row = null;
+  try {
+    const r = await fetchDataTransactions({ page: 1, status: 'ALL', perPage: 100, search: needle });
+    row = (r.data || []).find(x => String(x.transid) === String(key)) || null;
+  } catch (err) {
+    // Unreachable is not a verdict. Leave the transaction unstamped so it is
+    // retried, rather than recording it as delivered in full.
+    return null;
+  }
+  if (!row) return null;
+
+  const legs = parseLegs(row.api_response);
+  if (!legs) return { short: false };          // single leg, nothing to split
+  if (legs.failed === 0) return { short: false };
+
+  const perLeg = boughtGb / legs.legs;
+  const deliveredGb = perLeg * legs.ok;
+  const missingGb = boughtGb - deliveredGb;
+
+  return {
+    short: true,
+    boughtGb,
+    deliveredGb,
+    missingGb,
+    legs: legs.legs,
+    legsOk: legs.ok,
+    legsFailed: legs.failed,
+    legsUnsure: legs.unsure,
+    lostValue: Math.round((tx.amount / boughtGb) * missingGb),
+    odsMessage: row.api_response || '',
+    transid: String(key),
+    planType: (prod && prod.dataDetails && prod.dataDetails.plan_type) || row.plan_name || '',
+    network: (prod && prod.dataDetails && prod.dataDetails.network) || row.network || '',
+  };
+}
+
+/**
+ * The bundle that would make good a shortfall: same plan family, same validity,
+ * exactly the missing volume.
+ *
+ * Returns null when no such bundle exists — AIRTEL, for example, has no 5GB
+ * (its ladder is 1.5/2/3/4/10GB), so a short-delivered AIRTEL 10GB cannot be
+ * topped up exactly and has to be refunded instead. The caller must handle that
+ * rather than assume a top-up is always possible.
+ */
+async function findTopUpProduct(network, missingGb) {
+  if (!network || !missingGb) return null;
+  const candidates = await Product.find({ category: 'DATA', 'dataDetails.network': network }).lean();
+  return candidates.find(p => gbOf(p.dataDetails && p.dataDetails.plan_type) === missingGb) || null;
+}
+
+module.exports = { runAudit, parseLegs, gbOf, odsKeyOf, checkOne, findTopUpProduct };
