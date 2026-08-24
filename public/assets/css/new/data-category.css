@@ -199,6 +199,7 @@
 
 /* Bundle card — single-column, entirely clickable */
 .bundle-card {
+  position: relative;
   background: var(--surface);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
@@ -217,9 +218,11 @@
 }
 
 .bundle-card__body {
-  padding: 14px 14px 12px;
+  padding: 32px 14px 12px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   flex: 1;
 }
 
@@ -245,6 +248,7 @@
 .bundle-card__pricing {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -261,7 +265,7 @@
 
 .bundle-card__price-old {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--error);
   text-decoration: line-through;
   font-weight: 400;
 }
@@ -269,7 +273,7 @@
 /* Cashback sits on its own line beneath the pricing row. Display only — it
    reports the saving against the struck-through old price, nothing is paid. */
 .bundle-card__cashback {
-  align-self: flex-start;
+  align-self: center;
   margin-top: 4px;
   font-size: 10px;
   font-weight: 700;
@@ -283,22 +287,17 @@
 .bundle-card__meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
   margin-top: auto;
   padding-top: 10px;
+  width: 100%;
 }
 
 @media (max-width: 639px) {
-  .bundle-card__pricing {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-
   .bundle-card__meta {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 6px;
   }
 
@@ -316,16 +315,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 .bundle-card__rp {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
   align-items: center;
-  flex-shrink: 0;
   gap: 4px;
   font-size: 10px;
   font-weight: 600;
   color: var(--orange);
+  background: var(--surface);
+  padding: 3px 6px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
 }
 
 .bundle-card__rp svg { width: 11px; height: 11px; }
@@ -334,6 +341,7 @@
 .bundle-card__extras {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 6px 10px;
   padding: 10px 14px;
   border-top: 1px solid var(--border);
