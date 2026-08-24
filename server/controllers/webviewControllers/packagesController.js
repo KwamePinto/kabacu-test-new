@@ -990,7 +990,12 @@ exports.payWithWallet = async (req, res) => {
         // =====================================
         if (apiResponse.status === "pending") {
           tx.apiResponse = apiResponse;
-          tx.rpEarned    = 0;
+          // rpEarned is deliberately LEFT AS IS. It was set to totalRP when the
+          // placeholder was created, and the poller credits it only once the
+          // provider confirms delivery — gated on `if (tx.rpEarned > 0)`.
+          // Zeroing it here meant every timed-out purchase that later resolved
+          // to success credited nothing and displayed 0 RP forever, which is
+          // what produced the 0-RP "Success" rows in the admin table.
           await tx.save();
 
           notify(userId, {
