@@ -153,7 +153,11 @@
               </div>
 
               <div class="mt-3">
-                <button class="btn btn-primary" id="save-btn" onclick="saveSettings()">Save Settings</button>
+                <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
+                <div class="rf-help" style="margin-top:8px;">
+                  Saves every setting on this page — the reward, the signup bonus, the commission
+                  and the paid codes.
+                </div>
               </div>
 
             </div>
@@ -207,6 +211,11 @@
                   </div>
                 </div>
               </div>
+
+                <div class="mt-3 pt-3" style="border-top:1px solid #e4e6fc;">
+                  <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
+                  <span class="rf-help" style="margin-left:10px;">Saves every setting on this page.</span>
+                </div>
             </div>
           </div>
 
@@ -266,6 +275,11 @@
                   </div>
                 </div>
               </div>
+
+                <div class="mt-3 pt-3" style="border-top:1px solid #e4e6fc;">
+                  <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
+                  <span class="rf-help" style="margin-left:10px;">Saves every setting on this page.</span>
+                </div>
             </div>
           </div>
 
@@ -441,6 +455,11 @@
                   </div>
                 </div>
               </div>
+
+                <div class="mt-3 pt-3" style="border-top:1px solid #e4e6fc;">
+                  <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
+                  <span class="rf-help" style="margin-left:10px;">Saves every setting on this page.</span>
+                </div>
             </div>
           </div>
 
@@ -766,9 +785,10 @@ async function saveSettings() {
     return Swal.fire({ icon: 'warning', text: 'Enter a reward amount greater than zero.', confirmButtonColor: '#6777ef' });
   }
 
-  var btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
+  /* There is one save button per settings card, all calling this. Drive them
+     together so the page cannot be saved twice from two different buttons. */
+  var btns = document.querySelectorAll('.js-save-settings');
+  btns.forEach(function (b) { b.disabled = true; b.textContent = 'Saving…'; });
 
   try {
     var res  = await fetch('/admin/referrals/settings', {
@@ -787,8 +807,7 @@ async function saveSettings() {
     Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
   }
 
-  btn.disabled = false;
-  btn.textContent = 'Save Settings';
+  btns.forEach(function (b) { b.disabled = false; b.textContent = 'Save Settings'; });
 }
 
 /* Reflect any already-saved data package on load */
