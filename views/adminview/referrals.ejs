@@ -269,6 +269,261 @@
             </div>
           </div>
 
+          <!-- ── Paid codes: pricing, bonuses and review ─────────────────── -->
+          <%
+            var pc = settings.paidCodes || {};
+            var pcs = pc.special || {};
+            var pcc = pc.custom || {};
+            var cs = typeof codeStats !== 'undefined' ? codeStats : { system: 0, special: 0, custom: 0 };
+            var rq = typeof requestStats !== 'undefined' ? requestStats : { pending: 0, approved: 0, rejected: 0 };
+          %>
+          <div class="card">
+            <div class="card-header">
+              <h4>
+                Paid Codes
+                <small class="text-muted">— what a special or custom code costs and earns</small>
+              </h4>
+              <div class="card-header-action">
+                <span class="badge badge-light" style="border:1px solid #e4e6fc;">
+                  <%= cs.system %> free · <%= cs.special %> reserved · <%= cs.custom %> custom
+                </span>
+              </div>
+            </div>
+            <div class="card-body">
+
+              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
+                A paid code earns its owner <strong>more than their free one</strong> — that uplift is
+                what a buyer is actually paying for. Each kind carries
+                <strong>two bonuses, set separately</strong>:
+                <br>
+                <strong>Reward bonus</strong> — added to the one-off referral reward above. Paid once
+                per referral, so the cost is bounded and predictable: 25% turns a 100 RP reward into 125 RP.
+                <br>
+                <strong>Commission bonus</strong> — added to the ongoing per-purchase commission.
+                Applies for as long as that referred user keeps buying, so it is an open-ended
+                commitment. <strong>Leave it at 0</strong> for a paid code to earn the standard
+                commission with no uplift.
+                <br>
+                Both are <strong>frozen onto the code when it is bought</strong>. Changing them here
+                affects future purchases only; nobody who has already paid gets re-priced.
+                <br>
+                <small class="text-muted">
+                  A <em>data</em> reward carries no bonus — there is no meaningful way to pay 25% more
+                  of one fixed bundle. Use money or reward points if paid codes should be worth more.
+                </small>
+              </div>
+
+              <div class="row">
+                <div class="col-12 col-md-3">
+                  <div class="form-group">
+                    <label>Selling codes</label>
+                    <select id="pc-active" class="form-control">
+                      <option value="true"  <%= pc.isActive  ? 'selected' : '' %>>On sale</option>
+                      <option value="false" <%= !pc.isActive ? 'selected' : '' %>>Off</option>
+                    </select>
+                    <div class="rf-help">Off hides the option from users entirely.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="form-group">
+                    <label>Review</label>
+                    <select id="pc-auto" class="form-control">
+                      <option value="false" <%= !pc.autoApprove ? 'selected' : '' %>>Every request is reviewed by an admin</option>
+                      <option value="true"  <%= pc.autoApprove  ? 'selected' : '' %>>Approve automatically</option>
+                    </select>
+                    <div class="rf-help" style="color:#e67700;">
+                      Auto-approve issues codes with no one reading them first. Custom codes are text
+                      other users will see — keep review on unless the queue is unmanageable.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <hr>
+
+              <div class="row">
+                <!-- Reserved -->
+                <div class="col-12 col-md-6">
+                  <h6 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">
+                    Reserved codes
+                  </h6>
+                  <p class="rf-help" style="margin-bottom:12px;">
+                    Picked from the pool you have built below. Scarce — once one is sold nobody else
+                    can have it.
+                  </p>
+                  <div class="row">
+                    <div class="col-12">
+                      <div class="form-group">
+                        <label>Default price</label>
+                        <input type="number" id="pc-sp-price" class="form-control" min="0" step="any"
+                               value="<%= pcs.price || 0 %>">
+                        <div class="rf-help">A code with its own price keeps it.</div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-group">
+                        <label>Reward bonus</label>
+                        <div class="input-group">
+                          <input type="number" id="pc-sp-reward" class="form-control" min="0" max="500" step="any"
+                                 value="<%= pcs.rewardBonusPercent || 0 %>">
+                          <div class="input-group-append"><span class="input-group-text">%</span></div>
+                        </div>
+                        <div class="rf-help">On the one-off reward.</div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-group">
+                        <label>Commission bonus</label>
+                        <div class="input-group">
+                          <input type="number" id="pc-sp-comm" class="form-control" min="0" max="500" step="any"
+                                 value="<%= pcs.commissionBonusPercent || 0 %>">
+                          <div class="input-group-append"><span class="input-group-text">%</span></div>
+                        </div>
+                        <div class="rf-help">On every later purchase. 0 = none.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Custom -->
+                <div class="col-12 col-md-6">
+                  <h6 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">
+                    Custom codes
+                  </h6>
+                  <p class="rf-help" style="margin-bottom:12px;">
+                    Chosen by the user — their name, a word, anything still free. These are the ones
+                    that need reading before they go live.
+                  </p>
+                  <div class="row">
+                    <div class="col-12">
+                      <div class="form-group">
+                        <label>Price</label>
+                        <input type="number" id="pc-cu-price" class="form-control" min="0" step="any"
+                               value="<%= pcc.price || 0 %>">
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-group">
+                        <label>Reward bonus</label>
+                        <div class="input-group">
+                          <input type="number" id="pc-cu-reward" class="form-control" min="0" max="500" step="any"
+                                 value="<%= pcc.rewardBonusPercent || 0 %>">
+                          <div class="input-group-append"><span class="input-group-text">%</span></div>
+                        </div>
+                        <div class="rf-help">On the one-off reward.</div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-group">
+                        <label>Commission bonus</label>
+                        <div class="input-group">
+                          <input type="number" id="pc-cu-comm" class="form-control" min="0" max="500" step="any"
+                                 value="<%= pcc.commissionBonusPercent || 0 %>">
+                          <div class="input-group-append"><span class="input-group-text">%</span></div>
+                        </div>
+                        <div class="rf-help">On every later purchase. 0 = none.</div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-group">
+                        <label>Min length</label>
+                        <input type="number" id="pc-cu-min" class="form-control" min="3" max="32"
+                               value="<%= pcc.minLength || 4 %>">
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-group">
+                        <label>Max length</label>
+                        <input type="number" id="pc-cu-max" class="form-control" min="4" max="64"
+                               value="<%= pcc.maxLength || 16 %>">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Review queue ────────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header">
+              <h4>
+                Code Requests
+                <% if (rq.pending > 0) { %>
+                <span class="badge badge-warning" style="font-size:12px;"><%= rq.pending %> waiting</span>
+                <% } %>
+              </h4>
+              <div class="card-header-action">
+                <select id="cr-filter" class="form-control form-control-sm" style="width:auto;display:inline-block;"
+                        onchange="loadCodeRequests(this.value)">
+                  <option value="pending">Waiting (<%= rq.pending %>)</option>
+                  <option value="approved">Approved (<%= rq.approved %>)</option>
+                  <option value="rejected">Rejected (<%= rq.rejected %>)</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
+                <strong>Approving is what charges the user.</strong> Nothing is taken from a wallet
+                while a request sits here, so rejecting costs them nothing and there is no refund to
+                make. If their balance is short at the moment you approve, the request stays waiting
+                rather than issuing an unpaid code.
+              </div>
+            </div>
+
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped mb-0" id="cr-table">
+                  <thead>
+                    <tr>
+                      <th>Requested</th>
+                      <th>User</th>
+                      <th>Code</th>
+                      <th>Kind</th>
+                      <th>Price</th>
+                      <th>Reward<br><small class="text-muted">bonus</small></th>
+                      <th>Comm.<br><small class="text-muted">bonus</small></th>
+                      <th class="text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cr-body">
+                    <% if (!codeRequests || !codeRequests.length) { %>
+                    <tr><td colspan="8" class="text-center py-4 text-muted">Nothing waiting.</td></tr>
+                    <% } %>
+                    <% (codeRequests || []).forEach(function (r) { %>
+                    <tr id="cr-row-<%= r._id %>">
+                      <td><small><%= new Date(r.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) %></small></td>
+                      <td>
+                        <% if (r.user) { %>
+                        <a href="/admin/product/user-details/<%= r.user._id %>"><strong><%= r.user.username %></strong></a><br>
+                        <small class="text-muted"><%= r.user.email %></small>
+                        <% } else { %>
+                        <span class="text-muted">Deleted user</span>
+                        <% } %>
+                      </td>
+                      <td><code style="font-size:15px;font-weight:700;letter-spacing:.08em;"><%= r.code %></code></td>
+                      <td>
+                        <span class="badge <%= r.type === 'custom' ? 'badge-warning' : 'badge-info' %>">
+                          <%= r.type === 'custom' ? 'custom' : 'reserved' %>
+                        </span>
+                      </td>
+                      <td><%= (r.price || 0).toLocaleString() %></td>
+                      <td><%= r.rewardBonusPercent || 0 %>%</td>
+                      <td><%= r.commissionBonusPercent || 0 %>%</td>
+                      <td class="text-right" style="white-space:nowrap;">
+                        <button class="btn btn-sm btn-success" style="border-radius:45px;"
+                                onclick="approveCodeRequest('<%= r._id %>', '<%= r.code %>', '<%= (r.price || 0) %>')">Approve</button>
+                        <button class="btn btn-sm btn-outline-danger" style="border-radius:45px;"
+                                onclick="rejectCodeRequest('<%= r._id %>', '<%= r.code %>')">Reject</button>
+                      </td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- ── Special / vanity codes ──────────────────────────────────── -->
           <div class="card">
             <div class="card-header">
@@ -277,39 +532,46 @@
             <div class="card-body">
 
               <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                A special code may use <strong>any characters</strong> — it is exempt from the
-                <code>KB########</code> shape system codes use. It is
-                <strong>reserved and blocked from the system</strong> the moment you create it, and
-                becomes usable only once you assign it to a user. Assigning replaces that user's
-                current code; their old one is kept so the assignment can be reversed.
-                <br><small class="text-muted">Admin-only — there is no customer-facing purchase flow yet.</small>
+                A code is <strong>reserved and blocked from the whole system</strong> the moment you
+                add it, and becomes usable only once a user buys it and you approve the request.
+                <br>
+                <strong>Letters and numbers only.</strong> Punctuation is not allowed — a comma
+                would split one code into two on paste, and spaces make two codes that look
+                identical into different strings.
+              </div>
+
+              <div class="form-group">
+                <label>Codes <span class="text-danger">*</span></label>
+                <textarea id="sc-codes" class="form-control" rows="5"
+                          style="text-transform:uppercase;font-family:monospace;font-size:14px;line-height:1.7;"
+                          placeholder="VICTOR1, KABACU01, LAGOS2026, 07000000"></textarea>
+                <div class="rf-help">
+                  Paste as many as you like, separated by commas. Newlines and semicolons work too,
+                  so a column copied out of a spreadsheet pastes straight in. Every code is reported
+                  on separately — one bad entry does not lose the rest.
+                </div>
               </div>
 
               <div class="row">
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Code <span class="text-danger">*</span></label>
-                    <input type="text" id="sc-code" class="form-control" placeholder="e.g. KABACU01 or 07000000"
-                           style="text-transform:uppercase;">
-                    <div class="rf-help">No spaces. Any other characters allowed.</div>
-                  </div>
-                </div>
                 <div class="col-6 col-md-3">
                   <div class="form-group">
-                    <label>Price</label>
+                    <label>Price for this batch</label>
                     <input type="number" id="sc-price" class="form-control" min="0" step="any" placeholder="0">
-                    <div class="rf-help">0 = free / promotional.</div>
+                    <div class="rf-help">0 falls back to the special-code price set above.</div>
                   </div>
                 </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-6">
                   <div class="form-group">
-                    <label>Note</label>
-                    <input type="text" id="sc-note" class="form-control" placeholder="Who it's held for, or why">
+                    <label>Note <small class="text-muted">(applied to all in this batch)</small></label>
+                    <input type="text" id="sc-note" class="form-control" placeholder="e.g. Lagos launch batch">
                   </div>
                 </div>
               </div>
 
-              <button class="btn btn-primary" id="sc-create-btn" onclick="createSpecialCode()">Reserve Code</button>
+              <button class="btn btn-primary" id="sc-create-btn" onclick="bulkCreateSpecialCodes()">Reserve Codes</button>
+
+              <!-- Per-code outcome of the last paste -->
+              <div id="sc-bulk-report" class="mt-3" style="display:none;"></div>
             </div>
 
             <div class="card-body p-0">
@@ -446,7 +708,49 @@ async function saveSettings() {
     commissionType:    document.getElementById('rc-type').value,
     commissionPercent: document.getElementById('rc-percent').value,
     commissionMaxPerReferredUser: document.getElementById('rc-cap').value,
+
+    // Paid codes — priced and bonused separately for reserved and custom
+    paidCodesActive:      document.getElementById('pc-active').value,
+    paidCodesAutoApprove: document.getElementById('pc-auto').value,
+    specialPrice:           document.getElementById('pc-sp-price').value,
+    specialRewardBonus:     document.getElementById('pc-sp-reward').value,
+    specialCommissionBonus: document.getElementById('pc-sp-comm').value,
+    customPrice:            document.getElementById('pc-cu-price').value,
+    customRewardBonus:      document.getElementById('pc-cu-reward').value,
+    customCommissionBonus:  document.getElementById('pc-cu-comm').value,
+    customMinLength:        document.getElementById('pc-cu-min').value,
+    customMaxLength:        document.getElementById('pc-cu-max').value,
   };
+
+  /* A commission bonus pays nothing unless the commission programme is running,
+     so catch it here rather than saving a setting that silently does nothing. */
+  var anyCommBonus = Number(payload.specialCommissionBonus) > 0 ||
+                     Number(payload.customCommissionBonus) > 0;
+  if (anyCommBonus && payload.commissionActive !== 'true') {
+    return Swal.fire({
+      icon: 'warning',
+      text: 'A commission bonus only pays out while the ongoing commission is running. Switch that on, or set the commission bonuses to 0.',
+      confirmButtonColor: '#6777ef',
+    });
+  }
+
+  if (Number(payload.customMinLength) > Number(payload.customMaxLength)) {
+    return Swal.fire({ icon: 'warning', text: 'The custom code minimum length cannot exceed the maximum.', confirmButtonColor: '#6777ef' });
+  }
+
+  /* Turning auto-approve on removes the human check that stops a slur going
+     live as somebody's public code, so it is confirmed rather than just saved. */
+  if (payload.paidCodesAutoApprove === 'true' && payload.paidCodesActive === 'true') {
+    var warn = await Swal.fire({
+      icon: 'warning',
+      title: 'Issue codes without review?',
+      text: 'Custom codes are text other users will see. With auto-approve on, nobody reads one before it goes live.',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, auto-approve',
+      confirmButtonColor: '#e67700',
+    });
+    if (!warn.isConfirmed) return;
+  }
 
   if (payload.signupBonusActive === 'true' && !(Number(payload.signupBonusAmount) > 0)) {
     return Swal.fire({ icon: 'warning', text: 'Set a signup bonus amount above zero, or switch the promotion off.', confirmButtonColor: '#6777ef' });
@@ -526,13 +830,12 @@ async function scPost(url, body) {
   return res.json();
 }
 
-async function createSpecialCode() {
-  var code = document.getElementById('sc-code').value.trim().toUpperCase();
-  if (!code) {
-    return Swal.fire({ icon: 'warning', text: 'Enter a code.', confirmButtonColor: '#6777ef' });
-  }
-  if (/\s/.test(code)) {
-    return Swal.fire({ icon: 'warning', text: 'A code cannot contain spaces.', confirmButtonColor: '#6777ef' });
+/* ── Bulk reservation ─────────────────────────────────────────────────────── */
+
+async function bulkCreateSpecialCodes() {
+  var raw = document.getElementById('sc-codes').value.trim();
+  if (!raw) {
+    return Swal.fire({ icon: 'warning', text: 'Paste at least one code.', confirmButtonColor: '#6777ef' });
   }
 
   var btn = document.getElementById('sc-create-btn');
@@ -540,23 +843,181 @@ async function createSpecialCode() {
   btn.textContent = 'Reserving…';
 
   try {
-    var data = await scPost('/admin/referrals/special', {
-      code: code,
+    var data = await scPost('/admin/referrals/special/bulk', {
+      codes: raw,
       price: document.getElementById('sc-price').value,
       note: document.getElementById('sc-note').value,
     });
+
+    renderBulkReport(data);
+
+    if (data.created && data.created.length) {
+      // Keep the report on screen: an admin who pasted fifty codes needs to see
+      // which ones did not take, and a reload would wipe it. The table below is
+      // refreshed instead.
+      document.getElementById('sc-codes').value = '';
+      Swal.fire({
+        icon: 'success', text: data.message, toast: true, position: 'top',
+        timer: 2400, showConfirmButton: false,
+      });
+    } else {
+      Swal.fire({ icon: 'warning', text: data.message || 'Nothing was reserved.', confirmButtonColor: '#6777ef' });
+    }
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Reserve Codes';
+}
+
+/** Per-code outcome, so a big paste is auditable rather than a single tally. */
+function renderBulkReport(data) {
+  var box = document.getElementById('sc-bulk-report');
+  if (!box) return;
+
+  function chips(list, colour, withReason) {
+    return (list || []).map(function (item) {
+      var code = withReason ? item.code : item;
+      var why = withReason && item.reason ? ' — ' + item.reason : '';
+      return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:4px 9px;border-radius:20px;' +
+             'font-size:12px;font-family:monospace;background:' + colour.bg + ';color:' + colour.fg + ';">' +
+             code + why + '</span>';
+    }).join('');
+  }
+
+  var html = '';
+  if (data.created && data.created.length) {
+    html += '<div style="margin-bottom:8px;"><strong style="font-size:13px;">Reserved (' + data.created.length + ')</strong><br>' +
+            chips(data.created, { bg: '#e8f8ee', fg: '#137a3c' }, false) + '</div>';
+  }
+  if (data.skipped && data.skipped.length) {
+    html += '<div style="margin-bottom:8px;"><strong style="font-size:13px;">Skipped (' + data.skipped.length + ')</strong><br>' +
+            chips(data.skipped, { bg: '#fff6e5', fg: '#8a5a00' }, true) + '</div>';
+  }
+  if (data.rejected && data.rejected.length) {
+    html += '<div><strong style="font-size:13px;">Rejected (' + data.rejected.length + ')</strong><br>' +
+            chips(data.rejected, { bg: '#fdecea', fg: '#a11c12' }, true) + '</div>';
+  }
+
+  box.innerHTML = html
+    ? '<div style="border:1px solid #e4e6fc;border-radius:8px;padding:12px;">' + html +
+      '<div style="margin-top:10px;"><button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">Refresh the list</button></div></div>'
+    : '';
+  box.style.display = html ? '' : 'none';
+}
+
+/* ── Review queue ────────────────────────────────────────────────────────── */
+
+async function loadCodeRequests(status) {
+  var body = document.getElementById('cr-body');
+  body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>';
+
+  try {
+    var res = await fetch('/admin/referrals/requests?status=' + encodeURIComponent(status));
+    var data = await res.json();
+
+    if (!data.success || !data.requests.length) {
+      body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nothing here.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = data.requests.map(function (r) {
+      var when = new Date(r.createdAt).toLocaleString('en-GB',
+        { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      var user = r.user
+        ? '<a href="/admin/product/user-details/' + r.user._id + '"><strong>' + r.user.username +
+          '</strong></a><br><small class="text-muted">' + r.user.email + '</small>'
+        : '<span class="text-muted">Deleted user</span>';
+
+      // Settled rows show who decided and why, not buttons.
+      var action = status === 'pending'
+        ? '<button class="btn btn-sm btn-success" style="border-radius:45px;" onclick="approveCodeRequest(\'' +
+            r._id + '\',\'' + r.code + '\',\'' + (r.price || 0) + '\')">Approve</button> ' +
+          '<button class="btn btn-sm btn-outline-danger" style="border-radius:45px;" onclick="rejectCodeRequest(\'' +
+            r._id + '\',\'' + r.code + '\')">Reject</button>'
+        : '<small class="text-muted">' + (r.autoApproved ? 'auto-approved' : (r.reviewedBy || '—')) +
+          (r.rejectionReason ? '<br>' + r.rejectionReason : '') + '</small>';
+
+      return '<tr id="cr-row-' + r._id + '">' +
+        '<td><small>' + when + '</small></td>' +
+        '<td>' + user + '</td>' +
+        '<td><code style="font-size:15px;font-weight:700;letter-spacing:.08em;">' + r.code + '</code></td>' +
+        '<td><span class="badge ' + (r.type === 'custom' ? 'badge-warning' : 'badge-info') + '">' +
+          (r.type === 'custom' ? 'custom' : 'reserved') + '</span></td>' +
+        '<td>' + Number(r.price || 0).toLocaleString() + '</td>' +
+        '<td>' + (r.rewardBonusPercent || 0) + '%</td>' +
+        '<td>' + (r.commissionBonusPercent || 0) + '%</td>' +
+        '<td class="text-right" style="white-space:nowrap;">' + action + '</td>' +
+        '</tr>';
+    }).join('');
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-danger">Could not load. Please retry.</td></tr>';
+  }
+}
+
+async function approveCodeRequest(id, code, price) {
+  var priced = Number(price) > 0;
+  var ask = await Swal.fire({
+    icon: 'question',
+    title: 'Issue ' + code + '?',
+    html: priced
+      // Spelled out because this click is what takes the money.
+      ? '<p style="font-size:14px;">' + Number(price).toLocaleString() +
+        ' will be charged to their wallet now, and the code becomes theirs.</p>' +
+        '<p style="font-size:13px;color:#6c757d;">If their balance is short the request stays waiting — no partial charge.</p>'
+      : '<p style="font-size:14px;">The code becomes theirs. Nothing to charge.</p>',
+    showCancelButton: true,
+    confirmButtonText: priced ? 'Charge and issue' : 'Issue',
+    confirmButtonColor: '#47c363',
+  });
+  if (!ask.isConfirmed) return;
+
+  try {
+    var data = await scPost('/admin/referrals/requests/' + id + '/approve', {});
+    if (data.success) {
+      await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' });
+      loadCodeRequests(document.getElementById('cr-filter').value);
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+  } catch (e) {
+    Swal.fire({
+      icon: 'error',
+      text: 'Request failed. Reload before retrying so you do not charge twice.',
+      confirmButtonColor: '#6777ef',
+    });
+  }
+}
+
+async function rejectCodeRequest(id, code) {
+  var ask = await Swal.fire({
+    icon: 'warning',
+    title: 'Reject ' + code + '?',
+    input: 'text',
+    inputLabel: 'Why — the user is shown this',
+    inputPlaceholder: 'e.g. Not appropriate for a public code',
+    showCancelButton: true,
+    confirmButtonText: 'Reject',
+    confirmButtonColor: '#fc544b',
+    inputValidator: function (v) {
+      // A user told only "rejected" will simply request the same thing again.
+      if (!v || !v.trim()) return 'Give a reason so they know what to change.';
+    },
+  });
+  if (!ask.isConfirmed) return;
+
+  try {
+    var data = await scPost('/admin/referrals/requests/' + id + '/reject', { reason: ask.value });
     if (data.success) {
       Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 2200, showConfirmButton: false });
-      setTimeout(function () { location.reload(); }, 1000);
+      loadCodeRequests(document.getElementById('cr-filter').value);
       return;
     }
     Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
   } catch (e) {
     Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
   }
-
-  btn.disabled = false;
-  btn.textContent = 'Reserve Code';
 }
 
 async function assignSpecialCode(id, code) {

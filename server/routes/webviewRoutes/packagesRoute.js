@@ -58,6 +58,13 @@ router.post('/edit-user-profile', authenticateUser, getPackages.editUserProfile)
 
 router.get('/referrals', authenticateUser, getPackages.referralsPage);
 
+/* Buying a better referral code. Nothing here moves money — a request is
+   reviewed first, and approval is what charges. */
+router.get ('/referrals/special-codes',        authenticateUser, getPackages.availableSpecialCodes);
+router.post('/referrals/check-code',           authenticateUser, getPackages.checkCustomCode);
+router.post('/referrals/request-code',         authenticateUser, getPackages.requestReferralCode);
+router.post('/referrals/request/:id/cancel',   authenticateUser, getPackages.cancelReferralCodeRequest);
+
 router.post('/referral/apply', authenticateUser, getPackages.applyReferral);
 
 router.post('/wallet/convert-usdt', authenticateUser, getPackages.convertUSDTtoNaira);

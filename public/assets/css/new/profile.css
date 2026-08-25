@@ -603,3 +603,214 @@
     min-width: 200px;
   }
 }
+
+/* ── Buying a referral code ──────────────────────────────────────────────────
+   Sits inside .referral-card, so it inherits the card's surface and padding and
+   only adds what the choice, the pool and the history need. */
+
+.code-req-card--pending { border-left: 3px solid var(--primary); }
+.code-req-card--rejected { border-left: 3px solid #ef4444; }
+
+.code-req-pending {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.code-req-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.code-req-badge--no { background: #fdecea; color: #a11c12; }
+
+/* ── The two ways to get a code ─────────────────────────────────────────── */
+.code-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+@media (min-width: 560px) {
+  .code-choice-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.code-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+.code-choice:hover { border-color: var(--primary); }
+.code-choice:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.code-choice.is-active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.code-choice__icon { display: flex; }
+.code-choice__icon svg { width: 20px; height: 20px; color: var(--primary); }
+.code-choice__name { font-size: 14px; font-weight: 700; color: var(--text); }
+.code-choice__meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.code-choice__desc { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+.code-panel {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── The reserved pool ──────────────────────────────────────────────────── */
+.code-pool {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  /* Long pools scroll inside the card rather than pushing the page down. */
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.code-pool__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.code-pool__item:hover { border-color: var(--primary); background: var(--primary-light); }
+.code-pool__item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.code-pool__code {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--text);
+  word-break: break-all;
+}
+.code-pool__price {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.code-pool__note { font-size: 11px; color: var(--muted); }
+
+.code-pool__loading,
+.code-pool__empty {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 18px 0;
+  margin: 0;
+}
+
+/* ── Live availability feedback ─────────────────────────────────────────── */
+.code-check {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin: 8px 0 0;
+  min-height: 18px;   /* reserve the line so the layout does not jump */
+}
+.code-check--wait { color: var(--muted); }
+.code-check--yes  { color: var(--primary); }
+.code-check--no   { color: #ef4444; }
+
+/* ── Codes previously held ──────────────────────────────────────────────── */
+.code-history { list-style: none; margin: 12px 0 0; padding: 0; }
+
+.code-history__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.code-history__row:last-child { border-bottom: none; }
+
+.code-history__code {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--text);
+  /* Struck through: still valid, but no longer the one being advertised. */
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+  opacity: .85;
+}
+
+.code-history__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-right: auto;
+}
+
+.code-history__kind {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--border);
+  color: var(--muted);
+}
+.code-history__kind--special,
+.code-history__kind--custom {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.code-history__bonus {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.code-history__date { font-size: 11px; color: var(--muted); }
+
+.code-history__copy {
+  border: none;
+  background: transparent;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  transition: background .15s ease, color .15s ease;
+}
+.code-history__copy:hover { background: var(--primary-light); color: var(--primary); }
+.code-history__copy:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.code-history__copy svg { width: 15px; height: 15px; }
+.code-history__copy.is-copied { color: var(--primary); background: var(--primary-light); }
+
+@media (prefers-reduced-motion: reduce) {
+  .code-choice, .code-pool__item, .code-history__copy { transition: none; }
+}

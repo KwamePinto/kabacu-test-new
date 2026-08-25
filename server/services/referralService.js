@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const User             = require('../models/UserModel');
 const Referral         = require('../models/ReferralModel');
 const ReferralSettings = require('../models/ReferralSettingsModel');
+const ReferralCode = require('../models/ReferralCodeModel');
+const referralCodeService = require('./referralCodeService');
 const Wallet           = require('../models/WalletModal');
 const Product          = require('../models/ProductsModal');
 const SpecialCode      = require('../models/SpecialReferralCodeModel');
@@ -15,47 +17,26 @@ const SpecialCode      = require('../models/SpecialReferralCodeModel');
  * numeric keypad without letter/number confusion. Admin-created special codes
  * are exempt from this shape entirely — see SpecialReferralCodeModel.
  */
-const CODE_PREFIX = 'KB';
-const CODE_DIGITS = 8;
-const CODE_LEN    = CODE_PREFIX.length + CODE_DIGITS; // 10
-
-/** True for anything matching the system's own KB######## shape. */
-function isSystemCode(code) {
-  return new RegExp(`^${CODE_PREFIX}\\d{${CODE_DIGITS}}$`).test(String(code || '').toUpperCase());
-}
-
-function randomCode() {
-  // crypto.randomInt avoids the modulo bias a randomBytes%10 would introduce
-  let digits = '';
-  for (let i = 0; i < CODE_DIGITS; i++) digits += crypto.randomInt(0, 10);
-  return CODE_PREFIX + digits;
-}
+/* Shape, generation and validation all live in referralCodeService now, so
+   there is one definition of what a code may look like rather than two that can
+   drift apart. Re-exported below to keep the old names working. */
+const CODE_PREFIX  = referralCodeService.SYSTEM_PREFIX;
+const CODE_DIGITS  = referralCodeService.SYSTEM_DIGITS;
+const isSystemCode = referralCodeService.isSystemShape;
+const randomCode   = referralCodeService.randomSystemCode;
+const CODE_LEN     = CODE_PREFIX.length + CODE_DIGITS; // 10
 
 /**
- * Returns the user's referral code, generating and persisting one on first
- * access. Retries on the unique index in the rare event of a collision.
+ * Returns the user's referral code, creating their free system code on first
+ * access.
+ *
+ * Kept as a thin delegate so the three existing callers do not have to change.
+ * The real work moved to referralCodeService, which writes the code table as
+ * well as User.referralCode — a code created only in the latter would not be
+ * resolvable once a user changed it.
  */
 async function ensureReferralCode(userId) {
-  const user = await User.findById(userId).select('referralCode');
-  if (!user) return null;
-  if (user.referralCode) return user.referralCode;
-
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const code = randomCode();
-
-    // Never hand out a code being held back for sale, even if an admin has
-    // reserved something that happens to match the KB######## shape.
-    if (await SpecialCode.exists({ code })) continue;
-
-    try {
-      await User.updateOne({ _id: userId }, { $set: { referralCode: code } });
-      return code;
-    } catch (err) {
-      if (err && err.code === 11000) continue; // collided, try another
-      throw err;
-    }
-  }
-  throw new Error('Could not allocate a unique referral code');
+  return referralCodeService.ensurePrimaryCode(userId);
 }
 
 /** Account creation time. See UserModel — there is no createdAt on old rows. */
@@ -86,10 +67,20 @@ async function applyReferralCode(userId, rawCode) {
   // Deliberately no format check. Admin-created special codes can be any
   // characters and any length, so the only question that matters is whether
   // the code actually belongs to somebody.
-  const [referred, referrer] = await Promise.all([
+  //
+  // Resolution goes through the code table, not User.referralCode, and that is
+  // the whole point of it: a user who has since moved to a vanity code still
+  // owns every code they used to advertise, so an old link keeps crediting
+  // them. Falling back to User.referralCode covers accounts that predate the
+  // table and have not been migrated yet.
+  const [referred, codeRow] = await Promise.all([
     User.findById(userId),
-    User.findOne({ referralCode: code }),
+    ReferralCode.findOne({ code }).lean(),
   ]);
+
+  const referrer = codeRow
+    ? await User.findById(codeRow.user)
+    : await User.findOne({ referralCode: code });
 
   if (!referred) return { success: false, message: 'Account not found.' };
 
@@ -150,19 +141,49 @@ async function applyReferralCode(userId, rawCode) {
  * Returns a short description of what was granted, or null if nothing was.
  */
 async function grantReward(referral, settings) {
+  /* A paid code earns its owner more than their free system code. That uplift
+     is what a special or custom code is actually sold for, so it is applied
+     here, at the moment the reward is calculated.
+
+     The percentage is read off the code row rather than off today's settings:
+     it was frozen when the code was bought, so an admin lowering the programme
+     bonus never retro-prices somebody's purchase. System codes return 0, which
+     is why this can be applied unconditionally.
+
+     Rounded rather than floored so a bonus can never make a reward smaller
+     than the base, which floor() would do for any fractional result. */
+  const bonuses = await referralCodeService.bonusesForCode(referral.codeUsed);
+  const bonusPercent = bonuses.reward;
+  const withBonus = (base) =>
+    bonusPercent > 0 ? Math.round(base * (1 + bonusPercent / 100)) : base;
+
+  const bonusNote = bonusPercent > 0 ? ` (includes ${bonusPercent}% code bonus)` : '';
+
   if (settings.rewardType === 'money') {
     if (!(settings.amount > 0)) return null;
+    const payout = withBonus(settings.amount);
     await Wallet.updateOne(
       { user: referral.referrer },
-      { $inc: { 'balances.NAIRA': settings.amount } },
+      { $inc: { 'balances.NAIRA': payout } },
     );
-    return { type: 'money', amount: settings.amount, note: `₦${settings.amount} credited to wallet` };
+    return {
+      type: 'money',
+      amount: payout,
+      bonusPercent,
+      note: `₦${payout} credited to wallet${bonusNote}`,
+    };
   }
 
   if (settings.rewardType === 'rewardpoint') {
     if (!(settings.amount > 0)) return null;
-    await User.updateOne({ _id: referral.referrer }, { $inc: { rpBalance: settings.amount } });
-    return { type: 'rewardpoint', amount: settings.amount, note: `${settings.amount} RP awarded` };
+    const payout = withBonus(settings.amount);
+    await User.updateOne({ _id: referral.referrer }, { $inc: { rpBalance: payout } });
+    return {
+      type: 'rewardpoint',
+      amount: payout,
+      bonusPercent,
+      note: `${payout} RP awarded${bonusNote}`,
+    };
   }
 
   if (settings.rewardType === 'data') {
@@ -176,9 +197,13 @@ async function grantReward(referral, settings) {
     const label = product.dataDetails
       ? `${product.dataDetails.plan_type} · ${product.dataDetails.network}`
       : 'data bundle';
+    /* No bonus on a data reward: the payout is one named bundle, and there is
+       no meaningful way to pay 25% more of a fixed package. A programme that
+       wants paid codes to be worth more should reward money or RP. */
     return {
       type: 'data',
       amount: 0,
+      bonusPercent: 0,
       product: product._id,
       note: `Data reward owed: ${label}`,
     };
@@ -335,6 +360,21 @@ async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {
 
     let payout = (base * cfg.percent) / 100;
 
+    /* A paid code can also lift the ongoing commission, on top of the one-off
+       reward uplift in grantReward. Set separately by the admin because the two
+       carry different risk: the reward is a known one-off, while this applies to
+       every future purchase the referred user makes. Zero here means a paid code
+       earns the standard commission with no uplift.
+
+       Read off the code row, so it is the percentage that was sold, not today's.
+       Applied BEFORE the cap: the cap is a lifetime ceiling on what one referred
+       user can generate, and the bonus is part of what they generate — applying
+       it afterwards would let a bonus push a payout past the ceiling. */
+    const bonuses = await referralCodeService.bonusesForCode(referral.codeUsed);
+    if (bonuses.commission > 0) {
+      payout = payout * (1 + bonuses.commission / 100);
+    }
+
     // Apply the lifetime ceiling for this referred user.
     if (cfg.maxPerReferredUser > 0) {
       const alreadyEarned = referral.commissionEarned || 0;
@@ -367,7 +407,12 @@ async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {
       },
     );
 
-    return { type: cfg.type, payout, referrer: referral.referrer };
+    return {
+      type: cfg.type,
+      payout,
+      bonusPercent: bonuses.commission,
+      referrer: referral.referrer,
+    };
   } catch (err) {
     // Commission is a bonus — it must never fail a completed purchase.
     console.error('[referralService handleCommission]', err);

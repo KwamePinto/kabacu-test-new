@@ -4,6 +4,10 @@ const Product          = require('../../models/ProductsModal');
 const SpecialCode = require('../../models/SpecialReferralCodeModel');
 const User = require('../../models/UserModel');
 const referralService = require('../../services/referralService');
+const referralCodeService = require('../../services/referralCodeService');
+const ReferralCode = require('../../models/ReferralCodeModel');
+const ReferralCodeRequest = require('../../models/ReferralCodeRequestModel');
+const { notify } = require('../../services/userNotificationService');
 const { authenticateAdminUser } = require('../../config/authMiddleware');
 
 exports.viewPanel = [authenticateAdminUser, async (req, res) => {
@@ -26,11 +30,30 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     const stats = { pending: 0, qualified: 0, rewarded: 0, void: 0 };
     counts.forEach(c => { if (c._id in stats) stats[c._id] = c.n; });
 
-    // Premium / vanity codes held for sale. Admin-only for now.
+    // Premium / vanity codes held for sale.
     const specialCodes = await SpecialCode.find()
       .sort({ createdAt: -1 })
       .populate('permittedUser', 'username email')
       .lean();
+
+    /* The review queue. Pending requests are rendered with the page rather
+       than fetched afterwards so an admin opening the panel sees outstanding
+       work immediately instead of after a spinner. */
+    const [codeRequests, requestCounts, codeKindCounts] = await Promise.all([
+      ReferralCodeRequest.find({ status: 'pending' })
+        .sort({ createdAt: 1 })                       // oldest first: FIFO queue
+        .limit(100)
+        .populate('user', 'username email phone_number walletCountry')
+        .lean(),
+      ReferralCodeRequest.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]),
+      ReferralCode.aggregate([{ $group: { _id: '$kind', n: { $sum: 1 } } }]),
+    ]);
+
+    const requestStats = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+    requestCounts.forEach(c => { if (c._id in requestStats) requestStats[c._id] = c.n; });
+
+    const codeStats = { system: 0, special: 0, custom: 0 };
+    codeKindCounts.forEach(c => { if (c._id in codeStats) codeStats[c._id] = c.n; });
 
     res.render('adminview/referrals', {
       layout: 'layouts/adminLayout',
@@ -39,6 +62,9 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
       referrals,
       stats,
       specialCodes,
+      codeRequests,
+      requestStats,
+      codeStats,
       csrfToken: res.locals.csrfToken,
     });
   } catch (err) {
@@ -48,6 +74,9 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
       settings: { rewardType: 'rewardpoint', amount: 0, isActive: true, minPurchaseAmount: 0, maxRewardsPerReferrer: 0, dataProduct: null },
       dataProducts: [], referrals: [], specialCodes: [],
       stats: { pending: 0, qualified: 0, rewarded: 0, void: 0 },
+      codeRequests: [],
+      requestStats: { pending: 0, approved: 0, rejected: 0, cancelled: 0 },
+      codeStats: { system: 0, special: 0, custom: 0 },
       csrfToken: res.locals.csrfToken,
     });
   }
@@ -118,6 +147,51 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
       update.amount = amt;
       update.dataProduct = null;
     }
+
+    // ── Paid codes: special and custom, priced and bonused separately ────
+    const pcActive = req.body.paidCodesActive === true || req.body.paidCodesActive === 'true';
+    const pcAuto   = req.body.paidCodesAutoApprove === true || req.body.paidCodesAutoApprove === 'true';
+
+    const pct = (v) => Math.max(0, Math.min(500, Number(v) || 0));
+
+    const spPrice   = Math.max(0, Number(req.body.specialPrice) || 0);
+    const spReward  = pct(req.body.specialRewardBonus);
+    const spComm    = pct(req.body.specialCommissionBonus);
+    const cuPrice   = Math.max(0, Number(req.body.customPrice) || 0);
+    const cuReward  = pct(req.body.customRewardBonus);
+    const cuComm    = pct(req.body.customCommissionBonus);
+    const cuMin     = Math.max(3, Math.min(32, Number(req.body.customMinLength) || 4));
+    const cuMax     = Math.max(4, Math.min(64, Number(req.body.customMaxLength) || 16));
+
+    if (cuMin > cuMax) {
+      return res.json({ success: false, message: 'The custom code minimum length cannot exceed the maximum.' });
+    }
+
+    /* A commission bonus with no commission programme running pays nothing, so
+       say that rather than saving a setting that silently does nothing. */
+    if ((spComm > 0 || cuComm > 0) && !rcActive) {
+      return res.json({
+        success: false,
+        message: 'A commission bonus only pays out while the ongoing commission is running. Switch that on, or set the commission bonuses to 0.',
+      });
+    }
+
+    update.paidCodes = {
+      isActive: pcActive,
+      autoApprove: pcAuto,
+      special: {
+        price: spPrice,
+        rewardBonusPercent: spReward,
+        commissionBonusPercent: spComm,
+      },
+      custom: {
+        price: cuPrice,
+        rewardBonusPercent: cuReward,
+        commissionBonusPercent: cuComm,
+        minLength: cuMin,
+        maxLength: cuMax,
+      },
+    };
 
     const settings = await ReferralSettings.getSettings();
     await ReferralSettings.updateOne({ _id: settings._id }, { $set: update });
@@ -298,5 +372,115 @@ exports.deleteSpecialCode = [authenticateAdminUser, async (req, res) => {
   } catch (err) {
     console.error('[referrals deleteSpecialCode]', err);
     res.json({ success: false, message: 'Server error.' });
+  }
+}];
+
+/* ── Bulk reservation ───────────────────────────────────────────────────────
+   One textarea, comma separated, so an admin can paste a column straight out
+   of a spreadsheet. Every code is reported on individually: pasting fifty and
+   having the whole lot rejected because one was malformed would be useless. */
+
+exports.bulkCreateSpecialCodes = [authenticateAdminUser, async (req, res) => {
+  try {
+    const price = Math.max(0, Number(req.body.price) || 0);
+    const note = String(req.body.note || '').trim();
+
+    const result = await referralCodeService.bulkCreateSpecialCodes(req.body.codes, {
+      price,
+      note,
+      createdBy: (req.user && req.user.username) || 'admin',
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('[referrals bulkCreateSpecialCodes]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];
+
+/* ── The review queue ───────────────────────────────────────────────────────
+   A custom code is text one user writes that other users then see, so a person
+   reads it before it goes live. Approving is also what charges the wallet — see
+   referralCodeService.approveRequest for why the money moves at that point and
+   not at request time. */
+
+exports.listCodeRequests = [authenticateAdminUser, async (req, res) => {
+  try {
+    const status = ['pending', 'approved', 'rejected', 'cancelled'].includes(req.query.status)
+      ? req.query.status
+      : 'pending';
+
+    const requests = await ReferralCodeRequest.find({ status })
+      .sort({ createdAt: status === 'pending' ? 1 : -1 })   // oldest first while queued
+      .limit(200)
+      .populate('user', 'username email phone_number country walletCountry')
+      .lean();
+
+    res.json({
+      success: true,
+      status,
+      requests,
+      pendingCount: await ReferralCodeRequest.countDocuments({ status: 'pending' }),
+    });
+  } catch (err) {
+    console.error('[referrals listCodeRequests]', err);
+    res.json({ success: false, message: 'Server error.' });
+  }
+}];
+
+exports.approveCodeRequest = [authenticateAdminUser, async (req, res) => {
+  try {
+    const result = await referralCodeService.approveRequest(req.params.id, {
+      reviewer: (req.user && req.user.username) || 'admin',
+    });
+
+    if (result.success && result.request) {
+      try {
+        await notify(result.request.user, {
+          type: 'success',
+          text: `Your referral code ${result.request.code} is now active.` +
+                (result.request.price > 0
+                  ? ` ${result.request.price.toLocaleString()} was charged to your wallet.`
+                  : ''),
+          link: '/referrals',
+        });
+      } catch (notifyErr) {
+        // A missed notification must not undo an issued code.
+        console.log('[code request notify]', notifyErr.message);
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[referrals approveCodeRequest]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];
+
+exports.rejectCodeRequest = [authenticateAdminUser, async (req, res) => {
+  try {
+    const result = await referralCodeService.rejectRequest(req.params.id, {
+      reviewer: (req.user && req.user.username) || 'admin',
+      reason: req.body.reason,
+    });
+
+    if (result.success && result.request) {
+      try {
+        await notify(result.request.user, {
+          type: 'attention',
+          // The reason is included deliberately: a user told only "rejected"
+          // will simply request the same thing again.
+          text: `Your request for the referral code ${result.request.code} was not approved. ${result.request.rejectionReason}`,
+          link: '/referrals',
+        });
+      } catch (notifyErr) {
+        console.log('[code request notify]', notifyErr.message);
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[referrals rejectCodeRequest]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
   }
 }];

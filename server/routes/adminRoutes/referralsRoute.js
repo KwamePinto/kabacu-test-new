@@ -13,4 +13,12 @@ router.post('/special/:id/unassign', ctrl.unassignSpecialCode);
 router.post('/special/:id/toggle',   ctrl.toggleSpecialCode);
 router.post('/special/:id/delete',   ctrl.deleteSpecialCode);
 
+// Bulk reservation: one comma-separated paste instead of one code at a time
+router.post('/special/bulk',         ctrl.bulkCreateSpecialCodes);
+
+// Review queue for codes users have asked to buy. Approving charges the wallet.
+router.get ('/requests',             ctrl.listCodeRequests);
+router.post('/requests/:id/approve', ctrl.approveCodeRequest);
+router.post('/requests/:id/reject',  ctrl.rejectCodeRequest);
+
 module.exports = router;

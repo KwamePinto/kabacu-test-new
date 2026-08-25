@@ -11,6 +11,9 @@ const Conversion = require("../../models/ConversionModal");
 const CoursePurchase = require("../../models/CoursePurchaseModel");
 const PaymentMethod = require("../../models/PaymentMethodModel");
 const CountryWallet = require("../../models/CountryWalletModel");
+const SpecialCode = require("../../models/SpecialReferralCodeModel");
+const ReferralCodeRequest = require("../../models/ReferralCodeRequestModel");
+const referralCodeService = require("../../services/referralCodeService");
 const marketService = require("../../services/marketService");
 const axios = require("axios");
 const crypto = require("crypto");
@@ -1932,11 +1935,28 @@ exports.referralsPage = async (req, res) => {
     const pages   = Math.ceil(myReferrals.length / perPage) || 1;
     const page    = Math.min(Math.max(parseInt(req.query.page) || 1, 1), pages);
 
+    /* Code ownership: the current code, every code they have ever held, and
+       whatever they have queued. Past codes are shown because they still work —
+       a user who has moved to a vanity code needs to know their old links have
+       not broken. */
+    const [codeHistory, pendingRequest, recentRequests] = await Promise.all([
+      referralCodeService.historyFor(userId),
+      ReferralCodeRequest.findOne({ user: userId, status: 'pending' }).lean(),
+      ReferralCodeRequest.find({ user: userId, status: { $ne: 'pending' } })
+        .sort({ createdAt: -1 }).limit(5).lean(),
+    ]);
+
+    const codePricing = referralCodeService.pricingFrom(referralSettings);
+
     res.render("webview/referrals", {
       referralCode,
       referralSettings,
       myReferral,
       myReferrals,
+      codeHistory,
+      pendingRequest,
+      recentRequests,
+      codePricing,
       myReferralsPage: myReferrals.slice((page - 1) * perPage, page * perPage),
       referralPagination: { pages, current: page, hasNext: page < pages, hasPrev: page > 1 },
       referralsRewarded: myReferrals.filter(r => r.status === 'rewarded').length,
@@ -2335,5 +2355,99 @@ exports.applyReferral = async (req, res) => {
   } catch (err) {
     console.error("[applyReferral]", err);
     res.json({ success: false, message: "Could not apply that code. Please try again." });
+  }
+};
+
+/* ── Buying a referral code ─────────────────────────────────────────────────
+   Two routes to a better code: pick one from the pool an admin has reserved,
+   or choose your own. Both go through the same review queue, and neither
+   charges anything until an admin approves — see referralCodeService. */
+
+/** Codes still for sale, with what each costs and earns. */
+exports.availableSpecialCodes = async (req, res) => {
+  try {
+    const settings = await ReferralSettings.getSettings();
+    const pricing = referralCodeService.pricingFrom(settings);
+
+    if (!pricing.isActive) {
+      return res.json({ success: false, message: 'Referral codes are not on sale at the moment.' });
+    }
+
+    // Unassigned and active only — an assigned code belongs to somebody.
+    const pool = await SpecialCode.find({ isActive: true, permittedUser: null })
+      .sort({ price: 1, code: 1 })
+      .limit(300)
+      .lean();
+
+    // A code someone else has already queued is effectively gone, so it is not
+    // offered. Showing it would let two users race for the same code and one
+    // be rejected after the fact.
+    const queued = await ReferralCodeRequest.find({ status: 'pending' }).select('code').lean();
+    const taken = new Set(queued.map(q => q.code));
+
+    const codes = pool
+      .filter(c => !taken.has(c.code))
+      .map(c => ({
+        id: c._id,
+        code: c.code,
+        price: referralCodeService.specialPriceFor(c, settings),
+        note: c.note || '',
+      }));
+
+    res.json({
+      success: true,
+      codes,
+      rewardBonusPercent: pricing.special.rewardBonusPercent,
+      commissionBonusPercent: pricing.special.commissionBonusPercent,
+    });
+  } catch (error) {
+    console.log('AVAILABLE SPECIAL CODES ERROR:', error);
+    res.json({ success: false, message: 'Could not load the reserved codes.' });
+  }
+};
+
+/**
+ * Live availability check for a code a user is typing.
+ *
+ * Purely advisory — requestCode validates again server-side. Its job is to tell
+ * someone their code is taken while they are still typing, rather than after
+ * they submit and wait for a review.
+ */
+exports.checkCustomCode = async (req, res) => {
+  try {
+    const settings = await ReferralSettings.getSettings();
+    const result = await referralCodeService.validateCustomCode(
+      req.body.code, req.user.id, settings,
+    );
+    res.json({ success: result.ok, message: result.message });
+  } catch (error) {
+    console.log('CHECK CUSTOM CODE ERROR:', error);
+    res.json({ success: false, message: 'Could not check that code.' });
+  }
+};
+
+/** Submit a request for a reserved or custom code. */
+exports.requestReferralCode = async (req, res) => {
+  try {
+    const result = await referralCodeService.requestCode(req.user.id, {
+      type: req.body.type,
+      code: req.body.code,
+      specialId: req.body.specialId,
+    });
+    res.json(result);
+  } catch (error) {
+    console.log('REQUEST REFERRAL CODE ERROR:', error);
+    res.json({ success: false, message: 'Could not send that request.' });
+  }
+};
+
+/** Withdraw a pending request. */
+exports.cancelReferralCodeRequest = async (req, res) => {
+  try {
+    const result = await referralCodeService.cancelRequest(req.params.id, req.user.id);
+    res.json(result);
+  } catch (error) {
+    console.log('CANCEL CODE REQUEST ERROR:', error);
+    res.json({ success: false, message: 'Could not withdraw that request.' });
   }
 };

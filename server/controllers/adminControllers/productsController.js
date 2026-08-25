@@ -11,6 +11,8 @@ const Wallet = require("../../models/WalletModal");
 const PaymentMethod = require("../../models/PaymentMethodModel");
 const CountryWallet = require("../../models/CountryWalletModel");
 const marketService = require("../../services/marketService");
+const referralCodeService = require("../../services/referralCodeService");
+const ReferralCodeRequest = require("../../models/ReferralCodeRequestModel");
 const walletUtil = require("../../utils/wallet");
 const Network       = require("../../models/NetworkModel");
 const Referral        = require("../../models/ReferralModel");
@@ -427,6 +429,13 @@ exports.userDetails = [
       // never shows a blank code.
       const referralCode = user.referralCode || await referralService.ensureReferralCode(user._id);
 
+      /* Every code this user has held. Retired codes still credit them, so an
+         admin fielding "my old link stopped working" needs to see them. */
+      const codeHistory = await referralCodeService.historyFor(user._id);
+      const pendingCodeRequest = await ReferralCodeRequest.findOne({
+        user: user._id, status: 'pending',
+      }).lean();
+
       // Split by whether the reward has actually been paid. `qualified` means
       // the threshold was met but payout has not completed, so it is still owed.
       const referralStats = {
@@ -530,6 +539,8 @@ exports.userDetails = [
 
       res.render("adminview/tables/user-details", {
         referralCode,
+        codeHistory,
+        pendingCodeRequest,
         referralsMade,
         referredBy,
         referralSettings,

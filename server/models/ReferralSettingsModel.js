@@ -70,6 +70,68 @@ const referralSettingsSchema = new mongoose.Schema({
     // their referrer. 0 = unlimited. Keeps an open-ended liability bounded.
     maxPerReferredUser: { type: Number, default: 0, min: 0 },
   },
+
+  // ── Paid codes: special (from the admin pool) and custom (user-chosen) ────
+  //
+  // Priced and bonused separately, because they are not the same product. A
+  // reserved code is scarce — once someone buys KABACU nobody else can — while
+  // a custom code is only limited by what is still free. The bonus is what a
+  // buyer is actually paying for: it multiplies the referral reward their code
+  // earns, so a paid code out-earns the free system one.
+  paidCodes: {
+    // Master switch for the whole request flow. Off means users see no option
+    // to buy a code and any direct request is refused.
+    isActive: { type: Boolean, default: false },
+
+    /**
+     * Skip the review queue and issue immediately.
+     *
+     * Off by default and it should stay off while volumes are low: the queue
+     * exists so a person reads a custom code before it is shown to other
+     * users. Turning this on trades that safety for throughput, which is a
+     * reasonable call once requests outpace review — the admin's own words for
+     * it were "in case they become numerous".
+     */
+    autoApprove: { type: Boolean, default: false },
+
+    /**
+     * Each kind carries TWO bonuses, set independently.
+     *
+     *   rewardBonusPercent      uplift on the one-off referral reward. Paid once
+     *                           per referral, so the cost is bounded and known.
+     *   commissionBonusPercent  uplift on the ongoing per-purchase commission.
+     *                           Applies for as long as the referred user keeps
+     *                           buying, so it is an open-ended liability.
+     *
+     * Separating them lets an admin be generous on the one-off while leaving the
+     * ongoing commission at zero — a paid code then earns the standard
+     * commission with no uplift, which keeps the long tail predictable.
+     */
+    special: {
+      /**
+       * Default price for pool codes. A code with its own non-zero price keeps
+       * that price — per-code beats the default, so an admin can still sell one
+       * memorable code for more than the rest.
+       */
+      price: { type: Number, default: 0, min: 0 },
+      rewardBonusPercent:     { type: Number, default: 0, min: 0, max: 500 },
+      commissionBonusPercent: { type: Number, default: 0, min: 0, max: 500 },
+    },
+
+    custom: {
+      price:                  { type: Number, default: 0, min: 0 },
+      rewardBonusPercent:     { type: Number, default: 0, min: 0, max: 500 },
+      commissionBonusPercent: { type: Number, default: 0, min: 0, max: 500 },
+
+      /**
+       * Length bounds for a user-chosen code. The floor stops single-character
+       * land grabs; the ceiling keeps a code short enough to say out loud,
+       * which is the whole point of buying one.
+       */
+      minLength: { type: Number, default: 4,  min: 3,  max: 32 },
+      maxLength: { type: Number, default: 16, min: 4,  max: 64 },
+    },
+  },
 }, { timestamps: true });
 
 /** Always returns the single settings document, creating it on first use. */

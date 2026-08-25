@@ -58,6 +58,162 @@
       </div>
     </div>
 
+    <%
+      var cp   = typeof codePricing !== 'undefined' ? codePricing : { isActive: false };
+      var hist = (typeof codeHistory !== 'undefined' && codeHistory) || [];
+      var pReq = typeof pendingRequest !== 'undefined' ? pendingRequest : null;
+      var rReq = (typeof recentRequests !== 'undefined' && recentRequests) || [];
+      var past = hist.filter(function (h) { return !h.isPrimary; });
+      var cur  = hist.filter(function (h) { return h.isPrimary; })[0] || null;
+    %>
+
+    <!-- ── A request already in the queue ───────────────────────── -->
+    <% if (pReq) { %>
+    <div class="referral-card code-req-card code-req-card--pending">
+      <p class="referral-card__label">Code request under review</p>
+      <div class="code-req-pending">
+        <code class="referral-code"><%= pReq.code %></code>
+        <span class="code-req-badge">Waiting for approval</span>
+      </div>
+      <p class="referral-card__hint">
+        We check every code before it goes live.
+        <% if (pReq.price > 0) { %>
+          <strong>Nothing has been charged yet</strong> — the
+          <%= pReq.price.toLocaleString() %> is taken only once it is approved.
+        <% } %>
+        <%
+          var _pb = [];
+          if (pReq.rewardBonusPercent > 0) _pb.push(pReq.rewardBonusPercent + '% more on each referral reward');
+          if (pReq.commissionBonusPercent > 0) _pb.push(pReq.commissionBonusPercent + '% more commission on their purchases');
+        %>
+        <% if (_pb.length) { %>
+          Once active it will earn you <strong><%= _pb.join(', and ') %></strong>.
+        <% } %>
+      </p>
+      <button type="button" class="btn btn--outline btn--sm" id="cancelReqBtn"
+              data-id="<%= pReq._id %>">Withdraw this request</button>
+    </div>
+    <% } %>
+
+    <!-- ── The most recent settled request, so a rejection is visible ──── -->
+    <% if (!pReq && rReq.length && rReq[0].status === 'rejected') { %>
+    <div class="referral-card code-req-card code-req-card--rejected">
+      <p class="referral-card__label">Your last code request</p>
+      <div class="code-req-pending">
+        <code class="referral-code"><%= rReq[0].code %></code>
+        <span class="code-req-badge code-req-badge--no">Not approved</span>
+      </div>
+      <p class="referral-card__hint">
+        <%= rReq[0].rejectionReason || 'It could not be approved.' %>
+        You were not charged. You are welcome to request a different code.
+      </p>
+    </div>
+    <% } %>
+
+    <!-- ── Buy a better code ────────────────────────────────────── -->
+    <% if (cp.isActive && !pReq) { %>
+    <div class="referral-card">
+      <p class="referral-card__label">Get a code worth more</p>
+      <p class="referral-card__hint" style="margin-top:0;">
+        A paid code earns you more on every referral than your free one does.
+        <%
+          var _best = Math.max(
+            cp.special.rewardBonusPercent || 0, cp.custom.rewardBonusPercent || 0,
+            cp.special.commissionBonusPercent || 0, cp.custom.commissionBonusPercent || 0
+          );
+        %>
+        <% if (_best > 0) { %>
+          Up to <strong><%= _best %>% extra</strong> on what you earn.
+        <% } %>
+      </p>
+
+      <div class="code-choice-grid">
+        <button type="button" class="code-choice" data-choice="special">
+          <span class="code-choice__icon"><i data-lucide="sparkles"></i></span>
+          <span class="code-choice__name">Pick a reserved code</span>
+          <span class="code-choice__meta">
+            <% if (cp.special.price > 0) { %>from <%= cp.special.price.toLocaleString() %><% } else { %>Free<% } %>
+            <% if (cp.special.rewardBonusPercent > 0) { %> · +<%= cp.special.rewardBonusPercent %>% rewards<% } %>
+            <% if (cp.special.commissionBonusPercent > 0) { %> · +<%= cp.special.commissionBonusPercent %>% commission<% } %>
+          </span>
+          <span class="code-choice__desc">Choose from the short codes we have set aside.</span>
+        </button>
+
+        <button type="button" class="code-choice" data-choice="custom">
+          <span class="code-choice__icon"><i data-lucide="pencil"></i></span>
+          <span class="code-choice__name">Make your own</span>
+          <span class="code-choice__meta">
+            <% if (cp.custom.price > 0) { %><%= cp.custom.price.toLocaleString() %><% } else { %>Free<% } %>
+            <% if (cp.custom.rewardBonusPercent > 0) { %> · +<%= cp.custom.rewardBonusPercent %>% rewards<% } %>
+            <% if (cp.custom.commissionBonusPercent > 0) { %> · +<%= cp.custom.commissionBonusPercent %>% commission<% } %>
+          </span>
+          <span class="code-choice__desc">Your name, a word — anything still free.</span>
+        </button>
+      </div>
+
+      <!-- Reserved pool, loaded on demand -->
+      <div class="code-panel" id="specialPanel" hidden>
+        <p class="referral-card__label">Reserved codes</p>
+        <div id="specialList" class="code-pool">
+          <p class="code-pool__loading">Loading…</p>
+        </div>
+      </div>
+
+      <!-- Custom entry -->
+      <div class="code-panel" id="customPanel" hidden>
+        <p class="referral-card__label">Your own code</p>
+        <div class="referral-apply-row">
+          <input type="text" id="customCodeInput" class="referral-apply-input"
+                 placeholder="e.g. <%= (user && user.username ? user.username.toUpperCase().replace(/[^A-Z0-9]/g, '') : 'YOURNAME').slice(0, 10) %>"
+                 maxlength="<%= cp.custom.maxLength %>"
+                 style="text-transform:uppercase;letter-spacing:.08em;font-family:monospace;">
+          <button type="button" class="btn btn--primary" id="customRequestBtn" disabled>Request</button>
+        </div>
+        <p class="code-check" id="customCheck"></p>
+        <p class="referral-card__hint">
+          <%= cp.custom.minLength %>–<%= cp.custom.maxLength %> characters, letters and numbers only.
+          <% if (cp.custom.price > 0) { %>
+            Costs <strong><%= cp.custom.price.toLocaleString() %></strong>, charged only after approval.
+          <% } %>
+          Every code is checked by a person before it goes live.
+        </p>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- ── Codes you have held ──────────────────────────────────── -->
+    <% if (past.length) { %>
+    <div class="referral-card">
+      <p class="referral-card__label">Your earlier codes</p>
+      <p class="referral-card__hint" style="margin-top:0;">
+        <strong>These still work.</strong> Anyone who signs up with an old code of yours is still
+        counted as your referral, so links and screenshots you shared before never stop paying.
+      </p>
+      <ul class="code-history">
+        <% past.forEach(function (h) { %>
+        <li class="code-history__row">
+          <code class="code-history__code"><%= h.code %></code>
+          <span class="code-history__meta">
+            <span class="code-history__kind code-history__kind--<%= h.kind %>"><%= h.kind %></span>
+            <% if (h.rewardBonusPercent > 0) { %>
+            <span class="code-history__bonus">+<%= h.rewardBonusPercent %>% reward</span>
+            <% } %>
+            <% if (h.commissionBonusPercent > 0) { %>
+            <span class="code-history__bonus">+<%= h.commissionBonusPercent %>% comm.</span>
+            <% } %>
+            <% if (h.retiredAt) { %>
+            <span class="code-history__date">replaced <%= new Date(h.retiredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) %></span>
+            <% } %>
+          </span>
+          <button type="button" class="code-history__copy" data-code="<%= h.code %>" aria-label="Copy <%= h.code %>">
+            <i data-lucide="copy"></i>
+          </button>
+        </li>
+        <% }) %>
+      </ul>
+    </div>
+    <% } %>
+
     <!-- Entering someone else's code. Only offered when this account has not
          already been referred — the link can never be changed once set. -->
     <div class="referral-card">
@@ -321,4 +477,239 @@
       });
     }
   })();
+</script>
+
+<script>
+/* ── Buying a referral code ──────────────────────────────────────────────────
+   Two ways in: pick from the reserved pool, or type your own. Neither charges
+   anything here — a request goes to a person for review, and approval is what
+   takes the money. The copy says so plainly, because a user who thinks they
+   have paid and sees no code will assume something broke. */
+(function () {
+  var CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(body || {}),
+    }).then(function (r) { return r.json(); });
+  }
+
+  /* ── Choosing between reserved and custom ─────────────────────────────── */
+  var choices = document.querySelectorAll('.code-choice');
+  var specialPanel = document.getElementById('specialPanel');
+  var customPanel = document.getElementById('customPanel');
+  var poolLoaded = false;
+
+  choices.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var which = btn.dataset.choice;
+      var alreadyOpen = btn.classList.contains('is-active');
+
+      choices.forEach(function (b) { b.classList.remove('is-active'); });
+      if (specialPanel) specialPanel.hidden = true;
+      if (customPanel) customPanel.hidden = true;
+
+      // Tapping the open one again closes it.
+      if (alreadyOpen) return;
+
+      btn.classList.add('is-active');
+      if (which === 'special') {
+        specialPanel.hidden = false;
+        if (!poolLoaded) loadPool();
+      } else {
+        customPanel.hidden = false;
+        var input = document.getElementById('customCodeInput');
+        if (input) input.focus();
+      }
+    });
+  });
+
+  /* ── The reserved pool ────────────────────────────────────────────────── */
+  function loadPool() {
+    var list = document.getElementById('specialList');
+    fetch('/referrals/special-codes')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        poolLoaded = true;
+
+        if (!data.success) {
+          list.innerHTML = '<p class="code-pool__empty">' + (data.message || 'Could not load the codes.') + '</p>';
+          return;
+        }
+        if (!data.codes.length) {
+          list.innerHTML = '<p class="code-pool__empty">' +
+            'None left at the moment. Try making your own instead.</p>';
+          return;
+        }
+
+        list.innerHTML = data.codes.map(function (c) {
+          return '<button type="button" class="code-pool__item" data-id="' + c.id + '" data-code="' + c.code + '">' +
+            '<code class="code-pool__code">' + c.code + '</code>' +
+            '<span class="code-pool__price">' +
+              (c.price > 0 ? Number(c.price).toLocaleString() : 'Free') +
+              (data.rewardBonusPercent > 0 ? ' · +' + data.rewardBonusPercent + '% rewards' : '') +
+              (data.commissionBonusPercent > 0 ? ' · +' + data.commissionBonusPercent + '% comm.' : '') +
+            '</span>' +
+            (c.note ? '<span class="code-pool__note">' + c.note + '</span>' : '') +
+          '</button>';
+        }).join('');
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      })
+      .catch(function () {
+        list.innerHTML = '<p class="code-pool__empty">Could not load the codes. Please retry.</p>';
+      });
+  }
+
+  var specialList = document.getElementById('specialList');
+  if (specialList) {
+    specialList.addEventListener('click', function (e) {
+      var item = e.target.closest('.code-pool__item');
+      if (!item) return;
+      requestReserved(item.dataset.id, item.dataset.code, item.querySelector('.code-pool__price').textContent);
+    });
+  }
+
+  async function requestReserved(id, code, priceLabel) {
+    var ask = await Swal.fire({
+      icon: 'question',
+      title: 'Request ' + code + '?',
+      html: '<p style="font-size:14px;">' + priceLabel + '</p>' +
+            '<p style="font-size:13px;color:#6b7280;">We check every code before it goes live. ' +
+            'Nothing is charged until it is approved.</p>',
+      showCancelButton: true,
+      confirmButtonText: 'Request it',
+      confirmButtonColor: '#15a844',
+    });
+    if (!ask.isConfirmed) return;
+
+    var data = await post('/referrals/request-code', { type: 'special', specialId: id });
+    if (data.success) {
+      await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
+      window.location.reload();
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+  }
+
+  /* ── Custom code, checked while they type ─────────────────────────────── */
+  var input = document.getElementById('customCodeInput');
+  var check = document.getElementById('customCheck');
+  var reqBtn = document.getElementById('customRequestBtn');
+
+  if (input && check && reqBtn) {
+    var timer = null;
+    var lastChecked = '';
+
+    input.addEventListener('input', function () {
+      // Uppercase and strip as they type, so what they see is what gets sent.
+      var cleaned = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (cleaned !== this.value) this.value = cleaned;
+
+      reqBtn.disabled = true;
+      check.textContent = '';
+      check.className = 'code-check';
+
+      clearTimeout(timer);
+      if (!cleaned) return;
+
+      // Debounced: a request per keystroke would hammer the endpoint and the
+      // answer for a half-typed code is not useful anyway.
+      timer = setTimeout(function () { runCheck(cleaned); }, 350);
+    });
+
+    function runCheck(code) {
+      check.textContent = 'Checking…';
+      check.className = 'code-check code-check--wait';
+
+      post('/referrals/check-code', { code: code })
+        .then(function (data) {
+          // A slower earlier reply must not overwrite a newer one.
+          if (input.value !== code) return;
+          lastChecked = code;
+          check.textContent = data.message;
+          check.className = 'code-check ' + (data.success ? 'code-check--yes' : 'code-check--no');
+          reqBtn.disabled = !data.success;
+        })
+        .catch(function () {
+          if (input.value !== code) return;
+          check.textContent = 'Could not check that code.';
+          check.className = 'code-check code-check--no';
+        });
+    }
+
+    reqBtn.addEventListener('click', async function () {
+      var code = input.value.trim().toUpperCase();
+      if (!code || code !== lastChecked) return;
+
+      var ask = await Swal.fire({
+        icon: 'question',
+        title: 'Request ' + code + '?',
+        html: '<p style="font-size:13px;color:#6b7280;">A person reviews every custom code before ' +
+              'it goes live. Nothing is charged until it is approved.</p>',
+        showCancelButton: true,
+        confirmButtonText: 'Request it',
+        confirmButtonColor: '#15a844',
+      });
+      if (!ask.isConfirmed) return;
+
+      reqBtn.disabled = true;
+      reqBtn.textContent = 'Sending…';
+
+      var data = await post('/referrals/request-code', { type: 'custom', code: code });
+      if (data.success) {
+        await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
+        window.location.reload();
+        return;
+      }
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+      reqBtn.disabled = false;
+      reqBtn.textContent = 'Request';
+    });
+  }
+
+  /* ── Withdrawing a pending request ───────────────────────────────────── */
+  var cancelBtn = document.getElementById('cancelReqBtn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', async function () {
+      var ask = await Swal.fire({
+        icon: 'warning',
+        text: 'Withdraw this request? You can ask for a different code afterwards.',
+        showCancelButton: true,
+        confirmButtonText: 'Withdraw',
+        confirmButtonColor: '#ef4444',
+      });
+      if (!ask.isConfirmed) return;
+
+      var data = await post('/referrals/request/' + cancelBtn.dataset.id + '/cancel', {});
+      if (data.success) { window.location.reload(); return; }
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+    });
+  }
+
+  /* ── Copying an old code ─────────────────────────────────────────────── */
+  document.querySelectorAll('.code-history__copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.dataset.code;
+      var done = function () {
+        btn.classList.add('is-copied');
+        setTimeout(function () { btn.classList.remove('is-copied'); }, 1400);
+      };
+      // navigator.clipboard needs a secure context; fall back when absent.
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(code).then(done).catch(fallback);
+      } else { fallback(); }
+
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+})();
 </script>
