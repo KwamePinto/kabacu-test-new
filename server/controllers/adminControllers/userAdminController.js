@@ -134,10 +134,17 @@ exports.loginAdminPost = async (req, res) => {
       );
 
     // ── 2FA gate ──────────────────────────────────────────────────────────
-    // The password is correct, but that is not enough to authenticate. No
-    // admin_token is issued here — only a PENDING marker in the session, which
-    // grants access to nothing. The token is set in verifyOtpPost once the
-    // emailed code checks out.
+    // An admin may be exempted (by themselves in their profile, or by a super
+    // admin who unblocked them). Exempt accounts authenticate on the password
+    // alone, exactly as before 2FA existed.
+    if (user.twoFactorEnabled === false) {
+      return grantAdminSession(req, res, user);
+    }
+
+    // Otherwise the password is correct but that is not enough. No admin_token
+    // is issued here — only a PENDING marker in the session, which grants
+    // access to nothing. The token is set in verifyOtpPost once the emailed
+    // code checks out.
     req.session.pendingAdmin2fa = {
       id: String(user._id),
       email: user.email,
@@ -1046,3 +1053,128 @@ exports.resendOtp = async (req, res) => {
     return renderOtp(res, { error: "Could not send a new code. Please try again." });
   }
 };
+
+/* ── 2FA exemptions ──────────────────────────────────────────────────────────
+   Two ways an admin can end up without a second factor:
+
+     1. they turn it off themselves, from their own profile
+     2. a super admin turns it off for them — the lockout escape hatch, for when
+        an admin cannot receive the emailed code
+
+   Rank rule: an admin may always change their own setting. Changing someone
+   else's is restricted to super_admin, and never on another super_admin — so
+   the top rank cannot be stripped of protection by a peer.
+
+   Every change is recorded (who, when, why) because removing a second factor is
+   a security decision, not a preference.                                     */
+
+const RANK = { junior_admin: 1, senior_admin: 2, super_admin: 3 };
+
+/** Can `actor` change 2FA on `target`? Returns null if allowed, else a reason. */
+function twoFactorDenial(actor, target) {
+  const isSelf = String(actor.id) === String(target._id);
+  if (isSelf) return null;
+
+  if (actor.role !== 'super_admin') {
+    return 'Only a super admin can change another admin\'s two-factor setting.';
+  }
+  if (target.role === 'super_admin') {
+    return 'A super admin\'s two-factor setting can only be changed by themselves.';
+  }
+  if ((RANK[actor.role] || 0) <= (RANK[target.role] || 0)) {
+    return 'You can only change this for an admin of a lower rank.';
+  }
+  return null;
+}
+
+/** An admin turning their own 2FA on or off, from their profile. */
+exports.toggleOwnTwoFactor = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const admin = await UserAdminModel.findById(req.user.id);
+      if (!admin) return res.json({ success: false, message: 'Account not found.' });
+
+      const enable = req.body.enabled === true || req.body.enabled === 'true';
+      const reason = String(req.body.reason || '').trim();
+
+      admin.twoFactorEnabled = enable;
+      if (enable) {
+        admin.twoFactorDisabledBy = null;
+        admin.twoFactorDisabledAt = null;
+        admin.twoFactorDisabledReason = '';
+      } else {
+        admin.twoFactorDisabledBy = admin.username + ' (self)';
+        admin.twoFactorDisabledAt = new Date();
+        admin.twoFactorDisabledReason = reason || 'Disabled by the admin from their own profile';
+      }
+
+      // Clear any in-flight code so a stale one cannot be replayed later.
+      admin.twoFactorCodeHash = null;
+      admin.twoFactorExpires  = null;
+      admin.twoFactorAttempts = 0;
+      await admin.save();
+
+      res.json({
+        success: true,
+        enabled: admin.twoFactorEnabled,
+        message: enable
+          ? 'Two-factor verification is now required at every login.'
+          : 'Two-factor verification is off. Your password alone will sign you in.',
+      });
+    } catch (err) {
+      console.error('[toggleOwnTwoFactor]', err);
+      res.json({ success: false, message: 'Server error. Please try again.' });
+    }
+  },
+];
+
+/** A super admin turning 2FA on or off for a lower-ranked admin. */
+exports.toggleAdminTwoFactor = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const target = await UserAdminModel.findById(req.params.id);
+      if (!target) return res.json({ success: false, message: 'Admin not found.' });
+
+      const denial = twoFactorDenial(req.user, target);
+      if (denial) return res.json({ success: false, message: denial });
+
+      const enable = req.body.enabled === true || req.body.enabled === 'true';
+      const reason = String(req.body.reason || '').trim();
+
+      // Turning it OFF for someone else weakens their account, so the reason is
+      // mandatory — it is the only record of why the exemption exists.
+      if (!enable && !reason) {
+        return res.json({ success: false, message: 'A reason is required when disabling two-factor for another admin.' });
+      }
+
+      target.twoFactorEnabled = enable;
+      if (enable) {
+        target.twoFactorDisabledBy = null;
+        target.twoFactorDisabledAt = null;
+        target.twoFactorDisabledReason = '';
+      } else {
+        target.twoFactorDisabledBy = (req.user && req.user.username) || 'super admin';
+        target.twoFactorDisabledAt = new Date();
+        target.twoFactorDisabledReason = reason;
+      }
+
+      target.twoFactorCodeHash = null;
+      target.twoFactorExpires  = null;
+      target.twoFactorAttempts = 0;
+      await target.save();
+
+      res.json({
+        success: true,
+        enabled: target.twoFactorEnabled,
+        message: enable
+          ? `${target.username} will be asked for a code at every login.`
+          : `${target.username} can now sign in with their password alone.`,
+      });
+    } catch (err) {
+      console.error('[toggleAdminTwoFactor]', err);
+      res.json({ success: false, message: 'Server error. Please try again.' });
+    }
+  },
+];

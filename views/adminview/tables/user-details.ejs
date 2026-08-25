@@ -118,6 +118,9 @@
                     <li class="nav-item">
                       <a class="nav-link" data-toggle="tab" href="#tab-transactions" role="tab">Account Statements</a>
                     </li>
+                    <li class="nav-item">
+                      <a class="nav-link" data-toggle="tab" href="#tab-referrals" role="tab">Referrals</a>
+                    </li>
                   </ul>
                 </div>
                 <div class="card-body">
@@ -290,6 +293,194 @@
                     </div>
 
                     <!-- Account Statements tab -->
+
+                    <!-- Referrals tab -->
+                    <div class="tab-pane fade" id="tab-referrals" role="tabpanel">
+                      <%
+                        var rStats = typeof referralStats !== 'undefined' ? referralStats : null;
+                        var rMade  = typeof referralsMade !== 'undefined' ? (referralsMade || []) : [];
+                        var rBy    = typeof referredBy    !== 'undefined' ? referredBy : null;
+                        var rSet   = typeof referralSettings !== 'undefined' ? referralSettings : null;
+                        var naira  = function (n) { return '₦' + Number(n || 0).toLocaleString(); };
+
+                        /* What one referral actually paid out. Reads the snapshot frozen on
+                           the referral at payout time, so later settings changes never
+                           rewrite history. Unpaid rows show what they would be worth. */
+                        function rewardLabel(r) {
+                          if (r.status === 'rewarded') {
+                            if (r.rewardType === 'rewardpoint') return (r.rewardAmount || 0) + ' RP';
+                            if (r.rewardType === 'money')       return naira(r.rewardAmount);
+                            if (r.rewardType === 'data') {
+                              var d = r.rewardProduct && r.rewardProduct.dataDetails;
+                              return d ? (d.plan_type || 'Data bundle') : 'Data bundle';
+                            }
+                            return 'Rewarded';
+                          }
+                          if (r.status === 'void') return 'Not eligible';
+                          if (!rSet || !rSet.isActive) return 'Programme paused';
+                          if (rSet.rewardType === 'rewardpoint') return 'Would pay ' + (rSet.amount || 0) + ' RP';
+                          if (rSet.rewardType === 'money')       return 'Would pay ' + naira(rSet.amount);
+                          return 'Would pay a data bundle';
+                        }
+
+                        var statusBadge = {
+                          rewarded:  'badge-success',
+                          qualified: 'badge-info',
+                          pending:   'badge-warning',
+                          void:      'badge-secondary',
+                        };
+                      %>
+
+                      <!-- This user's own code -->
+                      <div class="row mb-4">
+                        <div class="col-md-6">
+                          <div class="card mb-0" style="border:1px solid #e4e6fc;">
+                            <div class="card-body">
+                              <h6 style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#6c757d;">Their referral code</h6>
+                              <div class="d-flex align-items-center" style="gap:10px;">
+                                <code id="ud-ref-code" style="font-size:20px;font-weight:700;letter-spacing:.14em;background:#f8f9fa;border:1px dashed #c9d0ff;border-radius:6px;padding:8px 14px;">
+                                  <%= typeof referralCode !== 'undefined' && referralCode ? referralCode : '—' %>
+                                </code>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="ud-copy-code"
+                                        data-code="<%= typeof referralCode !== 'undefined' ? referralCode : '' %>">Copy</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Who brought them in -->
+                        <div class="col-md-6 mt-3 mt-md-0">
+                          <div class="card mb-0" style="border:1px solid #e4e6fc;">
+                            <div class="card-body">
+                              <h6 style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#6c757d;">Referred by</h6>
+                              <% if (rBy && rBy.referrer) { %>
+                                <div style="font-size:15px;font-weight:700;">
+                                  <a href="/admin/product/user-details/<%= rBy.referrer._id %>"><%= rBy.referrer.username %></a>
+                                </div>
+                                <small class="text-muted d-block"><%= rBy.referrer.email %></small>
+                                <small class="text-muted d-block">
+                                  Used code <code><%= rBy.codeUsed %></code>
+                                  on <%= new Date(rBy.createdAt).toLocaleDateString('en-GB') %>
+                                </small>
+                                <span class="badge <%= statusBadge[rBy.status] || 'badge-secondary' %> mt-2" style="font-size:11px;padding:4px 9px;">
+                                  <%= rBy.status %>
+                                </span>
+                                <% if (rBy.status === 'rewarded') { %>
+                                  <small class="d-block mt-1 text-success">
+                                    Paid their referrer <%= rewardLabel(rBy) %>
+                                  </small>
+                                <% } %>
+                              <% } else { %>
+                                <p class="text-muted mb-0" style="font-size:13px;">Signed up without a referral code.</p>
+                              <% } %>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Totals -->
+                      <% if (rStats) { %>
+                      <div class="row mb-3">
+                        <div class="col-4 col-md-2"><div class="card mb-2"><div class="card-body text-center py-3">
+                          <div style="font-size:22px;font-weight:700;"><%= rStats.total %></div>
+                          <div style="font-size:11px;color:#6c757d;text-transform:uppercase;">Referred</div>
+                        </div></div></div>
+                        <div class="col-4 col-md-2"><div class="card mb-2"><div class="card-body text-center py-3">
+                          <div style="font-size:22px;font-weight:700;" class="text-success"><%= rStats.rewarded %></div>
+                          <div style="font-size:11px;color:#6c757d;text-transform:uppercase;">Rewarded</div>
+                        </div></div></div>
+                        <div class="col-4 col-md-2"><div class="card mb-2"><div class="card-body text-center py-3">
+                          <div style="font-size:22px;font-weight:700;" class="text-warning"><%= rStats.pending %></div>
+                          <div style="font-size:11px;color:#6c757d;text-transform:uppercase;">Awaiting</div>
+                        </div></div></div>
+                        <div class="col-4 col-md-2"><div class="card mb-2"><div class="card-body text-center py-3">
+                          <div style="font-size:22px;font-weight:700;"><%= rStats.earnedRp %></div>
+                          <div style="font-size:11px;color:#6c757d;text-transform:uppercase;">RP earned</div>
+                        </div></div></div>
+                        <div class="col-4 col-md-2"><div class="card mb-2"><div class="card-body text-center py-3">
+                          <div style="font-size:22px;font-weight:700;"><%= naira(rStats.earnedMoney) %></div>
+                          <div style="font-size:11px;color:#6c757d;text-transform:uppercase;">Cash earned</div>
+                        </div></div></div>
+                        <div class="col-4 col-md-2"><div class="card mb-2"><div class="card-body text-center py-3">
+                          <div style="font-size:22px;font-weight:700;"><%= rStats.earnedData %></div>
+                          <div style="font-size:11px;color:#6c757d;text-transform:uppercase;">Data rewards</div>
+                        </div></div></div>
+                      </div>
+
+                      <% if (rStats.commissionCount > 0) { %>
+                      <div class="alert alert-light" style="border:1px solid #e4e6fc;font-size:13px;">
+                        Ongoing commission: <strong><%= rStats.commissionCount %></strong> payout(s)
+                        totalling <strong><%= rStats.commissionEarned %></strong>
+                        (naira or RP, depending on the setting at the time) from purchases made by
+                        people they referred, after those referrals qualified.
+                      </div>
+                      <% } %>
+                      <% } %>
+
+                      <!-- Everyone they brought in -->
+                      <h6 class="mt-4 mb-2" style="font-size:13px;font-weight:700;">People they referred</h6>
+                      <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                          <thead>
+                            <tr>
+                              <th>User</th>
+                              <th>Their code</th>
+                              <th>Joined</th>
+                              <th>Status</th>
+                              <th>Reward</th>
+                              <th>Qualified / Paid</th>
+                              <th class="text-right">Commission</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if (!rMade.length) { %>
+                            <tr><td colspan="7" class="text-center text-muted py-4">This user has not referred anyone.</td></tr>
+                            <% } %>
+                            <% rMade.forEach(function (r) { %>
+                            <tr>
+                              <td>
+                                <% if (r.referred) { %>
+                                  <a href="/admin/product/user-details/<%= r.referred._id %>"><strong><%= r.referred.username %></strong></a><br>
+                                  <small class="text-muted"><%= r.referred.email %></small>
+                                <% } else { %>
+                                  <span class="text-muted">Deleted user</span>
+                                <% } %>
+                              </td>
+                              <td><small><code><%= (r.referred && r.referred.referralCode) || '—' %></code></small></td>
+                              <td><small><%= new Date(r.createdAt).toLocaleDateString('en-GB') %></small></td>
+                              <td>
+                                <span class="badge <%= statusBadge[r.status] || 'badge-secondary' %>" style="font-size:11px;padding:4px 9px;">
+                                  <%= r.status %>
+                                </span>
+                              </td>
+                              <td>
+                                <span class="<%= r.status === 'rewarded' ? 'text-success font-weight-bold' : 'text-muted' %>">
+                                  <%= rewardLabel(r) %>
+                                </span>
+                                <% if (r.rewardNote) { %><br><small class="text-muted"><%= r.rewardNote %></small><% } %>
+                              </td>
+                              <td>
+                                <small>
+                                  <% if (r.qualifiedAt) { %>Q: <%= new Date(r.qualifiedAt).toLocaleDateString('en-GB') %><br><% } %>
+                                  <% if (r.rewardedAt) { %>P: <%= new Date(r.rewardedAt).toLocaleDateString('en-GB') %><% } %>
+                                  <% if (!r.qualifiedAt && !r.rewardedAt) { %><span class="text-muted">—</span><% } %>
+                                </small>
+                              </td>
+                              <td class="text-right">
+                                <% if (r.commissionEarned) { %>
+                                  <strong><%= r.commissionEarned %></strong><br>
+                                  <small class="text-muted"><%= r.commissionCount %>x <%= r.commissionType || '' %></small>
+                                <% } else { %>
+                                  <span class="text-muted">—</span>
+                                <% } %>
+                              </td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
                     <div class="tab-pane fade" id="tab-transactions" role="tabpanel">
                       <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
                         <small class="text-muted">
@@ -684,6 +875,32 @@
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-undo-alt"></i> Refund Deduction';
+    }
+  });
+})();
+</script>
+<script>
+// Copy the user's referral code — with a fallback for non-HTTPS admin sessions,
+// where navigator.clipboard is unavailable.
+(function () {
+  var btn = document.getElementById('ud-copy-code');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var code = this.dataset.code;
+    if (!code) return;
+    var done = function () {
+      btn.textContent = 'Copied';
+      setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(code).then(done).catch(fallback);
+    } else { fallback(); }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      document.body.removeChild(ta);
     }
   });
 })();

@@ -22,10 +22,18 @@ router.post('/edit-product/:id', upload.array('images', 3), getProducts.editProd
 router.post('/delete-product/:id',  getProducts.deleteProduct);
 router.post('/toggle-product/:id',  getProducts.toggleProduct);
 
-router.get('/payment-methods',          getProducts.viewPaymentMethods);
-router.post('/payment-methods/add',     getProducts.addPaymentMethod);
-router.post('/payment-methods/edit/:id', getProducts.editPaymentMethod);
-router.get('/payment-methods/toggle/:id', getProducts.togglePaymentMethod);
-router.get('/payment-methods/delete/:id', getProducts.deletePaymentMethod);
+/* Payment methods moved to the Payments & Wallets panel at
+   /admin/payments-wallets. These stay as redirects so a bookmarked link or an
+   older cached page lands somewhere useful rather than on a 404. */
+router.get('/payment-methods', (req, res) => res.redirect(301, '/admin/payments-wallets'));
+router.post('/payment-methods/add',      (req, res) => res.redirect(307, '/admin/payments-wallets/methods/add'));
+router.post('/payment-methods/edit/:id', (req, res) => res.redirect(307, '/admin/payments-wallets/methods/edit/' + req.params.id));
+router.get('/payment-methods/toggle/:id', (req, res) => res.redirect(302, '/admin/payments-wallets/methods/toggle/' + req.params.id));
+router.get('/payment-methods/delete/:id', (req, res) => res.redirect(302, '/admin/payments-wallets/methods/delete/' + req.params.id));
+
+/* Manual top-ups awaiting confirmation. Confirming is the only thing that
+   credits a country wallet other than Nigeria. */
+router.post('/top-ups/:id/confirm', getProducts.confirmManualTopUp);
+router.post('/top-ups/:id/reject',  getProducts.rejectManualTopUp);
 
 module.exports = router;

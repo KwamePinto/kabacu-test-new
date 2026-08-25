@@ -189,3 +189,126 @@
 
 .otp-section.visible { display: flex; }
 
+
+/* ── Wallet market switcher ──────────────────────────────────────────────────
+   The balance card doubles as a currency picker once the admin has opened more
+   than one market. Only rendered with 2+ wallets, so a single-market install
+   looks exactly as it did before. */
+
+.wallet-switch { position: relative; }
+
+.wallet-switch__toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.wallet-switch__toggle:hover { background: var(--primary-light); color: var(--primary); }
+.wallet-switch__toggle svg { width: 18px; height: 18px; }
+.wallet-switch__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Points up while the list is open, so the control reads as a disclosure. */
+.wallet-switch.is-open .wallet-switch__toggle { transform: rotate(180deg); }
+
+.wallet-switch__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .14);
+  overflow: hidden;
+  /* Hidden by clipping rather than display:none so the open/close animates. */
+  max-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: max-height .2s ease, opacity .15s ease, visibility .15s;
+}
+.wallet-switch.is-open .wallet-switch__menu {
+  max-height: 340px;
+  opacity: 1;
+  visibility: visible;
+  overflow-y: auto;
+}
+
+.wallet-switch__menu-head,
+.wallet-switch__menu-foot {
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--band-bg, transparent);
+}
+.wallet-switch__menu-foot {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+}
+
+.wallet-switch__opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.wallet-switch__opt:hover { background: var(--primary-light); }
+.wallet-switch__opt:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.wallet-switch__opt.is-active { background: var(--primary-light); }
+
+.wallet-switch__flag { font-size: 20px; line-height: 1; flex-shrink: 0; }
+
+.wallet-switch__opt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.wallet-switch__opt-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wallet-switch__opt-amt {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet-switch__opt-check {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  color: var(--primary);
+  opacity: 0;
+}
+.wallet-switch__opt.is-active .wallet-switch__opt-check { opacity: 1; }
+
+/* The amount can be mid-update while the request is in flight. */
+.wallet-switch.is-busy .balance-card__amount { opacity: .45; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wallet-switch__menu,
+  .wallet-switch__toggle { transition: none; }
+}

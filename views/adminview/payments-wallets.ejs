@@ -1,0 +1,415 @@
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    <div class="navbar-bg"></div>
+
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
+
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h1>Payments &amp; Wallets</h1>
+        </div>
+
+        <div class="section-body">
+
+          <p class="text-muted" style="margin-bottom:22px;max-width:760px;">
+            A country with a wallet is a live market: users hold a balance in its currency,
+            it appears in their wallet switcher, and the methods you register against it
+            become their funding options. A country with products but no wallet can be
+            browsed but not bought from.
+          </p>
+
+          <!-- Markets holding products with no wallet behind them. Browsable,
+               not buyable — worth saying out loud rather than leaving the admin
+               to find out from a support ticket. -->
+          <% if (unwalleted && unwalleted.length) { %>
+          <div class="alert alert-warning">
+            <h6 style="margin:0 0 6px;font-size:14px;font-weight:700;">Products with no wallet</h6>
+            <p style="margin:0 0 8px;font-size:13px;">
+              These markets have products but no wallet, so users can browse them and cannot pay.
+              Add a wallet, or move the products to a market that has one.
+            </p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <% unwalleted.forEach(function (u) { %>
+              <span class="badge badge-light" style="font-size:12px;padding:6px 10px;border:1px solid #f0c36d;">
+                <%= u.flag %> <%= u.name %> — <%= u.productCount %> product<%= u.productCount === 1 ? '' : 's' %>
+              </span>
+              <% }) %>
+            </div>
+          </div>
+          <% } %>
+
+          <% if (orphanMethods && orphanMethods.length) { %>
+          <div class="alert alert-secondary">
+            <strong>Unused payment methods.</strong>
+            <%= orphanMethods.length %> method(s) belong to a country with no wallet, so no user
+            can see them: <%= orphanMethods.map(function (m) { return m.name + ' (' + m.country + ')'; }).join(', ') %>.
+          </div>
+          <% } %>
+
+          <div class="row">
+
+            <!-- ── Add a market ──────────────────────────────────────────── -->
+            <div class="col-12 col-lg-4">
+              <div class="card">
+                <div class="card-header">
+                  <h4>Add a Country Wallet</h4>
+                </div>
+                <div class="card-body">
+                  <form method="POST" action="/admin/payments-wallets/countries/add" id="addWalletForm">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                    <div class="form-group">
+                      <label>Country</label>
+                      <select name="country" id="walletCountry" class="form-control" required>
+                        <option value="">Select a country…</option>
+                        <% addableCountries.forEach(function (c) { %>
+                        <option value="<%= c.code %>"><%= c.name %></option>
+                        <% }) %>
+                      </select>
+                      <small class="text-muted">Countries that already have a wallet are not listed.</small>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-4">
+                        <div class="form-group">
+                          <label>Symbol</label>
+                          <input type="text" name="currencySymbol" id="curSymbol" class="form-control" placeholder="₵" required>
+                        </div>
+                      </div>
+                      <div class="col-4">
+                        <div class="form-group">
+                          <label>Code</label>
+                          <input type="text" name="currencyCode" id="curCode" class="form-control" placeholder="GHS" maxlength="3">
+                        </div>
+                      </div>
+                      <div class="col-4">
+                        <div class="form-group">
+                          <label>Name</label>
+                          <input type="text" name="currencyName" id="curName" class="form-control" placeholder="Cedi">
+                        </div>
+                      </div>
+                    </div>
+                    <small class="text-muted d-block" style="margin:-8px 0 16px;">
+                      Filled in automatically for markets we know. Check it before saving —
+                      the wallet keeps this currency for good.
+                    </small>
+
+                    <hr>
+
+                    <label style="font-weight:600;">Payment methods</label>
+                    <p class="text-muted" style="font-size:12px;margin-bottom:10px;">
+                      How users fund this wallet. A new market starts out manual: the user pays
+                      out of band and you confirm the top-up. You can add more later.
+                    </p>
+
+                    <div id="methodRows"></div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addMethodRow">
+                      + Add another method
+                    </button>
+
+                    <button type="submit" class="btn btn-primary btn-block" style="margin-top:18px;">
+                      Create Wallet
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Existing markets ──────────────────────────────────────── -->
+            <div class="col-12 col-lg-8">
+
+              <% if (!wallets.length) { %>
+              <div class="card">
+                <div class="card-body text-center py-5 text-muted">
+                  No country wallets yet. Nigeria should be seeded first —
+                  run <code>node scripts/seed-country-wallets.js</code>.
+                </div>
+              </div>
+              <% } %>
+
+              <% wallets.forEach(function (w) { %>
+              <div class="card">
+                <div class="card-header" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+                  <h4 style="margin:0;">
+                    <span style="font-size:22px;"><%= w.flag %></span>
+                    <%= w.name %>
+                    <small class="text-muted" style="font-weight:400;">
+                      <%= w.currencySymbol %> <%= w.currencyCode %>
+                    </small>
+                  </h4>
+                  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+                    <% if (w.isActive) { %>
+                    <span class="badge badge-success">Live</span>
+                    <% } else { %>
+                    <span class="badge badge-secondary">Hidden</span>
+                    <% } %>
+                    <span class="badge badge-light" style="border:1px solid #e4e6fc;">
+                      <%= w.productCount %> product<%= w.productCount === 1 ? '' : 's' %>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="card-body">
+
+                  <% if (!w.productCount) { %>
+                  <div class="alert alert-light" style="border:1px solid #e4e6fc;font-size:13px;">
+                    This market has a wallet but no products, so users switching to it see
+                    "coming soon". Give it products from
+                    <a href="/admin/product/add-products">Add Product</a>.
+                  </div>
+                  <% } %>
+
+                  <% if (!w.methods.filter(function (m) { return m.isActive; }).length) { %>
+                  <div class="alert alert-warning" style="font-size:13px;">
+                    No active payment method — users cannot fund this wallet. Add one below.
+                  </div>
+                  <% } %>
+
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                      <thead>
+                        <tr>
+                          <th>Method</th>
+                          <th>How it works</th>
+                          <th>Status</th>
+                          <th class="text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% if (!w.methods.length) { %>
+                        <tr><td colspan="4" class="text-center text-muted py-3">No methods yet.</td></tr>
+                        <% } %>
+                        <% w.methods.forEach(function (m) { %>
+                        <tr>
+                          <td>
+                            <b><%= m.name %></b>
+                            <% if (m.description) { %><br><small class="text-muted"><%= m.description %></small><% } %>
+                          </td>
+                          <td>
+                            <% if (m.kind === 'gateway') { %>
+                              <span class="badge badge-info">Hosted checkout</span>
+                              <% if (m.provider) { %><br><small class="text-muted"><%= m.provider %></small><% } %>
+                            <% } else { %>
+                              <span class="badge badge-light" style="border:1px solid #e4e6fc;">Manual — you confirm</span>
+                              <% if (m.instructions) { %><br><small class="text-muted"><%= m.instructions %></small><% } %>
+                            <% } %>
+                          </td>
+                          <td>
+                            <% if (m.isActive) { %>
+                            <span class="badge badge-success">Active</span>
+                            <% } else { %>
+                            <span class="badge badge-secondary">Inactive</span>
+                            <% } %>
+                          </td>
+                          <td class="text-right" style="white-space:nowrap;">
+                            <button type="button" class="btn btn-sm btn-info edit-method-btn" style="color:#fff;border-radius:45px;"
+                                    data-id="<%= m._id %>"
+                                    data-name="<%= m.name %>"
+                                    data-description="<%= m.description || '' %>"
+                                    data-instructions="<%= m.instructions || '' %>">Edit</button>
+                            <a href="/admin/payments-wallets/methods/toggle/<%= m._id %>"
+                               class="btn btn-sm <%= m.isActive ? 'btn-warning' : 'btn-success' %>"
+                               style="color:#fff;border-radius:45px;">
+                              <%= m.isActive ? 'Deactivate' : 'Activate' %>
+                            </a>
+                          </td>
+                        </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Add a method to this market -->
+                  <form method="POST" action="/admin/payments-wallets/methods/add" class="mt-3">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="country" value="<%= w.country %>">
+                    <div class="row">
+                      <div class="col-12 col-md-3">
+                        <input type="text" name="name" class="form-control form-control-sm mb-2"
+                               placeholder="Method name" required>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <input type="text" name="description" class="form-control form-control-sm mb-2"
+                               placeholder="Shown to the user" maxlength="100">
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <input type="text" name="instructions" class="form-control form-control-sm mb-2"
+                               placeholder="Pay-to details">
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <button type="submit" class="btn btn-sm btn-primary btn-block mb-2">Add</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+
+                <div class="card-footer" style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button type="button" class="btn btn-sm btn-outline-secondary edit-currency-btn"
+                          data-id="<%= w._id %>"
+                          data-name="<%= w.name %>"
+                          data-symbol="<%= w.currencySymbol %>"
+                          data-code="<%= w.currencyCode %>"
+                          data-currencyname="<%= w.currencyName %>">Edit currency</button>
+
+                  <% if (w.country !== 'NG') { %>
+                  <a href="/admin/payments-wallets/countries/toggle/<%= w._id %>"
+                     class="btn btn-sm <%= w.isActive ? 'btn-outline-warning' : 'btn-outline-success' %>">
+                    <%= w.isActive ? 'Hide from users' : 'Make live' %>
+                  </a>
+                  <a href="/admin/payments-wallets/countries/delete/<%= w._id %>"
+                     class="btn btn-sm btn-outline-danger"
+                     onclick="return confirm('Remove the <%= w.name %> wallet and its payment methods? This is refused if any user still holds funds in it.')">
+                    Remove market
+                  </a>
+                  <% } else { %>
+                  <span class="text-muted" style="font-size:12px;align-self:center;">
+                    Nigeria is the fallback market — it cannot be hidden or removed.
+                  </span>
+                  <% } %>
+                </div>
+              </div>
+              <% }) %>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <%- include('../partials/footerAdmin.ejs') %>
+  </div>
+</div>
+
+<!-- ── Edit payment method ── -->
+<div class="modal fade" id="editMethodModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="POST" id="editMethodForm" action="">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Payment Method</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Method Name</label>
+            <input type="text" name="name" id="editMethodName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Additional Info <small class="text-muted">(optional)</small></label>
+            <input type="text" name="description" id="editMethodDescription" class="form-control" maxlength="100">
+            <small class="text-muted">Shown beside the name in the user's payment dropdown.</small>
+          </div>
+          <div class="form-group">
+            <label>Pay-to details <small class="text-muted">(optional)</small></label>
+            <input type="text" name="instructions" id="editMethodInstructions" class="form-control">
+            <small class="text-muted">Account or mobile money number the user sends funds to.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit currency ── -->
+<div class="modal fade" id="editCurrencyModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="POST" id="editCurrencyForm" action="">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit currency — <span id="editCurrencyCountry"></span></h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted" style="font-size:13px;">
+            The country cannot be changed — balances are keyed by it, so repointing a wallet
+            would reassign every user's money. Only how the currency is displayed is editable.
+          </p>
+          <div class="form-group">
+            <label>Symbol</label>
+            <input type="text" name="currencySymbol" id="editCurSymbol" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Code</label>
+            <input type="text" name="currencyCode" id="editCurCode" class="form-control" maxlength="3">
+          </div>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" name="currencyName" id="editCurName" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
+<script>
+(function () {
+  /* Currency lookup, served from the same table the server uses, so the
+     prefill and what gets saved cannot disagree. */
+  var CURRENCIES = <%- JSON.stringify(currencies) %>;
+
+  $('#walletCountry').on('change', function () {
+    var c = CURRENCIES[this.value];
+    // Unknown market: leave the fields blank for the admin to fill rather than
+    // guessing a symbol. The form requires a symbol, so nothing saves half-set.
+    $('#curSymbol').val(c ? c.symbol : '');
+    $('#curCode').val(c ? c.code : '');
+    $('#curName').val(c ? c.name : '');
+  });
+
+  // Repeatable payment-method rows on the create form.
+  var rowIdx = 0;
+  function addRow(first) {
+    rowIdx++;
+    $('#methodRows').append(
+      '<div class="method-row" style="border:1px solid #e4e6fc;border-radius:6px;padding:10px;margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+          '<small class="text-muted">Method ' + rowIdx + '</small>' +
+          (first ? '' : '<button type="button" class="btn btn-sm btn-link text-danger remove-row" style="padding:0;">Remove</button>') +
+        '</div>' +
+        '<input type="text" name="methodName" class="form-control form-control-sm mb-2" placeholder="e.g. MTN Mobile Money">' +
+        '<input type="text" name="methodDescription" class="form-control form-control-sm mb-2" placeholder="Shown to the user" maxlength="100">' +
+        '<input type="text" name="methodInstructions" class="form-control form-control-sm" placeholder="Pay-to details">' +
+      '</div>'
+    );
+  }
+  addRow(true);
+  $('#addMethodRow').on('click', function () { addRow(false); });
+  $(document).on('click', '.remove-row', function () { $(this).closest('.method-row').remove(); });
+
+  $(document).on('click', '.edit-method-btn', function () {
+    var b = $(this);
+    $('#editMethodName').val(b.data('name'));
+    $('#editMethodDescription').val(b.data('description'));
+    $('#editMethodInstructions').val(b.data('instructions'));
+    $('#editMethodForm').attr('action', '/admin/payments-wallets/methods/edit/' + b.data('id'));
+    $('#editMethodModal').modal('show');
+  });
+
+  $(document).on('click', '.edit-currency-btn', function () {
+    var b = $(this);
+    $('#editCurrencyCountry').text(b.data('name'));
+    $('#editCurSymbol').val(b.data('symbol'));
+    $('#editCurCode').val(b.data('code'));
+    $('#editCurName').val(b.data('currencyname'));
+    $('#editCurrencyForm').attr('action', '/admin/payments-wallets/countries/edit/' + b.data('id'));
+    $('#editCurrencyModal').modal('show');
+  });
+})();
+</script>

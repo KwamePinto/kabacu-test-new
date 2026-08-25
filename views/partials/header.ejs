@@ -32,7 +32,7 @@
         <% if (user) { %>
 
         <!-- Mobile: wallet balance chip -->
-        <span class="app-header__wallet-balance mobile-only"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></span>
+        <span class="app-header__wallet-balance mobile-only" title="<%= typeof activeCurrency !== 'undefined' && activeCurrency.name ? activeCurrency.name + ' wallet' : 'Wallet' %>"><%= (typeof activeCurrency !== 'undefined' && activeCurrency.symbol) || '₦' %><%= (typeof marketBalance === 'function' ? marketBalance(wallet) : ((wallet && wallet.balances && wallet.balances.NAIRA) || 0)).toFixed(2) %></span>
 
         <!-- Notification bell -->
         <div class="notif-bell-wrap" style="position:relative;display:inline-block;">
@@ -60,7 +60,7 @@
         <button type="button" id="countryTriggerBtn" class="app-header__icon-btn app-header__flag-btn js-country-trigger desktop-only" aria-label="Select country" title="Select your country">
           <span class="js-country-flag">🇳🇬</span>
         </button>
-        <p class="desktop-only app-header__balance"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></p>
+        <p class="desktop-only app-header__balance" title="<%= typeof activeCurrency !== 'undefined' && activeCurrency.name ? activeCurrency.name + ' wallet' : 'Wallet' %>"><%= (typeof activeCurrency !== 'undefined' && activeCurrency.symbol) || '₦' %><%= (typeof marketBalance === 'function' ? marketBalance(wallet) : ((wallet && wallet.balances && wallet.balances.NAIRA) || 0)).toFixed(2) %></p>
 
         <% } else { %>
         <!-- Signed out: pick a market to browse. Signed-in users don't get this
@@ -222,6 +222,7 @@
 <script>
 (function () {
   var STORAGE_KEY  = 'kbc_country';
+  var CSRF_TOKEN   = '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>';
   var IS_SIGNED_IN = <%= user ? 'true' : 'false' %>;
 
   function flagEmoji(code) {
@@ -406,12 +407,32 @@
     closeModal();
     window.dispatchEvent(new CustomEvent('kbc:countrychange', { detail: { code: code } }));
 
+    if (!changed) return;
+
     /* Which products exist is decided server-side, so the page has to be
-       re-fetched for the new market to take effect. Only signed-out visitors
-       can change market — signed-in users are locked to their profile. */
-    if (changed && !IS_SIGNED_IN) {
-      setTimeout(function () { window.location.reload(); }, 150);
+       re-fetched either way.
+
+       For a signed-in user the switch also has to be recorded, because it can
+       move which wallet they spend from: into a market we hold money in, the
+       wallet follows; into one we do not, the money stays put and they can
+       browse but not buy. The server decides that — see setWalletCountry() —
+       and we reload once it has, so the balance in this header and the prices
+       on the page come back agreeing with each other. */
+    if (IS_SIGNED_IN) {
+      fetch('/my-wallet/switch-market', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ country: code }),
+      })
+        .then(function () { window.location.reload(); })
+        // A failed record is not worth blocking the browse on: the cookie is
+        // already set, so the new market's products still load. Only the wallet
+        // is left where it was, which is the safe side to fail on.
+        .catch(function () { window.location.reload(); });
+      return;
     }
+
+    setTimeout(function () { window.location.reload(); }, 150);
   }
 
   listEl.addEventListener('click', function (e) {

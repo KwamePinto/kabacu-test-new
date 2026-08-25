@@ -51,8 +51,9 @@
                       <!-- DATA fields -->
                       <% if (product.category === 'DATA') { %>
                       <div class="form-group">
-                        <label>Plan ID</label>
+                        <label>Bundle ID</label>
                         <input type="number" name="plan_id" class="form-control" value="<%= product.dataDetails?.plan_id || '' %>">
+                        <small class="text-muted">The provider's id for this exact bundle size. Every size has its own.</small>
                       </div>
                       <div class="form-group">
                         <label>Network</label>
@@ -81,6 +82,7 @@
                       <div class="form-group">
                         <label>Plan Name</label>
                         <input type="text" name="plan_name" class="form-control" value="<%= product.dataDetails?.plan_name || '' %>">
+                        <small class="text-muted">Legacy field kept for search. Leave it matching Plan Type.</small>
                       </div>
                       <div class="form-group">
                         <label>Amount (₦)</label>
@@ -93,6 +95,11 @@
                       <div class="form-group">
                         <label>Validate Period</label>
                         <input type="text" name="validate_period" class="form-control" value="<%= product.dataDetails?.validate_period || '' %>">
+                      </div>
+                      <div class="form-group">
+                        <label>Bonus <small class="text-muted">(optional)</small></label>
+                        <input type="text" name="bonus" class="form-control" placeholder="e.g. 2GB YouTube" value="<%= product.dataDetails?.bonus || '' %>">
+                        <small class="text-muted">Shown as a chip on the card. Clear the field to remove it.</small>
                       </div>
                       <% } %>
 

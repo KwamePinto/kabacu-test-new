@@ -38,6 +38,12 @@ router.post('/cart/add', authenticateUser, getPackages.addToCart);
 router.get('/item-checkout', authenticateUser, getPackages.itemCheckout);
 
 router.get('/my-wallet', authenticateUser, getPackages.userWallet);
+/* Switching market. Signed-in only, because it is what decides which wallet the
+   user spends from — signed-out visitors just set the cookie client-side. */
+router.post('/my-wallet/switch-market', authenticateUser, getPackages.switchMarket);
+/* Manual funding for markets with no gateway. Records the claim only — an admin
+   confirms before any balance moves. */
+router.post('/my-wallet/manual-topup', authenticateUser, getPackages.requestManualTopUp);
 
 // routes
 // router.get('/wallet/checkout', authenticateUser, walletController.walletCheckoutPage);

@@ -19,6 +19,7 @@ router.post("/admins/approve-reset/:id", getAdminUsers.approveReset);
 // ── Profile ────────────────────────────────────────────────
 router.get("/profile", getAdminUsers.adminProfile);
 router.post("/profile", getAdminUsers.adminProfilePost);
+router.post("/profile/two-factor", getAdminUsers.toggleOwnTwoFactor);
 
 // ── Admin management (super_admin only) ───────────────────
 router.get("/admins", getAdminUsers.viewAdmins);
@@ -27,6 +28,7 @@ router.post("/admins/add", getAdminUsers.addAdminPost);
 router.post("/admins/toggle-status", getAdminUsers.toggleAdminStatus);
 router.get("/admins/:id", getAdminUsers.adminDetails);
 router.post("/admins/:id/role", getAdminUsers.updateAdminRole);
+router.post("/admins/:id/two-factor", getAdminUsers.toggleAdminTwoFactor);
 router.post("/admins/:id/delete", getAdminUsers.deleteAdmin);
 
 // ── Notifications JSON ─────────────────────────────────────

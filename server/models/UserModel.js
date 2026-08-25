@@ -10,6 +10,17 @@ const userSchema = new Schema({
         match:/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
     },
     country: { type: String },
+
+    /**
+     * Which country wallet the user's money is currently in, as an ISO code.
+     *
+     * Separate from `country` (where they registered) and from the market they
+     * are browsing, because the three move independently: browsing Japan when
+     * Japan has no wallet must leave the money where it is. This only ever
+     * changes to a country that has an active wallet, so it always names a
+     * market the user can actually pay in.
+     */
+    walletCountry: { type: String, default: 'NG', uppercase: true, trim: true },
     phone_number: { type: String },
     minerId: { type: Number, unique: true,sparse: true },
     password: { type: String, required: true },

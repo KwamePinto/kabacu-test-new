@@ -10,6 +10,7 @@ const Transaction = require("../../models/TransactionModel");
 const Conversion = require("../../models/ConversionModal");
 const CoursePurchase = require("../../models/CoursePurchaseModel");
 const PaymentMethod = require("../../models/PaymentMethodModel");
+const CountryWallet = require("../../models/CountryWalletModel");
 const axios = require("axios");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
@@ -19,9 +20,13 @@ const Referral = require("../../models/ReferralModel");
 const ReferralSettings = require("../../models/ReferralSettingsModel");
 const {
   resolveViewerCountry,
+  setWalletCountry,
   countryFilter,
   toName: countryName,
+  toCode,
+  DEFAULT_COUNTRY,
 } = require("../../utils/country");
+const walletUtil = require("../../utils/wallet");
 const { generateSignature, verifySignature } = require("../../utils/palmpay");
 const { transferRPToBittoken } = require("../../services/bittokenService");
 const SiteSettings = require("../../models/SiteSettingsModel");
@@ -543,15 +548,166 @@ exports.itemCheckout = async (req, res) => {
 exports.userWallet = async (req, res) => {
   try {
     const userId = req.user.id;
-    const [user, wallet, paymentMethods] = await Promise.all([
+    const [user, wallet, countryWallets, allMethods] = await Promise.all([
       User.findById(userId),
       Wallet.findOne({ user: userId }),
-      PaymentMethod.find({ isActive: true }).sort({ createdAt: 1 }),
+      CountryWallet.active(),
+      PaymentMethod.find({ isActive: true }).sort({ country: 1, createdAt: 1 }).lean(),
     ]);
-    res.render("webview/user-wallet", { user, wallet, paymentMethods });
+
+    /* One entry per live market, whether or not this user holds money in it —
+       a market the admin just created has to appear at zero, otherwise there is
+       no way to switch to it and fund it. */
+    const marketWallets = walletUtil.balancesFor(wallet, countryWallets, allMethods);
+
+    /* Which market's money the page opens on. Their active wallet, but only if
+       it is still live: a market the admin has since switched off must not be
+       the one selected, or the user lands on funding options that no longer
+       exist. Nigeria is the fallback because it is always live. */
+    let active = toCode(user && user.walletCountry) || DEFAULT_COUNTRY;
+    if (!marketWallets.some((m) => m.country === active)) {
+      active = marketWallets.some((m) => m.country === DEFAULT_COUNTRY)
+        ? DEFAULT_COUNTRY
+        : (marketWallets[0] && marketWallets[0].country) || DEFAULT_COUNTRY;
+    }
+
+    res.render("webview/user-wallet", {
+      user,
+      wallet,
+      marketWallets,
+      activeMarket: active,
+      // The methods for the market being shown, so the existing funding form
+      // keeps working unchanged on first render.
+      paymentMethods:
+        (marketWallets.find((m) => m.country === active) || {}).paymentMethods || [],
+    });
   } catch (error) {
     console.log(error);
-    res.render("webview/user-wallet", { user: null, wallet: null });
+    res.render("webview/user-wallet", {
+      user: null,
+      wallet: null,
+      marketWallets: [],
+      activeMarket: DEFAULT_COUNTRY,
+      paymentMethods: [],
+    });
+  }
+};
+
+/**
+ * Record a market switch for a signed-in user.
+ *
+ * The wallet only follows them into a market that has one — see
+ * setWalletCountry(). The response says whether it moved so the page can update
+ * the balance card without a reload, and reports the market's currency so the
+ * client does not have to keep its own copy of the currency table.
+ */
+/**
+ * Record a manual top-up: the user says they have paid through one of the
+ * methods the admin registered for their market, and an admin confirms it.
+ *
+ * Nothing here touches a balance. A market with no gateway behind it has no way
+ * for us to know a payment landed, so the money is credited only when an admin
+ * confirms — see confirmManualTopUp in the admin controller. Crediting on the
+ * user's word would let anyone mint currency.
+ */
+exports.requestManualTopUp = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const amount = Number(req.body.amount);
+
+    if (!amount || amount <= 0) {
+      return res.json({ success: false, message: "Enter a valid amount." });
+    }
+
+    const viewer = await resolveViewerCountry(req);
+    const market = walletUtil.marketOf(viewer.walletCountry);
+
+    // Nigeria funds through PalmPay, which is a real gateway — routing it here
+    // would put a confirmed payment into a manual approval queue.
+    if (market === DEFAULT_COUNTRY) {
+      return res.json({
+        success: false,
+        message: "Naira top-ups go through the payment checkout, not manual confirmation.",
+      });
+    }
+
+    const cw = await CountryWallet.findOne({ country: market, isActive: true }).lean();
+    if (!cw) {
+      return res.json({ success: false, message: "That market is not currently open." });
+    }
+
+    // The method has to be one the admin actually registered for this market.
+    const method = await PaymentMethod.findOne({
+      country: market,
+      name: String(req.body.paymentMethod || "").trim(),
+      isActive: true,
+    }).lean();
+
+    if (!method) {
+      return res.json({ success: false, message: "Pick a payment method for your market." });
+    }
+
+    const reference = `TOPUP-${market}-${Date.now()}-${crypto
+      .randomBytes(3)
+      .toString("hex")
+      .toUpperCase()}`;
+
+    await TopUp.create({
+      user: userId,
+      amount,
+      balanceType: "COUNTRY",
+      walletCountry: market,
+      isManual: true,
+      status: "PENDING",
+      reference,
+      paymentMethod: method.name,
+      userReference: String(req.body.userReference || "").trim(),
+    });
+
+    res.json({
+      success: true,
+      message:
+        `Recorded. Once we confirm your ${method.name} payment of ` +
+        `${cw.currencySymbol}${amount.toLocaleString()}, it will be added to your ` +
+        `${cw.currencyName || cw.country} wallet.`,
+    });
+  } catch (error) {
+    console.log("MANUAL TOPUP ERROR:", error);
+    res.json({ success: false, message: "Could not record that top-up." });
+  }
+};
+
+exports.switchMarket = async (req, res) => {
+  try {
+    const result = await setWalletCountry(req.user.id, req.body.country);
+    if (!result) return res.json({ success: false, message: "Account not found." });
+
+    // Keep the cookie in step: it is what decides which products they see, and
+    // resolveViewerCountry reads it on the next request.
+    res.cookie("kbc_country", result.code, {
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+      sameSite: "lax",
+      httpOnly: false,
+    });
+
+    const cw = await CountryWallet.findOne({ country: result.walletCountry }).lean();
+    const balance = walletUtil.getBalance(
+      await Wallet.findOne({ user: req.user.id }).lean(),
+      result.walletCountry,
+    );
+
+    res.json({
+      success: true,
+      country: result.code,
+      walletCountry: result.walletCountry,
+      walletChanged: result.walletChanged,
+      balance,
+      currencySymbol: (cw && cw.currencySymbol) || "",
+      currencyCode: (cw && cw.currencyCode) || "",
+    });
+  } catch (error) {
+    console.log("SWITCH MARKET ERROR:", error);
+    res.json({ success: false, message: "Could not switch market." });
   }
 };
 
@@ -854,24 +1010,64 @@ exports.payWithWallet = async (req, res) => {
     }
 
     // =====================================
+    // ✅ MARKET CHECK
+    // =====================================
+    /* Money may only buy what is sold in its own market. The wallets are
+       separate currencies with no rate between them, so spending Cedis on a
+       Nigerian bundle would be charging one number against another — the
+       balance would move by an amount that means nothing.
+
+       Refused before the debit, never after, so there is no refund to make. */
+    // resolveViewerCountry memoises on the request, so this is free when the
+    // country middleware already ran and one light lookup when it did not.
+    const buyerMarket = walletUtil.marketOf(
+      (await resolveViewerCountry(req)).walletCountry
+    );
+
+    const foreign = itemsToProcess.filter((item) => {
+      const pc = toCode(item.product && item.product.country) || DEFAULT_COUNTRY;
+      return pc !== buyerMarket;
+    });
+
+    if (foreign.length) {
+      const names = foreign
+        .map((i) => (i.product.dataDetails && i.product.dataDetails.plan_type) || i.product.item_name || 'item')
+        .slice(0, 3)
+        .join(', ');
+      const theirMarket = countryName(
+        toCode(foreign[0].product.country) || DEFAULT_COUNTRY
+      );
+      return res.json({
+        success: false,
+        message:
+          `Your ${countryName(buyerMarket)} wallet cannot buy ${names}, which is sold in ` +
+          `${theirMarket}. Switch to your ${theirMarket} wallet from the wallet page, or ` +
+          `choose a product sold in ${countryName(buyerMarket)}.`,
+      });
+    }
+
+    // =====================================
     // ✅ DEDUCT WALLET (atomic)
     // =====================================
     // Single DB operation: check balance AND deduct atomically.
     // Prevents two simultaneous purchases from both passing the balance check.
+    // The path is resolved from the buyer's market, so Nigeria still hits
+    // balances.NAIRA and every other market hits its own entry.
+    const balPath = walletUtil.balancePath(buyerMarket);
     const walletSnap = await Wallet.findOneAndUpdate(
-      { user: userId, 'balances.NAIRA': { $gte: total } },
-      { $inc: { 'balances.NAIRA': -total } },
+      { user: userId, [balPath]: { $gte: total } },
+      { $inc: { [balPath]: -total } },
       { new: false }
     );
     if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
-    const balanceBefore         = walletSnap.balances.NAIRA;
+    const balanceBefore         = walletUtil.getBalance(walletSnap, buyerMarket);
     const balanceAfterDeduction = balanceBefore - total;
 
     // Atomic refund helper used by error paths below
     const refundWallet = () =>
-      Wallet.findOneAndUpdate({ user: userId }, { $inc: { 'balances.NAIRA': total } });
+      Wallet.findOneAndUpdate({ user: userId }, { $inc: { [balPath]: total } });
 
     // =====================================
     // ✅ GET CHECKOUT FOR DATA

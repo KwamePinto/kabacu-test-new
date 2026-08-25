@@ -33,7 +33,9 @@
                           <th>Payment Method</th>
                           <th>Status</th>
                           <th>Wallet Credited</th>
+                          <th>Market</th>
                           <th>Date</th>
+                          <th>Action</th>
                         </tr>
                       </thead>
 
@@ -118,7 +120,49 @@
                           </td>
 
                           <td>
+                            <small>
+                              <%= topup.walletCountry || 'NG' %>
+                              <% if (topup.isManual) { %>
+                              <br><span class="badge badge-light" style="border:1px solid #e4e6fc;font-size:10px;">manual</span>
+                              <% } %>
+                            </small>
+                          </td>
+
+                          <td>
                             <%= new Date(topup.createdAt).toLocaleString() %>
+                          </td>
+
+                          <td style="white-space:nowrap;">
+                            <%
+                              /* Only a pending, uncredited manual top-up can be
+                                 acted on. Gateway top-ups are confirmed by the
+                                 provider's webhook, so offering a button here
+                                 would let an admin credit a payment that never
+                                 landed. */
+                              var _actionable = topup.isManual
+                                             && topup.status === 'PENDING'
+                                             && !topup.walletCredited;
+                            %>
+                            <% if (_actionable) { %>
+                            <button type="button" class="btn btn-sm btn-success topup-confirm"
+                                    style="border-radius:45px;"
+                                    data-id="<%= topup._id %>"
+                                    data-amount="<%= topup.amount %>"
+                                    data-market="<%= topup.walletCountry || 'NG' %>"
+                                    data-user="<%= topup.user ? topup.user.username : 'user' %>"
+                                    data-method="<%= topup.paymentMethod || '' %>"
+                                    data-ref="<%= topup.userReference || '' %>">Confirm</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger topup-reject"
+                                    style="border-radius:45px;"
+                                    data-id="<%= topup._id %>">Reject</button>
+                            <% } else if (topup.isManual && topup.confirmedBy) { %>
+                            <small class="text-muted">
+                              <%= topup.status === 'COMPLETED' ? 'Confirmed' : 'Rejected' %>
+                              by <%= topup.confirmedBy %>
+                            </small>
+                            <% } else { %>
+                            <small class="text-muted">&mdash;</small>
+                            <% } %>
                           </td>
                         </tr>
 
@@ -127,7 +171,7 @@
                         <% } else { %>
 
                         <tr>
-                          <td colspan="10" class="text-center">
+                          <td colspan="12" class="text-center">
                             No top-up records found
                           </td>
                         </tr>
@@ -252,4 +296,93 @@ window.addEventListener('load', function () {
     timer = setTimeout(function () { dt.search(q).draw(); }, 300);
   });
 });
+</script>
+<script>
+/* Manual top-up confirmation.
+   These are markets with no payment gateway: the user says they have paid and
+   nothing has moved yet. Confirming is what credits the wallet, so the dialog
+   shows what the admin should be checking against before they commit. */
+(function () {
+  var CSRF = '<%= csrfToken %>';
+
+  async function post(url, body) {
+    var res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(body || {}),
+    });
+    return res.json();
+  }
+
+  $(document).on('click', '.topup-confirm', async function () {
+    var b = $(this);
+    var d = this.dataset;
+
+    var ask = await Swal.fire({
+      icon: 'question',
+      title: 'Confirm this payment?',
+      html:
+        '<div style="text-align:left;font-size:14px;line-height:1.7;">' +
+          '<b>User:</b> ' + d.user + '<br>' +
+          '<b>Amount:</b> ' + Number(d.amount).toLocaleString() + ' (' + d.market + ')<br>' +
+          '<b>Method:</b> ' + (d.method || '—') + '<br>' +
+          '<b>Their reference:</b> ' + (d.ref || 'none given') +
+        '</div>' +
+        '<p style="margin-top:14px;font-size:13px;color:#6c757d;">' +
+          'Check the payment actually landed before confirming. This credits their wallet.' +
+        '</p>',
+      showCancelButton: true,
+      confirmButtonText: 'Payment received — credit it',
+      confirmButtonColor: '#47c363',
+    });
+    if (!ask.isConfirmed) return;
+
+    b.prop('disabled', true).text('Crediting…');
+    try {
+      var data = await post('/admin/product/top-ups/' + d.id + '/confirm');
+      if (data.success) {
+        await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' });
+        window.location.reload();
+        return;
+      }
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+    } catch (_) {
+      Swal.fire({ icon: 'error', text: 'Request failed. Reload before retrying so you do not credit twice.', confirmButtonColor: '#6777ef' });
+    }
+    b.prop('disabled', false).text('Confirm');
+  });
+
+  $(document).on('click', '.topup-reject', async function () {
+    var b = $(this);
+    var id = this.dataset.id;
+
+    var ask = await Swal.fire({
+      icon: 'warning',
+      title: 'Not confirmed?',
+      input: 'text',
+      inputLabel: 'Why — the user is told this',
+      inputPlaceholder: 'e.g. No payment found with that reference',
+      showCancelButton: true,
+      confirmButtonText: 'Reject',
+      confirmButtonColor: '#fc544b',
+      inputValidator: function (v) {
+        if (!v || !v.trim()) return 'Give a reason so the user knows what to do next.';
+      },
+    });
+    if (!ask.isConfirmed) return;
+
+    b.prop('disabled', true).text('…');
+    try {
+      var data = await post('/admin/product/top-ups/' + id + '/reject', { reason: ask.value });
+      if (data.success) {
+        window.location.reload();
+        return;
+      }
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+    } catch (_) {
+      Swal.fire({ icon: 'error', text: 'Request failed. Please try again.', confirmButtonColor: '#6777ef' });
+    }
+    b.prop('disabled', false).text('Reject');
+  });
+})();
 </script>

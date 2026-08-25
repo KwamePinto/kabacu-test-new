@@ -155,6 +155,7 @@ app.use('/admin/transactions',        require('./server/routes/adminRoutes/trans
 app.use('/admin/faq',                 require('./server/routes/adminRoutes/faqRoute'));
 app.use('/admin/announcements',       require('./server/routes/adminRoutes/announcementsRoute'));
 app.use('/admin/referrals',           require('./server/routes/adminRoutes/referralsRoute'));
+app.use('/admin/payments-wallets',    require('./server/routes/adminRoutes/paymentsWalletsRoute'));
 
 // ── Notification device registration (mobile — x-token auth, no CSRF) ────────
 app.post('/notification/register', require('./server/controllers/apiControllers/notificationController').registerDevice);

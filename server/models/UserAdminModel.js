@@ -25,6 +25,16 @@ const userAdminSchema = new Schema({
   // The code is stored HASHED, never in plain text: an admin collection dump
   // would otherwise hand over a live second factor. Attempts are counted so a
   // 6-digit code cannot be brute-forced, and the expiry bounds the window.
+  // On by default: 2FA has to be opted OUT of, never opted in to, or a new
+  // admin silently starts out unprotected.
+  twoFactorEnabled:   { type: Boolean, default: true },
+
+  // Audit trail for the exemption. Disabling a second factor is a security
+  // decision, so who did it and why is recorded rather than left implicit.
+  twoFactorDisabledBy:     { type: String, default: null },
+  twoFactorDisabledAt:     { type: Date,   default: null },
+  twoFactorDisabledReason: { type: String, default: '' },
+
   twoFactorCodeHash:  { type: String, default: null },
   twoFactorExpires:   { type: Date,   default: null },
   twoFactorAttempts:  { type: Number, default: 0 },

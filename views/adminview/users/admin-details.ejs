@@ -118,6 +118,69 @@
                 </div>
               </div>
 
+              <!-- Two-factor access — the lockout escape hatch -->
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-header"><h4>Two-Factor Access</h4></div>
+                  <div class="card-body">
+                    <p class="text-muted" style="font-size:13px;line-height:1.7;">
+                      When on, this admin must enter a 6-digit code emailed to
+                      <strong><%= admin.email %></strong> at every login. Turn it off only if they
+                      cannot receive that code — their password alone will then sign them in.
+                    </p>
+
+                    <p class="mb-3">
+                      Currently:
+                      <span class="badge <%= admin.twoFactorEnabled === false ? 'badge-warning' : 'badge-success' %>"
+                            style="font-size:12px;padding:5px 10px;">
+                        <%= admin.twoFactorEnabled === false ? 'Off' : 'On' %>
+                      </span>
+                    </p>
+
+                    <% if (admin.twoFactorEnabled === false && admin.twoFactorDisabledBy) { %>
+                    <div class="alert alert-warning" style="font-size:12px;padding:10px 14px;">
+                      Disabled by <strong><%= admin.twoFactorDisabledBy %></strong>
+                      <% if (admin.twoFactorDisabledAt) { %>
+                        on <%= new Date(admin.twoFactorDisabledAt).toLocaleString('en-GB') %>
+                      <% } %>
+                      <% if (admin.twoFactorDisabledReason) { %>
+                        <br><em><%= admin.twoFactorDisabledReason %></em>
+                      <% } %>
+                    </div>
+                    <% } %>
+
+                    <%
+                      /* Own setting is always editable. Someone else's requires
+                         super_admin, and never another super_admin — the top rank
+                         cannot be stripped of protection by a peer. */
+                      var canEdit2fa = isSelf ||
+                        (user && user.role === 'super_admin' && admin.role !== 'super_admin');
+                    %>
+                    <% if (canEdit2fa) { %>
+                      <button type="button"
+                              class="btn <%= admin.twoFactorEnabled === false ? 'btn-primary' : 'btn-outline-danger' %>"
+                              id="twofaAdminBtn"
+                              data-id="<%= admin._id %>"
+                              data-enabled="<%= admin.twoFactorEnabled === false ? 'false' : 'true' %>"
+                              data-name="<%= admin.username %>">
+                        <i data-feather="<%= admin.twoFactorEnabled === false ? 'lock' : 'unlock' %>" style="width:14px;height:14px;margin-right:4px;"></i>
+                        <%= admin.twoFactorEnabled === false ? 'Require two-factor' : 'Disable two-factor' %>
+                      </button>
+                    <% } else if (admin.role === 'super_admin') { %>
+                      <p class="text-muted mb-0" style="font-size:13px;">
+                        <i data-feather="lock" style="width:14px;height:14px;margin-right:4px;"></i>
+                        A super admin can only change their own two-factor setting.
+                      </p>
+                    <% } else { %>
+                      <p class="text-muted mb-0" style="font-size:13px;">
+                        <i data-feather="lock" style="width:14px;height:14px;margin-right:4px;"></i>
+                        Only Super Admins can change this for another admin.
+                      </p>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+
               <!-- Role management -->
               <div class="col-md-6">
                 <div class="card">
@@ -373,4 +436,53 @@
 
 <script>
   if (typeof feather !== 'undefined') feather.replace();
+</script>
+
+<script>
+// ── Two-factor toggle for this admin ──────────────────────────────────
+(function () {
+  var btn = document.getElementById('twofaAdminBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', async function () {
+    var id  = this.dataset.id;
+    var who = this.dataset.name;
+    var currentlyOn = this.dataset.enabled === 'true';
+    var turningOff  = currentlyOn;
+
+    var ask = await Swal.fire({
+      icon: turningOff ? 'warning' : 'question',
+      title: turningOff ? 'Disable two-factor for ' + who + '?' : 'Require two-factor for ' + who + '?',
+      text: turningOff
+        ? 'Their password alone will sign them in. A reason is required and will be recorded.'
+        : 'They will be asked for an emailed code at every login.',
+      input: turningOff ? 'text' : undefined,
+      inputLabel: turningOff ? 'Reason (required)' : undefined,
+      inputValidator: turningOff ? function (v) { return !v || !v.trim() ? 'A reason is required.' : undefined; } : undefined,
+      showCancelButton: true,
+      confirmButtonText: turningOff ? 'Disable' : 'Require',
+      confirmButtonColor: turningOff ? '#dc3545' : '#6777ef',
+    });
+    if (!ask.isConfirmed) return;
+
+    btn.disabled = true;
+    try {
+      var res = await fetch('/admin/admins/' + id + '/two-factor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
+        body: JSON.stringify({ enabled: !currentlyOn, reason: ask.value || '' }),
+      });
+      var data = await res.json();
+      if (data.success) {
+        Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
+          .then(function () { location.reload(); });
+        return;
+      }
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Request failed. Please try again.', confirmButtonColor: '#6777ef' });
+    }
+    btn.disabled = false;
+  });
+})();
 </script>

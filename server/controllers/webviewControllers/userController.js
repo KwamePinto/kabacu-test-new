@@ -7,6 +7,7 @@ const UserModel = require('../../models/UserModel');
 const {generateUserToken} = require('../../config/authUtils');
 const sendEmail = require('../../utils/emailService');
 const referralService = require('../../services/referralService');
+const { resolveLoginCountry, setWalletCountry, toCode, DEFAULT_COUNTRY } = require('../../utils/country');
 
 exports.login = async (req, res) => {
     const a = Math.floor(Math.random() * 9) + 1;
@@ -190,6 +191,36 @@ exports.loginPost = async (req,res)=>{
         );
 
         // =====================================
+        // LANDING MARKET
+        // =====================================
+
+        // Where they land is their registration country if we have actually
+        // launched there, and Nigeria otherwise — a user who registered in a
+        // country we do not serve gets a working store rather than an empty
+        // one. Switching away afterwards is their choice, and that is when
+        // "coming soon" is the honest thing to show them.
+        try {
+            const landing = await resolveLoginCountry(user);
+
+            res.cookie('kbc_country', landing, {
+                maxAge: 365 * 24 * 60 * 60 * 1000,
+                sameSite: 'lax',
+                // Read by the header script, so not httpOnly.
+                httpOnly: false,
+            });
+
+            // Point their money at that market too, but only if it has a
+            // wallet: resolveLoginCountry accepts a market that merely has
+            // products, and there is no money to hold in one of those.
+            await setWalletCountry(user._id, landing);
+        } catch (marketErr) {
+            // Never block a login on this. Without the cookie they fall back to
+            // their profile country on the next request, which is the same
+            // answer in every case except an unlaunched market.
+            console.log('LOGIN MARKET RESOLVE:', marketErr.message);
+        }
+
+        // =====================================
         // SUCCESS LOGIN
         // =====================================
 
@@ -227,6 +258,31 @@ exports.signup = async (req,res)=>{
 );
 
 const countryNames = countries.getNames("en");
+
+/**
+ * Which wallet a brand-new account starts on.
+ *
+ * Narrower than resolveLoginCountry on purpose: that decides which *products*
+ * they see and accepts a market with products but no wallet. This decides where
+ * their *money* lives, so it accepts only a market with a live wallet.
+ */
+async function resolveSignupWalletCountry(countryValue) {
+    try {
+        const code = toCode(countryValue);
+        if (!code || code === DEFAULT_COUNTRY) return DEFAULT_COUNTRY;
+        const CountryWallet = require('../../models/CountryWalletModel');
+        const wallet = await CountryWallet
+            .findOne({ country: code, isActive: true })
+            .select('_id')
+            .lean();
+        return wallet ? code : DEFAULT_COUNTRY;
+    } catch (err) {
+        // Never block a signup on this. Nigeria is the safe answer.
+        console.log('SIGNUP WALLET COUNTRY:', err.message);
+        return DEFAULT_COUNTRY;
+    }
+}
+
 
     const a = Math.floor(Math.random() * 9) + 1;
     const b = Math.floor(Math.random() * 9) + 1;
@@ -485,6 +541,13 @@ async (req, res) => {
                 parsedMinerId,
 
             country,
+
+            /* Point their money at the market they registered in, but only if
+               we hold money there — otherwise Nigeria. Their `country` is kept
+               as given either way: it is where they said they are, which is not
+               the same question as which wallet they can spend from. */
+            walletCountry:
+                await resolveSignupWalletCountry(country),
 
             role: 'users',
 

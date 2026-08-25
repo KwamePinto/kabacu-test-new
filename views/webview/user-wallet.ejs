@@ -36,14 +36,60 @@
 
     <!-- Balance cards -->
     <div class="balance-grid">
-      <div class="balance-card balance-card--naira">
+      <%
+        /* The market wallets the admin has opened. Each is a currency the user
+           can actually hold money in, so this card is a switcher rather than a
+           single Naira figure. The fallback covers a first render where no
+           country wallet has been seeded yet. */
+        var _markets = (typeof marketWallets !== 'undefined' && marketWallets) || [];
+        var _active  = (typeof activeMarket !== 'undefined' && activeMarket) || 'NG';
+        var _cur = _markets.filter(function (m) { return m.country === _active; })[0]
+                || _markets[0]
+                || { country: 'NG', countryName: 'Nigeria', flag: '',
+                     currencySymbol: '₦', currencyName: 'Naira', currencyCode: 'NGN',
+                     balance: (wallet && wallet.balances && wallet.balances.NAIRA) || 0 };
+      %>
+      <div class="balance-card balance-card--naira wallet-switch" id="walletSwitch"
+           data-active="<%= _cur.country %>">
         <div class="balance-card__icon"><i data-lucide="banknote"></i></div>
         <div class="balance-card__body">
-          <span class="balance-card__label"><span class="js-currency-name">Naira</span> Balance</span>
+          <span class="balance-card__label">
+            <span id="wsCurrencyName"><%= _cur.currencyName || _cur.countryName %></span> Balance
+          </span>
           <span class="balance-card__amount">
-            <span class="js-currency-symbol">₦</span><%= wallet && wallet.balances ? wallet.balances.NAIRA.toFixed(2) : '0.00' %>
+            <span id="wsSymbol"><%= _cur.currencySymbol %></span><span id="wsBalance"><%= Number(_cur.balance || 0).toFixed(2) %></span>
           </span>
         </div>
+
+        <% if (_markets.length > 1) { %>
+        <button type="button" class="wallet-switch__toggle" id="wsToggle"
+                aria-haspopup="listbox" aria-expanded="false"
+                aria-label="Switch wallet currency">
+          <i data-lucide="chevron-down"></i>
+        </button>
+
+        <div class="wallet-switch__menu" id="wsMenu" role="listbox">
+          <div class="wallet-switch__menu-head">Your wallets</div>
+          <% _markets.forEach(function (m) { %>
+          <button type="button" class="wallet-switch__opt<%= m.country === _cur.country ? ' is-active' : '' %>"
+                  role="option" aria-selected="<%= m.country === _cur.country %>"
+                  data-country="<%= m.country %>"
+                  data-symbol="<%= m.currencySymbol %>"
+                  data-currency="<%= m.currencyName || m.countryName %>"
+                  data-balance="<%= Number(m.balance || 0).toFixed(2) %>">
+            <span class="wallet-switch__flag"><%= m.flag %></span>
+            <span class="wallet-switch__opt-body">
+              <span class="wallet-switch__opt-name"><%= m.countryName %></span>
+              <span class="wallet-switch__opt-amt"><%= m.currencySymbol %><%= Number(m.balance || 0).toFixed(2) %></span>
+            </span>
+            <i data-lucide="check" class="wallet-switch__opt-check"></i>
+          </button>
+          <% }) %>
+          <div class="wallet-switch__menu-foot">
+            Each wallet buys only what is sold in its country.
+          </div>
+        </div>
+        <% } %>
       </div>
       <div class="balance-card balance-card--btt">
         <div class="balance-card__icon"><i data-lucide="zap"></i></div>
@@ -81,7 +127,7 @@
       <div class="action-card is-open">
         <button type="button" class="accordion-header" aria-expanded="true">
           <i data-lucide="credit-card"></i>
-          <span class="accordion-header__title">Fund <span class="js-currency-name">Naira</span> Wallet</span>
+          <span class="accordion-header__title">Fund <%= _cur.currencyName || _cur.countryName %> Wallet</span>
           <i data-lucide="chevron-down" class="accordion-chevron"></i>
         </button>
         <div class="accordion-body">
@@ -94,15 +140,41 @@
                   <option value="">Select payment method</option>
                   <% if (paymentMethods && paymentMethods.length > 0) { %>
                   <% paymentMethods.forEach(function(m) { %>
-                  <option value="<%= m.name %>"><%= m.name %><%= m.description ? ' - (' + m.description + ')' : '' %></option>
+                  <option value="<%= m.name %>" data-instructions="<%= m.instructions || '' %>" data-kind="<%= m.kind || 'manual' %>"><%= m.name %><%= m.description ? ' - (' + m.description + ')' : '' %></option>
                   <% }) %>
                   <% } %>
                 </select>
               </div>
+              <% if (!paymentMethods || !paymentMethods.length) { %>
+              <small class="text-muted">
+                No payment method has been set up for
+                <%= _cur.countryName %> yet. Switch to another wallet, or check back shortly.
+              </small>
+              <% } %>
+              <!-- Filled in from the selected method. Manual markets need the
+                   user to know where to send the money before they claim to
+                   have sent it. -->
+              <small id="methodInstructions" class="text-muted" style="display:none;"></small>
             </div>
 
+            <% if (_cur.country !== 'NG') { %>
+            <!-- Manual markets only: nothing here credits a balance, so the
+                 reference is what an admin checks the payment against. -->
             <div class="form-group">
-              <label class="form-label">Amount (<span class="js-currency-symbol">₦</span>)</label>
+              <label class="form-label">Your payment reference <span class="text-muted">(optional)</span></label>
+              <div class="input-wrapper">
+                <i data-lucide="hash"></i>
+                <input type="text" id="manualReference" class="form-input"
+                       placeholder="Transfer or mobile money reference">
+              </div>
+              <small class="text-muted">
+                Pay first, then record it here. Your wallet is credited once we confirm the payment.
+              </small>
+            </div>
+            <% } %>
+
+            <div class="form-group">
+              <label class="form-label">Amount (<%= _cur.currencySymbol %>)</label>
               <div class="input-wrapper">
                 <i data-lucide="hash"></i>
                 <input type="number" id="palmpayAmount" class="form-input" placeholder="Enter amount" min="100">
@@ -505,14 +577,28 @@
   // ── Payment method selector ───────────────────────────────
   document.getElementById('paymentMethod').addEventListener('change', function() {
     var method = this.value;
+    var opt = this.options[this.selectedIndex];
     var btn = document.getElementById('palmpayBtn');
     var btnText = document.getElementById('palmpayBtnText');
+    var hint = document.getElementById('methodInstructions');
+
     if (method) {
       btn.disabled = false;
-      btnText.textContent = 'Pay';
+      /* A gateway takes the user to a checkout; a manual method does not, so the
+         button must not promise a payment it cannot take. */
+      btnText.textContent = (opt && opt.dataset.kind === 'gateway')
+        ? 'Pay'
+        : 'I have paid — send for confirmation';
     } else {
       btn.disabled = true;
       btnText.textContent = 'Select a payment method';
+    }
+
+    // Show where to send the money, when the admin recorded it.
+    if (hint) {
+      var instr = opt && opt.dataset.instructions;
+      hint.textContent = instr ? 'Pay to: ' + instr : '';
+      hint.style.display = instr ? 'block' : 'none';
     }
   });
 
@@ -596,7 +682,10 @@
     }
   });
 
-  // ── Fund Naira Wallet ─────────────────────────────────────
+  // Which market's wallet is being funded — decided server-side.
+  var ACTIVE_MARKET = '<%= typeof activeMarket !== "undefined" ? activeMarket : "NG" %>';
+
+  // ── Fund the active wallet ────────────────────────────────
   document.getElementById('palmpayBtn').addEventListener('click', async () => {
     const method = document.getElementById('paymentMethod').value;
     const amount = document.getElementById('palmpayAmount').value;
@@ -615,27 +704,48 @@
       });
       return;
     }
+    /* Where this goes depends on the market. Nigeria funds through PalmPay's
+       hosted checkout, so we hand the user off to it. Every other market has no
+       gateway behind it: the user pays through whatever the admin registered,
+       we record the claim, and an admin confirms before any money appears.
+       Crediting on the user's word would let anyone mint currency. */
+    var isGateway = ACTIVE_MARKET === 'NG';
+
     try {
-      const response = await fetch('/palmpay/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': '<%= csrfToken %>'
-        },
-        body: JSON.stringify({
-          amount,
-          paymentMethod: method
-        })
-      });
+      const response = await fetch(
+        isGateway ? '/palmpay/create' : '/my-wallet/manual-topup',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '<%= csrfToken %>'
+          },
+          body: JSON.stringify({
+            amount,
+            paymentMethod: method,
+            userReference: (document.getElementById('manualReference') || {}).value || ''
+          })
+        }
+      );
       const data = await response.json();
-      if (data.success) {
-        window.location.href = data.paymentUrl;
-      } else {
-        Swal.fire({
-          icon: 'warning',
-          text: data.message || 'Payment failed'
-        });
+
+      if (!data.success) {
+        Swal.fire({ icon: 'warning', text: data.message || 'Payment failed' });
+        return;
       }
+
+      if (isGateway) {
+        window.location.href = data.paymentUrl;
+        return;
+      }
+
+      // Manual: nothing has moved yet, so say so plainly rather than showing a
+      // success that looks like a credited balance.
+      Swal.fire({
+        icon: 'success',
+        title: 'Sent for confirmation',
+        text: data.message
+      }).then(function () { window.location.reload(); });
     } catch (error) {
       Swal.fire({
         icon: 'warning',
@@ -643,4 +753,86 @@
       });
     }
   });
+
+</script>
+<script>
+/* ── Wallet market switcher ──────────────────────────────────────────────────
+   The balance card reveals every market the admin has opened, with what this
+   user holds in each. Picking one commits the switch server-side.
+
+   Each option already carries its balance, so the card updates the moment it is
+   tapped rather than after the round trip. The page then reloads, because the
+   funding options, the currency shown on every amount, and which products are
+   purchasable are all decided server-side for the active market — patching them
+   in place would leave the page disagreeing with the server. */
+(function () {
+  var root = document.getElementById('walletSwitch');
+  if (!root) return;
+
+  var toggle  = document.getElementById('wsToggle');
+  var menu    = document.getElementById('wsMenu');
+  // Only rendered with two or more markets; one market needs no switcher.
+  if (!toggle || !menu) return;
+
+  var symbolEl  = document.getElementById('wsSymbol');
+  var balanceEl = document.getElementById('wsBalance');
+  var nameEl    = document.getElementById('wsCurrencyName');
+
+  function open()  { root.classList.add('is-open');    toggle.setAttribute('aria-expanded', 'true'); }
+  function close() { root.classList.remove('is-open'); toggle.setAttribute('aria-expanded', 'false'); }
+
+  toggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    root.classList.contains('is-open') ? close() : open();
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!root.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') close();
+  });
+
+  menu.addEventListener('click', async function (e) {
+    var opt = e.target.closest('.wallet-switch__opt');
+    if (!opt) return;
+
+    var code = opt.dataset.country;
+    close();
+    if (code === root.dataset.active) return;
+
+    // Show the new market's figures straight away — they are already here.
+    symbolEl.textContent  = opt.dataset.symbol;
+    balanceEl.textContent = opt.dataset.balance;
+    nameEl.textContent    = opt.dataset.currency;
+    root.classList.add('is-busy');
+
+    try {
+      var res = await fetch('/my-wallet/switch-market', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
+        body: JSON.stringify({ country: code }),
+      });
+      var data = await res.json();
+
+      if (!data.success) {
+        root.classList.remove('is-busy');
+        Swal.fire({ icon: 'error', text: data.message || 'Could not switch wallet.' });
+        return;
+      }
+
+      /* Keep the header's country picker in step. It reads this key to decide
+         the flag and the currency symbol it paints across the page, so leaving
+         it stale would show one market's flag over another's balance. */
+      try {
+        localStorage.setItem('kbc_country', data.country);
+      } catch (_) { /* private window — the cookie the server just set still carries it */ }
+
+      window.location.reload();
+    } catch (_) {
+      root.classList.remove('is-busy');
+      Swal.fire({ icon: 'error', text: 'Network error. Please try again.' });
+    }
+  });
+})();
 </script>
