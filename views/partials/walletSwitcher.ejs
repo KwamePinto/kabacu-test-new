@@ -1,0 +1,48 @@
+<%
+/**
+ * Wallet market switcher — the dropdown half of a balance card.
+ *
+ * Include it inside a card that already carries the `wallet-switch` class and a
+ * `data-active` attribute, and give the card's own figures these ids so the
+ * shared script can update them in place:
+ *
+ *   .js-ws-symbol   the currency symbol
+ *   .js-ws-balance  the amount
+ *   .js-ws-name     the currency name, where the card shows one
+ *
+ * Expects `markets` (rows from marketBalances / marketWallets) and `current`
+ * (the active row) to be set by the including page. Renders nothing with fewer
+ * than two markets: one wallet is not something you switch between.
+ */
+var _wsMarkets = (typeof markets !== 'undefined' && markets) || [];
+var _wsCurrent = (typeof current !== 'undefined' && current) || _wsMarkets[0] || null;
+%>
+<% if (_wsMarkets.length > 1 && _wsCurrent) { %>
+<button type="button" class="wallet-switch__toggle js-ws-toggle"
+        aria-haspopup="listbox" aria-expanded="false"
+        aria-label="Switch wallet currency">
+  <i data-lucide="chevron-down"></i>
+</button>
+
+<div class="wallet-switch__menu js-ws-menu" role="listbox">
+  <div class="wallet-switch__menu-head">Your wallets</div>
+  <% _wsMarkets.forEach(function (m) { %>
+  <button type="button" class="wallet-switch__opt js-ws-opt<%= m.country === _wsCurrent.country ? ' is-active' : '' %>"
+          role="option" aria-selected="<%= m.country === _wsCurrent.country %>"
+          data-country="<%= m.country %>"
+          data-symbol="<%= m.currencySymbol %>"
+          data-currency="<%= m.currencyName || m.countryName %>"
+          data-balance="<%= Number(m.balance || 0).toFixed(2) %>">
+    <span class="wallet-switch__flag"><%= m.flag %></span>
+    <span class="wallet-switch__opt-body">
+      <span class="wallet-switch__opt-name"><%= m.countryName %></span>
+      <span class="wallet-switch__opt-amt"><%= m.currencySymbol %><%= Number(m.balance || 0).toFixed(2) %></span>
+    </span>
+    <i data-lucide="check" class="wallet-switch__opt-check"></i>
+  </button>
+  <% }) %>
+  <div class="wallet-switch__menu-foot">
+    Each wallet buys only what is sold in its country.
+  </div>
+</div>
+<% } %>

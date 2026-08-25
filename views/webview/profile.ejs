@@ -19,10 +19,29 @@
 
   <!-- ── Balances ─────────────────────────────────────────── -->
   <div class="acct-balances">
-    <div class="acct-balance-card">
+    <%
+      /* This card was pairing the BROWSING country's symbol with the Naira
+         figure, so switching country relabelled the amount without changing it
+         — a Naira balance shown as Cedis. Both halves now come from the active
+         wallet, which is the only pairing that is ever true. */
+      var _pMarkets = (typeof marketBalances !== 'undefined' && marketBalances) || [];
+      var _pActive  = (typeof activeMarket !== 'undefined' && activeMarket) || 'NG';
+      var _pCur = _pMarkets.filter(function (m) { return m.country === _pActive; })[0]
+               || _pMarkets[0]
+               || { country: _pActive,
+                    countryName: (typeof viewerCountryName !== 'undefined' && viewerCountryName) || 'Nigeria',
+                    flag: '',
+                    currencySymbol: (typeof activeCurrency !== 'undefined' && activeCurrency.symbol) || '₦',
+                    currencyName: (typeof activeCurrency !== 'undefined' && activeCurrency.name) || 'Naira',
+                    balance: typeof marketBalance === 'function'
+                           ? marketBalance(wallet)
+                           : ((wallet && wallet.balances && wallet.balances.NAIRA) || 0) };
+    %>
+    <div class="acct-balance-card wallet-switch" data-active="<%= _pCur.country %>">
       <i data-lucide="wallet"></i>
-      <div class="acct-balance-card__val"><span class="js-currency-symbol">₦</span><%= ((wallet && wallet.balances && (wallet.balances.NAIRA).toFixed(2)) || 0.00).toLocaleString() %></div>
-      <div class="acct-balance-card__lbl">Wallet Balance</div>
+      <div class="acct-balance-card__val"><span class="js-ws-symbol"><%= _pCur.currencySymbol %></span><span class="js-ws-balance"><%= Number(_pCur.balance || 0).toFixed(2) %></span></div>
+      <div class="acct-balance-card__lbl"><span class="js-ws-name"><%= _pCur.currencyName || _pCur.countryName %></span> Wallet Balance</div>
+      <%- include('../partials/walletSwitcher', { markets: _pMarkets, current: _pCur }) %>
     </div>
     <div class="acct-balance-card">
       <i data-lucide="star"></i>

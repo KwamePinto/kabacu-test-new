@@ -7,6 +7,9 @@
   <title>Kabacu Marketplace</title>
   <link rel="shortcut icon" type="image/png" href="/assets/images/kabacufavicon.png">
 
+  <!-- Read by scripts served from /assets, which cannot template the token in. -->
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+
   <!-- Theme. Runs before any stylesheet so the correct palette is in place on
        the first paint — setting this later causes a visible flash of the wrong
        theme. Storing nothing means "follow the system", which is the default. -->
@@ -863,5 +866,7 @@
       if (em && em.length > 0) Swal.fire({ icon: 'error',   title: 'Error',   text: em[0] });
     })();
   </script>
+  <!-- Drives every .wallet-switch balance card (wallet page, profile). -->
+  <script src="/assets/js/wallet-switcher.js"></script>
 </body>
 </html>

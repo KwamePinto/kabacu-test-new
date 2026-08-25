@@ -46,7 +46,7 @@
                 </td>
                 <td><strong><%= c.usdtAmount.toFixed(4) %> USDT</strong></td>
                 <td><span class="js-currency-symbol">₦</span><%= c.finalRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
-                <td><strong><span class="js-currency-symbol">₦</span><%= c.nairaAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong></td>
+                <td><strong>₦<%= c.nairaAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong></td>
                 <td>
                   <span class="status-badge status-badge--<%= c.status === 'COMPLETED' ? 'success' : 'failed' %>">
                     <%= c.status %>

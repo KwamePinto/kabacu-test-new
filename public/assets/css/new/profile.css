@@ -567,3 +567,39 @@
 }
 
 .theme-opt:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ── Wallet switcher on the profile balance card ─────────────────────────────
+   The switcher's shared styles live in wallet.css. This card is a centred
+   column rather than the flex row that card uses, so the toggle is positioned
+   in the corner instead of pushed there with margin-left:auto. */
+
+.acct-balance-card.wallet-switch {
+  position: relative;
+  /* Room for the toggle so a long balance never runs under it. */
+  padding-right: 44px;
+}
+
+.acct-balance-card.wallet-switch .wallet-switch__toggle {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  margin-left: 0;
+}
+
+/* The card is narrow in the two-column grid, so let the list reach past its
+   edge rather than squeezing country names to an ellipsis. */
+.acct-balance-card.wallet-switch .wallet-switch__menu {
+  min-width: 232px;
+  left: auto;
+  right: 0;
+}
+
+@media (max-width: 420px) {
+  /* At the narrowest widths the grid cell is too small for the list to escape
+     to the right without leaving the viewport, so anchor it to the left edge. */
+  .acct-balance-card.wallet-switch .wallet-switch__menu {
+    right: auto;
+    left: 0;
+    min-width: 200px;
+  }
+}

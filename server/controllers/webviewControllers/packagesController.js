@@ -11,6 +11,7 @@ const Conversion = require("../../models/ConversionModal");
 const CoursePurchase = require("../../models/CoursePurchaseModel");
 const PaymentMethod = require("../../models/PaymentMethodModel");
 const CountryWallet = require("../../models/CountryWalletModel");
+const marketService = require("../../services/marketService");
 const axios = require("axios");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
@@ -181,7 +182,12 @@ exports.checkoutPage = async (req, res) => {
       Wallet.findOne({ user: userId }),
     ]);
 
-    const walletBalance = wallet?.balances?.NAIRA ?? 0;
+    /* The balance shown on checkout is the one being spent, so it has to be
+       the ACTIVE market's — reading balances.NAIRA here showed a Naira figure
+       to a user paying from another wallet. */
+    const checkoutMarket = walletUtil.marketOf((await resolveViewerCountry(req)).walletCountry);
+    const walletBalance = walletUtil.getBalance(wallet, checkoutMarket);
+    const checkoutCurrency = await marketService.currency(checkoutMarket);
 
     if (!checkout) {
       return res.render("webview/checkout", {
@@ -191,7 +197,7 @@ exports.checkoutPage = async (req, res) => {
       });
     }
 
-    res.render("webview/checkout", { user, checkout, walletBalance });
+    res.render("webview/checkout", { user, checkout, walletBalance, checkoutCurrency });
   } catch (error) {
     console.log("ERROR:", error);
     res.send("Error loading checkout");

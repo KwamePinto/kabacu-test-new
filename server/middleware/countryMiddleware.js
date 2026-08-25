@@ -1,5 +1,5 @@
 const { resolveViewerCountry, toName, toFlag, DEFAULT_COUNTRY } = require('../utils/country');
-const { getBalance } = require('../utils/wallet');
+const { getBalance, balancesFor } = require('../utils/wallet');
 const marketService = require('../services/marketService');
 
 /**
@@ -11,6 +11,7 @@ const marketService = require('../services/marketService');
  *   activeMarket       ISO code of the wallet their money is in
  *   activeCurrency     { symbol, code, name } for that wallet
  *   marketBalance(w)   that wallet's balance out of a wallet document
+ *   marketBalances     one row per live market, with this user's balance in each
  *   marketCodes        ISO codes of every live market
  *
  * The split between `viewerCountry.code` and `activeMarket` is the point: a user
@@ -35,6 +36,16 @@ async function countryMiddleware(req, res, next) {
     res.locals.activeCurrency = await marketService.currency(active);
     res.locals.marketCodes    = await marketService.codes();
     res.locals.marketBalance  = (walletDoc) => getBalance(walletDoc, active);
+
+    /* Per-market balances for the wallet switcher, available on any page that
+       shows a balance. This costs no extra query: the market list is cached and
+       `res.locals.wallet` was already loaded by loadWallet, which runs earlier
+       in the chain. Payment methods are left out — a switcher only needs the
+       figures, and the wallet page loads its own richer list for the funding
+       form. */
+    res.locals.marketBalances = viewer.signedIn
+      ? balancesFor(res.locals.wallet, await marketService.markets(), [])
+      : [];
   } catch (err) {
     console.error('[country]', err.message);
     res.locals.viewerCountry     = { code: null, walletCountry: null, signedIn: false, locked: false };
@@ -46,6 +57,9 @@ async function countryMiddleware(req, res, next) {
     res.locals.activeCurrency    = { symbol: '₦', code: 'NGN', name: 'Naira' };
     res.locals.marketCodes       = [DEFAULT_COUNTRY];
     res.locals.marketBalance     = (walletDoc) => getBalance(walletDoc, DEFAULT_COUNTRY);
+    // No switcher rather than a wrong one: with the market list unavailable we
+    // cannot say which markets exist, and one option is not a switcher.
+    res.locals.marketBalances    = [];
   }
 
   next();
