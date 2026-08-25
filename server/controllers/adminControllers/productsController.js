@@ -826,15 +826,30 @@ exports.deleteCountryWallet = [
         return res.redirect(back);
       }
 
-      // Refuse while users still hold money in it. Deleting the wallet does not
-      // delete the balances, so this would orphan real money behind a market
-      // the switcher no longer lists. Deactivating is the reversible way out.
+      /* Refuse while users still hold money in it. Deleting the wallet does not
+         delete the balances, so this would orphan real money behind a market
+         the switcher no longer lists. Deactivating is the reversible way out.
+
+         The $exists is load-bearing. `{ $ne: 0 }` alone also matches documents
+         where the field is ABSENT — and countryBalances.XX is absent until the
+         first time money moves in that market, so every wallet in the system
+         matched and a brand-new market could never be deleted. Nigeria hid this
+         because balances.NAIRA has a schema default and is therefore always
+         present.
+
+         $nin catches negatives too: a user with a negative balance owes money,
+         which is a stronger reason to refuse, not a weaker one. */
       const path = balancePath(wallet.country);
-      const holders = await Wallet.countDocuments({ [path]: { $ne: 0 } });
+      const holders = await Wallet.countDocuments({
+        [path]: { $exists: true, $nin: [0, null] },
+      });
+
       if (holders > 0) {
         req.flash(
           "error",
-          `${holders} user(s) still hold ${wallet.currencyName || wallet.country} funds. Switch the market off instead of deleting it.`,
+          `Cannot remove ${toName(wallet.country)}: ${holders} user(s) still hold ` +
+          `${wallet.currencyName || wallet.currencyCode || wallet.country} funds. ` +
+          `Hide the market instead — that stops users seeing it without touching their money.`,
         );
         return res.redirect(back);
       }
