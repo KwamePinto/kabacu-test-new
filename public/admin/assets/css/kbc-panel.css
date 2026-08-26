@@ -492,3 +492,91 @@
   .kp-drawer__item, .kp-btn, .kp-toggle__track,
   .kp-toggle__track::after, .kp-input, .kp-select { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Layout: fixed header, and a secondary drawer that behaves like the primary
+   sidebar rather than scrolling away with the page.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The header must not scroll ───────────────────────────────────────────────
+   The theme ships .navbar and .navbar-bg as `position: absolute`, so scrolling
+   moved the green bar off screen and left the bell and avatar floating over
+   bare content — the header looked transparent. The markup already carries
+   class="sticky", so fixed is what it was meant to be. Applied to every admin
+   page, since the bug was never specific to one. */
+.main-navbar,
+.navbar-bg {
+  position: fixed !important;
+}
+.navbar-bg {
+  /* width:100% plus a left offset would overhang the right edge. */
+  width: auto !important;
+  right: 0;
+}
+
+/* ── Pages with a secondary drawer ───────────────────────────────────────── */
+
+.kp-has-drawer {
+  /* One place to change the geometry: primary sidebar + drawer. */
+  --kp-rail: 250px;      /* theme's .main-sidebar width */
+  --kp-drawer-w: 210px;
+  --kp-nav-h: 70px;
+}
+
+@media (min-width: 992px) {
+  /* The drawer leaves the content grid and becomes its own fixed column, so it
+     stays put while only the content scrolls. */
+  .kp-has-drawer .kp-panel__body { display: block; }
+
+  .kp-has-drawer .kp-drawer {
+    position: fixed;
+    top: 0;
+    left: var(--kp-rail);
+    width: var(--kp-drawer-w);
+    height: 100vh;
+    z-index: 885;                 /* above content, below the primary sidebar */
+    background: var(--kp-surface);
+    border-right: 1px solid var(--kp-border);
+    padding: 26px 12px 20px;
+    /* Its own scroll, for a drawer with more sections than fit. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* The header starts where the drawer ends, so it never covers it. */
+  .kp-has-drawer .main-navbar,
+  .kp-has-drawer .navbar-bg {
+    left: calc(var(--kp-rail) + var(--kp-drawer-w)) !important;
+  }
+
+  /* Content clears the drawer, and sits closer under the header than the
+     theme's 130px, which left a large empty band. */
+  .kp-has-drawer .main-content {
+    padding-left: calc(var(--kp-rail) + var(--kp-drawer-w) + 30px);
+    padding-top: calc(var(--kp-nav-h) + 22px);
+  }
+
+  .kp-has-drawer .kp-panel { padding-top: 0; }
+  .kp-has-drawer .kp-panel__head { margin-bottom: 18px; }
+}
+
+/* Sidebar collapsed to the icon rail: the drawer and header follow it in. */
+@media (min-width: 992px) {
+  body.sidebar-mini .kp-has-drawer { --kp-rail: 65px; }
+}
+
+/* Below the breakpoint the drawer is a horizontal strip above the content, so
+   none of the fixed positioning applies. */
+@media (max-width: 991px) {
+  .kp-has-drawer .kp-drawer {
+    position: static;
+    width: auto;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--kp-border);
+    padding: 0 0 10px;
+    margin-bottom: 4px;
+    background: transparent;
+  }
+  .kp-has-drawer .main-content { padding-top: calc(var(--kp-nav-h) + 18px); }
+}

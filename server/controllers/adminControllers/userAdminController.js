@@ -164,7 +164,27 @@ exports.loginAdminPost = async (req, res) => {
       );
     }
 
-    return res.redirect("/command/verify");
+    /* Wait for the session to actually reach the store before redirecting.
+       WHY THIS MATTERS: sessions live in MongoDB on a remote cluster, so the
+       write is a network round trip that express-session only starts when the
+       response ends. Redirecting immediately meant the browser's GET of
+       /command/verify could arrive first, read a session with no
+       pendingAdmin2fa, and bounce straight back to the login page — the login
+       loop. saveUninitialized:false makes it worse: this is the first write for
+       the session, so the store is inserting a new document rather than
+       updating one.
+
+       Saving explicitly turns a race into a wait of a few milliseconds. */
+    return req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error("[admin 2FA session save]", saveErr);
+        return renderLogin(
+          res,
+          "We could not start your sign-in session. Please try again.",
+        );
+      }
+      return res.redirect("/command/verify");
+    });
   } catch (error) {
     console.log("Login error:", error);
     return renderLogin(res, "Something went wrong. Please try again.");
@@ -954,14 +974,29 @@ function grantAdminSession(req, res, admin) {
   req.session.info = { role: admin.role };
   delete req.session.pendingAdmin2fa;
 
-  return admin.profileCompleted
-    ? res.redirect("/admin/main/dashboard")
-    : res.redirect("/admin/profile?firstLogin=1");
+  const target = admin.profileCompleted
+    ? "/admin/main/dashboard"
+    : "/admin/profile?firstLogin=1";
+
+  /* Same reason as the login step: wait for the store. Authentication itself
+     rides on the admin_token cookie, so a slow save here would not lock anyone
+     out — but an uncleared pendingAdmin2fa would leave a stale pending login
+     lying around in the session. */
+  return req.session.save((saveErr) => {
+    if (saveErr) console.error("[admin session save]", saveErr);
+    return res.redirect(target);
+  });
 }
 
 exports.verifyOtpPage = (req, res) => {
   const pending = req.session.pendingAdmin2fa;
-  if (!pending) return res.redirect("/command");
+  /* No pending login. Render the login page with a reason rather than
+     redirecting: a bare redirect here is what made the old loop so confusing —
+     the admin was sent back to a clean login form with no hint that anything
+     had gone wrong, so they simply typed their password again. */
+  if (!pending) {
+    return renderLogin(res, "Your sign-in session expired. Please sign in again.");
+  }
   renderOtp(res, { email: maskEmail(pending.email) });
 };
 
