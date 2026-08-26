@@ -907,23 +907,102 @@
    source order, so this is safe to apply everywhere. */
 .main-content { padding-top: 92px; }
 
-/* ── Stat cards: icon only, no colour block ──────────────────────────────────
-   .card-statistic-1/2 ships an 80px filled circle behind the icon, with the
-   icon itself painted white so it only reads against that fill. Stripping the
-   fill without recolouring the icon would make it invisible, so each bg-*
-   variant is given the colour it used to supply as a background instead —
-   same palette, just carried by the icon rather than a block behind it. */
+/* ── Stat cards ──────────────────────────────────────────────────────────────
+   Layout: icon and label share the top row, the value sits underneath both.
+
+       [icon]  Label
+       Value
+
+   The theme floats the icon left and lets .card-wrap flow around it, which is
+   why the label jammed against the icon and the value dropped below the float
+   at whatever left edge it landed on — inconsistent from card to card. A grid
+   removes the float entirely and pins all three pieces to fixed cells.
+
+   .card-wrap has no styles of its own in the theme, so `display: contents`
+   safely promotes the label and value into the card's own grid; without it they
+   would be trapped as one child and could not occupy separate rows.
+
+   Padding is reset here because the compat layer above gives every .card-header
+   and .card-body generous padding plus a divider rule — right for a normal
+   card, wrong for three lines inside a tile. */
+
+.main-content .card-statistic-1,
+.main-content .card-statistic-2 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  column-gap: 11px;
+  row-gap: 3px;
+  padding: 17px 19px;
+}
+
+.main-content .card-statistic-1 .card-wrap,
+.main-content .card-statistic-2 .card-wrap {
+  display: contents;
+}
+
+/* Row 1, column 1 — the icon. Colour comes from the bg-* rules below; the
+   filled circle the theme drew behind it is gone. */
 .main-content .card-statistic-1 .card-icon,
 .main-content .card-statistic-2 .card-icon {
+  grid-column: 1;
+  grid-row: 1;
+  float: none;
   width: auto;
   height: auto;
-  margin: 22px 0 0 22px;
+  margin: 0;
+  padding: 0;
   border-radius: 0;
   background: transparent !important;
   box-shadow: none;
   line-height: 1;
-  font-size: 26px;
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+/* Row 1, column 2 — the label. */
+.main-content .card-statistic-1 .card-header,
+.main-content .card-statistic-2 .card-header {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  min-height: 0;
+  height: auto;
+  display: flex;
+  align-items: center;
+}
+.main-content .card-statistic-1 .card-header h4,
+.main-content .card-statistic-2 .card-header h4 {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--kp-muted);
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* Row 2, spanning both columns — the value, so long figures have the full
+   width of the tile rather than only the label's column. */
+.main-content .card-statistic-1 .card-body,
+.main-content .card-statistic-2 .card-body {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--kp-text);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+/* The theme paints these white to read against the fill it used to draw. With
+   the fill gone the colour it supplied is carried by the icon instead. */
 .main-content .card-statistic-1 .card-icon.bg-primary,
 .main-content .card-statistic-2 .card-icon.bg-primary { color: #3b82f6 !important; }
 .main-content .card-statistic-1 .card-icon.bg-success,
