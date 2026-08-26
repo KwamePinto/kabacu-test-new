@@ -934,3 +934,24 @@
 .main-content .card-statistic-2 .card-icon.bg-danger { color: var(--kp-danger) !important; }
 .main-content .card-statistic-1 .card-icon.bg-info,
 .main-content .card-statistic-2 .card-icon.bg-info { color: #1c5cbe !important; }
+
+/* The glyph, not just its wrapper.
+   The theme paints the <i> itself white — `.card-icon .fas { color:#fff }` —
+   because it only ever had to show against the filled circle behind it. Setting
+   a colour on .card-icon alone was therefore invisible: the child's own
+   declaration won, leaving a white icon on a white card. Forcing the glyph to
+   inherit hands control back to the .bg-* colour set on the wrapper above, and
+   covers every icon family the theme enumerates in one rule. */
+.main-content .card-statistic-1 .card-icon .ion,
+.main-content .card-statistic-1 .card-icon .fas,
+.main-content .card-statistic-1 .card-icon .far,
+.main-content .card-statistic-1 .card-icon .fab,
+.main-content .card-statistic-1 .card-icon .fal,
+.main-content .card-statistic-2 .card-icon .ion,
+.main-content .card-statistic-2 .card-icon .fas,
+.main-content .card-statistic-2 .card-icon .far,
+.main-content .card-statistic-2 .card-icon .fab,
+.main-content .card-statistic-2 .card-icon .fal {
+  color: inherit !important;
+  font-size: inherit !important;
+}

@@ -36,6 +36,72 @@
         .sidebar-menu::-webkit-scrollbar-track {
           background: transparent;
         }
+
+        /* ── Search ─────────────────────────────────────────────────────── */
+        .sidebar-search {
+          position: relative;
+          flex-shrink: 0;
+          margin: 4px 14px 10px;
+        }
+
+        .sidebar-search__icon {
+          position: absolute;
+          left: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 14px;
+          height: 14px;
+          color: #9aa1ac;
+          pointer-events: none;
+        }
+
+        .sidebar-search__input {
+          width: 100%;
+          height: 34px;
+          padding: 0 28px 0 31px;
+          font-size: 13px;
+          color: #1a1d21;
+          background: #f4f5f7;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          outline: none;
+          transition: background .13s ease, border-color .13s ease;
+        }
+        .sidebar-search__input::placeholder { color: #9aa1ac; }
+        .sidebar-search__input:focus {
+          background: #fff;
+          border-color: #15a844;
+          box-shadow: 0 0 0 3px rgba(21, 168, 68, .12);
+        }
+
+        .sidebar-search__clear {
+          position: absolute;
+          right: 6px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 20px;
+          height: 20px;
+          padding: 0;
+          border: none;
+          border-radius: 50%;
+          background: transparent;
+          color: #8b919c;
+          font-size: 17px;
+          line-height: 1;
+          cursor: pointer;
+        }
+        .sidebar-search__clear:hover { background: #e6e8eb; color: #1a1d21; }
+
+        .sidebar-search__empty {
+          flex-shrink: 0;
+          margin: 0 14px 8px;
+          font-size: 12.5px;
+          color: #9aa1ac;
+        }
+
+        /* Collapsed icon rail has no room for a text field. */
+        .sidebar-mini .sidebar-search,
+        .sidebar-mini .sidebar-search__empty { display: none; }
       </style>
 
       <div class="main-sidebar sidebar-style-2">
@@ -45,121 +111,134 @@
               <img alt="Kabacu" src="/assets/images/new.PNG" class="header-logo" style="height:36px;width:auto;object-fit:contain;" />
             </a>
           </div>
+
+          <!-- Sits between the pinned brand and the scrolling menu, so it stays
+               visible while the links below it scroll. -->
+          <div class="sidebar-search">
+            <i data-feather="search" class="sidebar-search__icon"></i>
+            <input type="text" id="sidebarSearch" class="sidebar-search__input"
+                   placeholder="Search settings…" autocomplete="off"
+                   aria-label="Search admin pages">
+            <button type="button" class="sidebar-search__clear" id="sidebarSearchClear"
+                    aria-label="Clear search" hidden>&times;</button>
+          </div>
+          <p class="sidebar-search__empty" id="sidebarSearchEmpty" hidden>No pages match.</p>
+
           <ul class="sidebar-menu">
 
             <li class="menu-header">Main</li>
             <li>
-              <a href="/admin/main/dashboard" class="nav-link">
+              <a href="/admin/main/dashboard" class="nav-link" data-search="overview home stats summary">
                 <i data-feather="monitor"></i><span>Dashboard</span>
               </a>
             </li>
 
             <li class="menu-header">Users</li>
             <li>
-              <a href="/admin/product/view-users" class="nav-link">
+              <a href="/admin/product/view-users" class="nav-link" data-search="customers accounts members">
                 <i data-feather="users"></i><span>All Users</span>
               </a>
             </li>
             <li>
-              <a href="/admin/admins" class="nav-link">
+              <a href="/admin/admins" class="nav-link" data-search="staff roles permissions two-factor 2fa">
                 <i data-feather="shield"></i><span>Admins</span>
               </a>
             </li>
 
             <li class="menu-header">Products</li>
             <li>
-              <a href="/admin/product/create-products" class="nav-link">
+              <a href="/admin/product/create-products" class="nav-link" data-search="new product data bundle create">
                 <i data-feather="plus-circle"></i><span>Add Product</span>
               </a>
             </li>
             <li>
-              <a href="/admin/product/view-products" class="nav-link">
+              <a href="/admin/product/view-products" class="nav-link" data-search="catalogue bundles inventory edit product bonus">
                 <i data-feather="package"></i><span>View Products</span>
               </a>
             </li>
             <li>
-              <a href="/admin/category/view-category" class="nav-link">
+              <a href="/admin/category/view-category" class="nav-link" data-search="category">
                 <i data-feather="tag"></i><span>Categories</span>
               </a>
             </li>
             <li>
-              <a href="/admin/networks" class="nav-link">
+              <a href="/admin/networks" class="nav-link" data-search="mtn airtel glo 9mobile plan data">
                 <i data-feather="wifi"></i><span>Networks</span>
               </a>
             </li>
 
             <li class="menu-header">Transactions</li>
             <li>
-              <a href="/admin/transactions" class="nav-link">
+              <a href="/admin/transactions" class="nav-link" data-search="purchases orders sales history">
                 <i data-feather="credit-card"></i><span>Transactions</span>
               </a>
             </li>
             <li>
-              <a href="/admin/product/view-topUps" class="nav-link">
+              <a href="/admin/product/view-topUps" class="nav-link" data-search="funding deposits credit manual topup confirm">
                 <i data-feather="arrow-up-circle"></i><span>Top-Ups</span>
               </a>
             </li>
             <li>
-              <a href="/admin/payments-wallets" class="nav-link">
+              <a href="/admin/payments-wallets" class="nav-link" data-search="markets countries currency payment methods wallet top-up gateway palmpay">
                 <i data-feather="globe"></i><span>Payments &amp; Wallets</span>
               </a>
             </li>
             <li>
-              <a href="/admin/profit" class="nav-link">
+              <a href="/admin/profit" class="nav-link" data-search="revenue earnings margin income">
                 <i data-feather="trending-up"></i><span>Profit Report</span>
               </a>
             </li>
             <li>
-              <a href="/admin/flagged-transactions" class="nav-link">
+              <a href="/admin/flagged-transactions" class="nav-link" data-search="suspicious refund deducted short delivery damage control">
                 <i data-feather="alert-triangle"></i><span>Flagged Transactions</span>
               </a>
             </li>
 
             <li class="menu-header">Configuration</li>
             <li>
-              <a href="/admin/settings" class="nav-link">
+              <a href="/admin/settings" class="nav-link" data-search="maintenance provider adex rp transfer btt usdt toggle feature">
                 <i data-feather="settings"></i><span>Site Settings</span>
               </a>
             </li>
             <li>
-              <a href="/admin/ourdatastore" class="nav-link">
+              <a href="/admin/ourdatastore" class="nav-link" data-search="ods provider api balance wallet transactions">
                 <i data-feather="server"></i><span>OurDataStore</span>
               </a>
             </li>
             <li>
-              <a href="/admin/push-notifications" class="nav-link">
+              <a href="/admin/push-notifications" class="nav-link" data-search="push messages send alert">
                 <i data-feather="bell"></i><span>Notifications</span>
               </a>
             </li>
             <li>
-              <a href="/admin/referrals" class="nav-link">
+              <a href="/admin/referrals" class="nav-link" data-search="referrals referral code commission signup bonus paid codes reserved pool rewards growth">
                 <i data-feather="trending-up"></i><span>Growth &amp; Rewards</span>
               </a>
             </li>
             <li>
-              <a href="/admin/announcements" class="nav-link">
+              <a href="/admin/announcements" class="nav-link" data-search="banner strip popup carousel countdown">
                 <i data-feather="volume-2"></i><span>Announcements</span>
               </a>
             </li>
             <li>
-              <a href="/admin/faq" class="nav-link">
+              <a href="/admin/faq" class="nav-link" data-search="help questions answers manual support">
                 <i data-feather="help-circle"></i><span>FAQ Manager</span>
               </a>
             </li>
             <li>
-              <a href="/admin/logs" class="nav-link">
+              <a href="/admin/logs" class="nav-link" data-search="audit history errors system">
                 <i data-feather="file-text"></i><span>System Logs</span>
               </a>
             </li>
 
             <li class="menu-header">Account</li>
             <li>
-              <a href="/admin/profile" class="nav-link">
+              <a href="/admin/profile" class="nav-link" data-search="account security two-factor 2fa password my">
                 <i data-feather="user"></i><span>My Profile</span>
               </a>
             </li>
             <li>
-              <a href="/admin/logout" class="nav-link">
+              <a href="/admin/logout" class="nav-link" data-search="sign out exit">
                 <i data-feather="log-out"></i><span>Logout</span>
               </a>
             </li>
@@ -167,3 +246,119 @@
           </ul>
         </aside>
       </div>
+
+<script>
+/* Sidebar search.
+ *
+ * Filters the nav in place rather than navigating anywhere: an admin looking
+ * for "commission" should not have to remember it lives under Growth & Rewards.
+ * Each link is matched on its own text plus the group heading above it, so
+ * typing "transaction" surfaces the whole Transactions group and searching
+ * "wallet" finds Payments & Wallets.
+ *
+ * A group heading is hidden whenever every link beneath it is hidden, so the
+ * result never shows a section title with nothing under it.
+ */
+(function () {
+  var input = document.getElementById('sidebarSearch');
+  var clear = document.getElementById('sidebarSearchClear');
+  var empty = document.getElementById('sidebarSearchEmpty');
+  var menu  = document.querySelector('.sidebar-menu');
+  if (!input || !menu) return;
+
+  /* Build the index once. Walking the DOM on every keystroke would re-read
+     every label for each character typed. */
+  var groups = [];
+  var current = null;
+
+  Array.prototype.forEach.call(menu.children, function (li) {
+    if (li.classList.contains('menu-header')) {
+      current = { header: li, heading: li.textContent.trim().toLowerCase(), items: [] };
+      groups.push(current);
+      return;
+    }
+    var link = li.querySelector('a');
+    if (!link) return;
+    /* Label plus its aliases. Searching "referral" has to find the page called
+       "Growth & Rewards" — an admin types the name of the setting they want,
+       not the name of the page it happens to sit on. */
+    var label = (link.textContent || '').trim().toLowerCase();
+    var extra = (link.dataset.search || '').toLowerCase();
+    var entry = { li: li, label: label, extra: extra };
+    if (current) {
+      current.items.push(entry);
+    } else {
+      // A link before any heading still has to be searchable.
+      groups.push({ header: null, heading: '', items: [entry] });
+    }
+  });
+
+  function apply(query) {
+    var q = query.trim().toLowerCase();
+    var anyVisible = false;
+
+    groups.forEach(function (group) {
+      var shown = 0;
+
+      group.items.forEach(function (entry) {
+        // Matching the heading too means a group name finds its whole contents.
+        var hit = !q
+               || entry.label.indexOf(q) !== -1
+               || entry.extra.indexOf(q) !== -1
+               || group.heading.indexOf(q) !== -1;
+        entry.li.hidden = !hit;
+        if (hit) shown++;
+      });
+
+      if (group.header) group.header.hidden = (shown === 0);
+      if (shown) anyVisible = true;
+    });
+
+    if (empty) empty.hidden = !q || anyVisible;
+    if (clear) clear.hidden = !q;
+  }
+
+  var timer = null;
+  input.addEventListener('input', function () {
+    var value = this.value;
+    // Debounced so a fast typist does not trigger a pass per keystroke.
+    clearTimeout(timer);
+    timer = setTimeout(function () { apply(value); }, 90);
+  });
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      this.value = '';
+      apply('');
+      this.blur();
+      return;
+    }
+    // Enter jumps to the first match, so search-then-Enter is one gesture.
+    if (e.key === 'Enter') {
+      var first = menu.querySelector('li:not([hidden]):not(.menu-header) a');
+      if (first) window.location.href = first.getAttribute('href');
+    }
+  });
+
+  if (clear) {
+    clear.addEventListener('click', function () {
+      input.value = '';
+      apply('');
+      input.focus();
+    });
+  }
+
+  /* "/" focuses the search from anywhere, unless the admin is already typing
+     into a field — stealing focus mid-form would be worse than the shortcut is
+     worth. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var el = document.activeElement;
+    var tag = el ? (el.tagName || '').toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (el && el.isContentEditable)) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+  });
+})();
+</script>

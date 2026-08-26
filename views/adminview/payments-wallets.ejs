@@ -22,13 +22,13 @@
 
             <%
               var _navSections = [
-                  { id: 'markets', label: 'Live Markets', icon: 'globe' },
-                  { id: 'add',     label: 'Add a Market', icon: 'plus-circle' },
+                  { id: 'markets', label: 'Wallets', icon: 'globe' },
+                  { id: 'add',     label: 'Add a Wallet', icon: 'plus-circle' },
                   { id: 'issues',  label: 'Issues',       icon: 'alert-triangle', badge: issues }
                 ];
             %>
             <div class="kp-panel__head">
-              <h1 class="kp-panel__title">Markets</h1>
+              <h1 class="kp-panel__title">Payments &amp; Wallets</h1>
               <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
@@ -36,19 +36,19 @@
 
               <%- include('partials/panelDrawer', {
                 panelKey: 'payments',
-                drawerLabel: 'Markets',
+                drawerLabel: 'Payments & Wallets',
                 sections: _navSections
               }) %>
 
               <div class="kp-panel__main">
 
-                <!-- ══ Live markets ══════════════════════════════════════ -->
+                <!-- ══ Wallets ═══════════════════════════════════════════ -->
                 <div class="kp-section" data-section="markets">
 
                   <div class="kp-stats">
                     <div class="kp-stat">
                       <div class="kp-stat__num"><%= wallets.length %></div>
-                      <div class="kp-stat__lbl">Markets</div>
+                      <div class="kp-stat__lbl">Wallets</div>
                     </div>
                     <div class="kp-stat">
                       <div class="kp-stat__num kp-stat__num--good"><%= liveCount %></div>
@@ -67,7 +67,7 @@
                   <% if (!wallets.length) { %>
                   <div class="kp-card">
                     <div class="kp-empty">
-                      No markets yet. Nigeria should be seeded first —
+                      No wallets yet. Nigeria should be seeded first —
                       run <code>node scripts/seed-country-wallets.js</code>.
                     </div>
                   </div>
@@ -153,7 +153,7 @@
                       </div>
                     </div>
 
-                    <!-- Add a method to this market -->
+                    <!-- Add a method to this wallet -->
                     <div class="kp-card__body kp-card__body--pad" style="border-top:1px solid #f0f1f3;">
                       <form method="POST" action="/admin/payments-wallets/methods/add">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -193,7 +193,7 @@
                          onclick="return confirm('Remove the <%= w.name %> wallet and its payment methods? Refused if any user still holds funds.')">Remove</a>
                       <% } else { %>
                       <span class="kp-mute" style="font-size:12.5px;">
-                        Nigeria is the fallback market — it cannot be hidden or removed.
+                        Nigeria is the fallback wallet — it cannot be hidden or removed.
                       </span>
                       <% } %>
                     </div>
@@ -201,7 +201,7 @@
                   <% }) %>
                 </div>
 
-                <!-- ══ Add a market ══════════════════════════════════════ -->
+                <!-- ══ Add a wallet ══════════════════════════════════════ -->
                 <div class="kp-section" data-section="add">
                   <div class="kp-card">
                     <div class="kp-card__head"><h2 class="kp-card__title">Add a country wallet</h2></div>
@@ -210,7 +210,7 @@
 
                       <div class="kp-card__body kp-card__body--pad">
                         <p class="kp-note">
-                          Creating a wallet makes the market live: users get a balance in its
+                          Creating a wallet makes the country live: users get a balance in its
                           currency and it appears in their wallet switcher.
                         </p>
 
@@ -232,7 +232,7 @@
                         <div class="kp-row">
                           <div class="kp-row__main">
                             <span class="kp-row__label">Currency</span>
-                            <p class="kp-row__hint">Filled in for markets we know. The wallet keeps this for good.</p>
+                            <p class="kp-row__hint">Filled in for countries we know. The wallet keeps this for good.</p>
                           </div>
                           <div class="kp-row__ctrl">
                             <input type="text" name="currencySymbol" id="curSymbol" class="kp-input" placeholder="₵" required style="width:70px;">
@@ -245,7 +245,7 @@
                       <div class="kp-card__body kp-card__body--pad" style="border-top:1px solid #f0f1f3;">
                         <div class="kp-field__label" style="margin-bottom:4px;">Payment methods</div>
                         <p class="kp-row__hint" style="margin:0 0 12px;">
-                          How users fund this wallet. A new market starts manual — the user pays out
+                          How users fund this wallet. A new wallet starts manual — the user pays out
                           of band and you confirm the top-up.
                         </p>
 
@@ -264,7 +264,7 @@
                 <div class="kp-section" data-section="issues">
                   <% if (!issues) { %>
                   <div class="kp-card">
-                    <div class="kp-empty">Nothing to fix. Every market has a wallet and a way to pay.</div>
+                    <div class="kp-empty">Nothing to fix. Every country has a wallet and a way to pay.</div>
                   </div>
                   <% } %>
 
@@ -276,8 +276,8 @@
                     </div>
                     <div class="kp-card__body kp-card__body--pad">
                       <p class="kp-note kp-note--warn">
-                        Users can browse these markets and cannot pay. Add a wallet, or move the
-                        products to a market that has one.
+                        Users can browse these countries and cannot pay. Add a wallet, or move the
+                        products to a country that has one.
                       </p>
                       <div class="kp-inline">
                         <% unwalleted.forEach(function (u) { %>
