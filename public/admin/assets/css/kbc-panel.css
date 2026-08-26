@@ -908,32 +908,38 @@
 .main-content { padding-top: 92px; }
 
 /* ── Stat cards ──────────────────────────────────────────────────────────────
-   Layout: icon and label share the top row, the value sits underneath both.
+   Layout, centred:
 
-       [icon]  Label
-       Value
+              [icon] Label
+                 Value
 
-   The theme floats the icon left and lets .card-wrap flow around it, which is
-   why the label jammed against the icon and the value dropped below the float
-   at whatever left edge it landed on — inconsistent from card to card. A grid
-   removes the float entirely and pins all three pieces to fixed cells.
+   Flex rather than grid, and the reason is specific. A grid needs `auto` tracks
+   to size the icon and label to their content, but the value spans both tracks
+   — and a spanning item contributes to the intrinsic size of every track it
+   covers. A long figure like ₦166,595.00 would therefore widen both columns and
+   push the icon and label apart from each other. Flex lines size independently,
+   so forcing the value onto its own line leaves the icon and label sitting
+   snugly together regardless of how wide the value gets.
 
    .card-wrap has no styles of its own in the theme, so `display: contents`
-   safely promotes the label and value into the card's own grid; without it they
-   would be trapped as one child and could not occupy separate rows.
+   safely promotes the label and value into this flex container; without it they
+   would be one item and could not split across two lines.
 
-   Padding is reset here because the compat layer above gives every .card-header
-   and .card-body generous padding plus a divider rule — right for a normal
-   card, wrong for three lines inside a tile. */
+   Padding is reset because the compat layer gives every .card-header and
+   .card-body generous padding plus a divider — right for a normal card, wrong
+   for three lines inside a tile. */
 
 .main-content .card-statistic-1,
 .main-content .card-statistic-2 {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-content: center;
-  column-gap: 11px;
-  row-gap: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;   /* centres icon + label on their line */
+  align-items: center;
+  align-content: center;     /* centres both lines when the card is stretched
+                                to match a taller sibling in the same row */
+  gap: 3px 9px;
   padding: 17px 19px;
+  text-align: center;
 }
 
 .main-content .card-statistic-1 .card-wrap,
@@ -941,12 +947,10 @@
   display: contents;
 }
 
-/* Row 1, column 1 — the icon. Colour comes from the bg-* rules below; the
-   filled circle the theme drew behind it is gone. */
+/* Line 1 — the icon. Colour comes from the bg-* rules below; the filled circle
+   the theme drew behind it is gone. */
 .main-content .card-statistic-1 .card-icon,
 .main-content .card-statistic-2 .card-icon {
-  grid-column: 1;
-  grid-row: 1;
   float: none;
   width: auto;
   height: auto;
@@ -960,13 +964,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
 }
 
-/* Row 1, column 2 — the label. */
+/* Line 1 — the label, beside the icon. */
 .main-content .card-statistic-1 .card-header,
 .main-content .card-statistic-2 .card-header {
-  grid-column: 2;
-  grid-row: 1;
   padding: 0;
   margin: 0;
   border: none;
@@ -975,6 +978,7 @@
   height: auto;
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 .main-content .card-statistic-1 .card-header h4,
 .main-content .card-statistic-2 .card-header h4 {
@@ -986,17 +990,17 @@
   line-height: 1.3;
 }
 
-/* Row 2, spanning both columns — the value, so long figures have the full
-   width of the tile rather than only the label's column. */
+/* Line 2 — the value. flex-basis:100% is what forces the wrap, giving it the
+   whole width of the tile to centre within. */
 .main-content .card-statistic-1 .card-body,
 .main-content .card-statistic-2 .card-body {
-  grid-column: 1 / -1;
-  grid-row: 2;
+  flex: 0 0 100%;
   padding: 0;
   font-size: 20px;
   font-weight: 700;
   line-height: 1.25;
   color: var(--kp-text);
+  text-align: center;
   font-variant-numeric: tabular-nums;
   word-break: break-word;
 }
