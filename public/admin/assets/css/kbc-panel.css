@@ -498,15 +498,29 @@
    sidebar rather than scrolling away with the page.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── The header must not scroll ───────────────────────────────────────────────
-   The theme ships .navbar and .navbar-bg as `position: absolute`, so scrolling
-   moved the green bar off screen and left the bell and avatar floating over
-   bare content — the header looked transparent. The markup already carries
-   class="sticky", so fixed is what it was meant to be. Applied to every admin
-   page, since the bug was never specific to one. */
+/* ── The header: own its colour, and stop it scrolling ───────────────────────
+   Two separate faults produced one symptom.
+
+   1. POSITION. The theme ships .navbar and .navbar-bg as `position: absolute`,
+      so scrolling moved the bar off screen and left the bell and avatar
+      floating over bare content. The markup already carries class="sticky", so
+      fixed is what it was meant to be.
+
+   2. COLOUR. The green never came from CSS we control — `.navbar-bg` has no
+      background declared anywhere in the theme. It came from
+      `.theme-green .navbar`, and `theme-green` is a class the theme's jQuery
+      adds to <body> at startup. When that did not land, the header rendered
+      with the base `background-color: transparent` and looked see-through.
+      Depending on a script to paint a header is fragile, so the colour is
+      declared here instead. Same value the theme used, so nothing else shifts
+      hue — it just no longer depends on JS having run. */
 .main-navbar,
 .navbar-bg {
   position: fixed !important;
+}
+
+.main-navbar {
+  background-color: #28c76f;
 }
 .navbar-bg {
   /* width:100% plus a left offset would overhang the right edge. */
@@ -579,4 +593,305 @@
     background: transparent;
   }
   .kp-has-drawer .main-content { padding-top: calc(var(--kp-nav-h) + 18px); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Compatibility layer
+
+   Restyles the theme's own components — .card, .table, .btn, .form-control — to
+   match the panel design, so every admin page picks up the new look without its
+   markup being rewritten. Pages that HAVE been converted use .kp-* classes and
+   are unaffected by any of this.
+
+   Scoped to .main-content so the login screens, modals-in-body and the theme's
+   own settings sidebar are left alone. Deliberately avoids !important: a page
+   with its own inline styling still wins, which is what we want for the few
+   pages that were hand-tuned.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+.main-content .card {
+  background: var(--kp-surface);
+  border: 1px solid var(--kp-border);
+  border-radius: var(--kp-r);
+  /* The theme's heavy drop shadow is what made pages look cluttered when
+     several cards stacked up. */
+  box-shadow: none;
+  margin-bottom: 16px;
+}
+
+/* Symmetry: cards in the same Bootstrap row match the tallest, instead of each
+   ending wherever its content happens to stop. */
+.main-content .row > [class*="col-"] { display: flex; flex-direction: column; }
+.main-content .row > [class*="col-"] > .card { flex: 1 1 auto; }
+
+.main-content .card-header {
+  border-bottom: 1px solid var(--kp-border-2);
+  background: transparent;
+  padding: 15px 20px;
+  min-height: 0;
+}
+.main-content .card-header h4,
+.main-content .card-header h5 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--kp-text);
+  margin: 0;
+  line-height: 1.4;
+}
+.main-content .card-header h4 small { font-weight: 400; font-size: 12.5px; }
+
+.main-content .card-body { padding: 18px 20px; }
+.main-content .card-footer {
+  border-top: 1px solid var(--kp-border-2);
+  background: transparent;
+  padding: 14px 20px;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+
+.main-content .table { margin-bottom: 0; }
+
+.main-content .table thead th {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--kp-muted);
+  background: #fbfcfd;
+  border-top: none;
+  border-bottom: 1px solid var(--kp-border-2);
+  padding: 11px 16px;
+  white-space: nowrap;
+}
+.main-content .table td {
+  padding: 13px 16px;
+  font-size: 13.5px;
+  color: var(--kp-text-2);
+  border-top: none;
+  border-bottom: 1px solid var(--kp-border-2);
+  vertical-align: middle;
+}
+.main-content .table tbody tr:last-child td { border-bottom: none; }
+/* The theme's striping fights the hairline rules; a hover tint reads cleaner. */
+.main-content .table-striped tbody tr:nth-of-type(odd) { background: transparent; }
+.main-content .table tbody tr:hover { background: #fcfcfd; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.main-content .btn {
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 8px 16px;
+  box-shadow: none;
+  border-width: 1px;
+}
+.main-content .btn-sm { padding: 5px 12px; font-size: 12.5px; }
+
+.main-content .btn-primary {
+  background-color: var(--kp-accent);
+  border-color: var(--kp-accent);
+}
+.main-content .btn-primary:hover,
+.main-content .btn-primary:focus {
+  background-color: #128d3a;
+  border-color: #128d3a;
+}
+
+.main-content .btn-secondary,
+.main-content .btn-light {
+  background: var(--kp-surface);
+  border-color: var(--kp-border);
+  color: var(--kp-text);
+}
+.main-content .btn-secondary:hover,
+.main-content .btn-light:hover { background: #f6f7f8; }
+
+/* ── Form controls ───────────────────────────────────────────────────────── */
+
+.main-content .form-control,
+.main-content select.form-control,
+.main-content textarea.form-control {
+  border: 1px solid var(--kp-border);
+  border-radius: var(--kp-r-sm);
+  font-size: 13.5px;
+  color: var(--kp-text);
+  box-shadow: none;
+}
+.main-content .form-control:focus {
+  border-color: var(--kp-accent);
+  box-shadow: 0 0 0 3px var(--kp-accent-bg);
+}
+.main-content label,
+.main-content .form-group > label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--kp-text-2);
+  margin-bottom: 6px;
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+
+.main-content .badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+.main-content .badge-success   { background: var(--kp-accent-bg); color: #0f7a32; }
+.main-content .badge-secondary { background: var(--kp-border-2);  color: var(--kp-text-2); }
+.main-content .badge-warning   { background: var(--kp-warn-bg);   color: var(--kp-warn); }
+.main-content .badge-danger    { background: var(--kp-danger-bg); color: var(--kp-danger); }
+.main-content .badge-info      { background: #eaf1fd;             color: #1c5cbe; }
+.main-content .badge-light     { background: var(--kp-border-2);  color: var(--kp-text-2); }
+
+/* ── Page heading ────────────────────────────────────────────────────────── */
+
+.main-content .section-header {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 20px;
+  min-height: 0;
+}
+.main-content .section-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--kp-text);
+  letter-spacing: -.01em;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+
+.main-content .alert {
+  border-radius: var(--kp-r-sm);
+  font-size: 13px;
+  padding: 11px 14px;
+  border-width: 1px;
+  box-shadow: none;
+}
+.main-content .alert-light     { background: #fafbfc;            border-color: var(--kp-border-2); color: var(--kp-text-2); }
+.main-content .alert-warning   { background: var(--kp-warn-bg);   border-color: #f3e3bb; color: #8a5f12; }
+.main-content .alert-danger    { background: var(--kp-danger-bg); border-color: #f3cdca; color: #99312a; }
+.main-content .alert-secondary { background: #fafbfc;             border-color: var(--kp-border-2); color: var(--kp-text-2); }
+
+/* ── Nav tabs, for pages that use them ───────────────────────────────────── */
+
+.main-content .nav-tabs { border-bottom: 1px solid var(--kp-border-2); }
+.main-content .nav-tabs .nav-link {
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--kp-text-2);
+  padding: 10px 14px;
+}
+.main-content .nav-tabs .nav-link:hover { color: var(--kp-text); border-bottom-color: var(--kp-border); }
+.main-content .nav-tabs .nav-link.active {
+  color: var(--kp-accent);
+  border-bottom-color: var(--kp-accent);
+  background: transparent;
+  font-weight: 600;
+}
+
+/* ── Stat tiles the dashboard uses ───────────────────────────────────────── */
+
+.main-content .card-statistic-1,
+.main-content .card-statistic-2 { box-shadow: none; }
+.main-content .card-statistic-1 .card-icon { box-shadow: none; border-radius: var(--kp-r-sm); }
+
+/* Keep DataTables' own controls legible against the new table styling. */
+.main-content .dataTables_wrapper .dataTables_filter input,
+.main-content .dataTables_wrapper .dataTables_length select {
+  border: 1px solid var(--kp-border);
+  border-radius: var(--kp-r-sm);
+  padding: 5px 10px;
+  font-size: 13px;
+}
+.main-content .dataTables_wrapper .dataTables_paginate .paginate_button {
+  border-radius: 6px !important;
+  font-size: 13px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bootstrap tabs presented as the secondary drawer
+
+   Pages that already had working tabs keep their markup and their JS — wrapping
+   the <ul class="nav-tabs"> and its .tab-content in .kp-tabdrawer is enough to
+   lay them out as a drawer plus a content column. Bootstrap only toggles
+   classes to switch panes, so nothing behavioural changes.
+
+   Rewriting those pages by hand would have meant re-plumbing hundreds of lines
+   of interlinked JS (role modals, lazy-loaded tabs, refund actions) for a purely
+   visual gain. This gets the same look without touching any of it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.kp-tabdrawer > .nav-tabs {
+  border-bottom: none;
+  gap: 2px;
+}
+
+.kp-tabdrawer > .nav-tabs .nav-link {
+  border: none;
+  border-radius: var(--kp-r-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--kp-text-2);
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.kp-tabdrawer > .nav-tabs .nav-link:hover {
+  background: var(--kp-border-2);
+  color: var(--kp-text);
+  border: none;
+}
+.kp-tabdrawer > .nav-tabs .nav-link.active {
+  background: #eff0f2;
+  color: var(--kp-text);
+  font-weight: 600;
+  border: none;
+}
+/* Counts sit at the far edge of the item, like the drawer badges. */
+.kp-tabdrawer > .nav-tabs .nav-link .badge { margin-left: auto; }
+
+.kp-tabdrawer > .tab-content { min-width: 0; }
+
+@media (min-width: 992px) {
+  /* The list becomes its own fixed column, matching the hand-converted panels:
+     it does not scroll with the content, and the header starts after it. */
+  .kp-has-drawer .kp-tabdrawer > .nav-tabs {
+    position: fixed;
+    top: 0;
+    left: var(--kp-rail);
+    width: var(--kp-drawer-w);
+    height: 100vh;
+    z-index: 885;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    background: var(--kp-surface);
+    border-right: 1px solid var(--kp-border);
+    padding: 26px 12px 20px;
+    margin: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    align-items: stretch;
+  }
+  .kp-has-drawer .kp-tabdrawer > .nav-tabs .nav-item { width: 100%; }
+}
+
+@media (max-width: 991px) {
+  /* Horizontal strip, so the content is not pushed below the fold. */
+  .kp-tabdrawer > .nav-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    border-bottom: 1px solid var(--kp-border);
+    padding-bottom: 4px;
+    margin-bottom: 14px;
+  }
 }

@@ -1,230 +1,258 @@
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1 kp-has-drawer">
+    <div class="navbar-bg"></div>
 
-  <div class="loader"></div>
-  <div id="app">
-    <div class="main-wrapper main-wrapper-1">
-      <div class="navbar-bg"></div>
-      <%- include('../partials/headerAdmin.ejs') %>
-      <%- include('../partials/sideMenuAdmin.ejs') %>
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
 
-      <div class="main-content">
-        <section class="section">
-          <div class="section-header">
-            <h1>My Profile</h1>
-            <div class="section-header-breadcrumb">
-              <div class="breadcrumb-item"><a href="/admin/main/dashboard">Dashboard</a></div>
-              <div class="breadcrumb-item active">My Profile</div>
+    <div class="main-content">
+      <section class="section">
+        <div class="section-body">
+
+          <%
+            var roleColors = {
+              super_admin: 'kp-pill--danger',
+              senior_admin: 'kp-pill--warn',
+              junior_admin: 'kp-pill--info',
+            };
+            var twoFaOn = admin && admin.twoFactorEnabled !== false;
+          %>
+
+          <div class="kp-panel">
+
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">My Account</h1>
+              <p class="kp-panel__sub">Your details and how you sign in</p>
             </div>
-          </div>
-
-          <div class="section-body">
 
             <% if (firstLogin) { %>
-            <div class="alert alert-warning mb-4" style="font-size:14px;">
-              <strong><i data-feather="alert-circle" style="width:15px;height:15px;margin-right:4px;vertical-align:middle;"></i> Welcome!</strong>
-              Please complete your profile before accessing the dashboard. Fill in the details below and click <strong>Save Profile</strong>.
-            </div>
+            <p class="kp-note kp-note--warn" style="max-width:760px;">
+              <strong>Welcome.</strong> Fill in your details below to finish setting up your account.
+            </p>
+            <% } %>
+            <% if (typeof query !== 'undefined' && query && query.saved) { %>
+            <p class="kp-note" style="max-width:760px;">Your profile has been saved.</p>
+            <% } %>
+            <% if (typeof query !== 'undefined' && query && query.error) { %>
+            <p class="kp-note kp-note--danger" style="max-width:760px;">
+              We could not save your profile. Please try again.
+            </p>
             <% } %>
 
-            <% if (typeof query !== 'undefined' && query.saved == '1') { %>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-              Profile saved successfully.
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-            </div>
-            <% } %>
+            <div class="kp-panel__body">
 
-            <% if (typeof query !== 'undefined' && query.error == '1') { %>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-              Something went wrong. Please try again.
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-            </div>
-            <% } %>
+              <%- include('partials/panelDrawer', {
+                panelKey: 'adminprofile',
+                drawerLabel: 'Account',
+                sections: [
+                  { id: 'profile',  label: 'Profile',  icon: 'user' },
+                  { id: 'security', label: 'Security', icon: 'shield', badge: twoFaOn ? 0 : 1 }
+                ]
+              }) %>
 
-            <div class="row">
-              <div class="col-12 col-lg-8 mx-auto">
+              <div class="kp-panel__main">
 
-                <!-- Account info (read-only) -->
-                <div class="card mb-4">
-                  <div class="card-header">
-                    <h4>Account Information</h4>
-                  </div>
-                  <div class="card-body">
-                    <div class="row">
-                      <div class="col-md-2 text-center mb-3 mb-md-0">
-                        <div style="width:64px;height:64px;border-radius:50%;background:#47c363;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;margin:0 auto;">
+                <!-- ══ Profile ═══════════════════════════════════════════ -->
+                <div class="kp-section" data-section="profile">
+
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Account information</h2></div>
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div style="display:flex;align-items:center;gap:16px;margin-bottom:6px;">
+                        <div style="width:56px;height:56px;border-radius:50%;background:var(--kp-accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;flex-shrink:0;">
                           <%= admin && admin.username ? admin.username.charAt(0).toUpperCase() : 'A' %>
                         </div>
+                        <div style="min-width:0;">
+                          <div style="font-size:16px;font-weight:600;color:var(--kp-text);"><%= admin ? admin.username : '—' %></div>
+                          <div class="kp-mute" style="font-size:13px;"><%= admin ? admin.email : '—' %></div>
+                        </div>
                       </div>
-                      <div class="col-md-10">
-                        <table class="table table-sm mb-0" style="font-size:14px;">
-                          <tr>
-                            <td style="width:120px;color:#6b7280;font-weight:500;">Name</td>
-                            <td><strong><%= admin ? admin.username : '—' %></strong></td>
-                          </tr>
-                          <tr>
-                            <td style="color:#6b7280;font-weight:500;">Email</td>
-                            <td><%= admin ? admin.email : '—' %></td>
-                          </tr>
-                          <tr>
-                            <td style="color:#6b7280;font-weight:500;">Role</td>
-                            <td>
-                              <% const roleColors = { super_admin: 'badge-danger', senior_admin: 'badge-warning', junior_admin: 'badge-info' }; %>
-                              <span class="badge <%= admin ? (roleColors[admin.role] || 'badge-secondary') : 'badge-secondary' %>" style="font-size:11px;padding:4px 8px;">
-                                <%= admin ? admin.role.replace(/_/g, ' ') : '—' %>
-                              </span>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="color:#6b7280;font-weight:500;">Joined</td>
-                            <td style="font-size:12px;color:#6b7280;">
-                              <%= admin && admin.createdAt ? new Date(admin.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' }) : '—' %>
-                            </td>
-                          </tr>
-                        </table>
+                    </div>
+                    <div class="kp-card__body">
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Role</span></div>
+                        <div class="kp-row__ctrl">
+                          <span class="kp-pill <%= admin ? (roleColors[admin.role] || '') : '' %>">
+                            <%= admin ? admin.role.replace(/_/g, ' ') : '—' %>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Email</span>
+                          <p class="kp-row__hint">Contact a super admin to change this.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <span class="kp-row__value"><%= admin ? admin.email : '—' %></span>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Joined</span></div>
+                        <div class="kp-row__ctrl">
+                          <span class="kp-row__value">
+                            <%= admin && admin.createdAt ? new Date(admin.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' }) : '—' %>
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Security: two-factor verification -->
-                <div class="card">
-                  <div class="card-header">
-                    <h4>Security</h4>
-                  </div>
-                  <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap">
-                      <div style="max-width:520px;">
-                        <h6 class="mb-1" style="font-size:14px;font-weight:700;">Two-factor verification</h6>
-                        <p class="text-muted mb-0" style="font-size:13px;line-height:1.7;">
-                          When on, signing in also requires a 6-digit code emailed to
-                          <strong><%= admin.email %></strong>. Turning it off means your password
-                          alone will sign you in.
-                        </p>
-                        <% if (admin.twoFactorEnabled === false && admin.twoFactorDisabledBy) { %>
-                        <p class="mb-0 mt-2" style="font-size:12px;color:#9a3412;">
-                          Currently off — disabled by <strong><%= admin.twoFactorDisabledBy %></strong>
-                          <% if (admin.twoFactorDisabledAt) { %>
-                            on <%= new Date(admin.twoFactorDisabledAt).toLocaleString('en-GB') %>
-                          <% } %>
-                          <% if (admin.twoFactorDisabledReason) { %>
-                            — <%= admin.twoFactorDisabledReason %>
-                          <% } %>
-                        </p>
-                        <% } %>
-                      </div>
-                      <div class="mt-3 mt-md-0 text-md-right">
-                        <span class="badge <%= admin.twoFactorEnabled === false ? 'badge-warning' : 'badge-success' %>"
-                              id="twofa-badge" style="font-size:12px;padding:6px 12px;">
-                          <%= admin.twoFactorEnabled === false ? 'Off' : 'On' %>
-                        </span>
-                        <br>
-                        <button type="button"
-                                class="btn btn-sm mt-2 <%= admin.twoFactorEnabled === false ? 'btn-primary' : 'btn-outline-danger' %>"
-                                id="twofa-toggle"
-                                data-enabled="<%= admin.twoFactorEnabled === false ? 'false' : 'true' %>">
-                          <%= admin.twoFactorEnabled === false ? 'Turn on' : 'Turn off' %>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Editable profile -->
-                <div class="card">
-                  <div class="card-header">
-                    <h4>Profile Details</h4>
-                  </div>
-                  <div class="card-body">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Your details</h2></div>
                     <form method="post" action="/admin/profile">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <input type="hidden" name="firstLogin" value="<%= firstLogin ? '1' : '' %>">
 
-                      <div class="form-group">
-                        <label>Phone Number</label>
-                        <input type="text" name="phone" class="form-control"
-                          placeholder="+234 800 000 0000"
-                          value="<%= admin && admin.phone ? admin.phone : '' %>">
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Phone number</span></div>
+                          <div class="kp-row__ctrl">
+                            <input type="text" name="phone" class="kp-input" style="min-width:220px;"
+                                   placeholder="+234 800 000 0000"
+                                   value="<%= admin && admin.phone ? admin.phone : '' %>">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Department</span></div>
+                          <div class="kp-row__ctrl">
+                            <input type="text" name="department" class="kp-input" style="min-width:220px;"
+                                   placeholder="Operations"
+                                   value="<%= admin && admin.department ? admin.department : '' %>">
+                          </div>
+                        </div>
+                        <div class="kp-row kp-row--stack">
+                          <div class="kp-row__main"><span class="kp-row__label">Bio</span></div>
+                          <textarea name="bio" class="kp-input" rows="3" style="width:100%;min-height:80px;"
+                                    placeholder="A brief description about yourself…"><%= admin && admin.bio ? admin.bio : '' %></textarea>
+                        </div>
                       </div>
 
-                      <div class="form-group">
-                        <label>Department</label>
-                        <input type="text" name="department" class="form-control"
-                          placeholder="e.g. Operations, Finance, Technology"
-                          value="<%= admin && admin.department ? admin.department : '' %>">
-                      </div>
-
-                      <div class="form-group">
-                        <label>Bio</label>
-                        <textarea name="bio" class="form-control" rows="3"
-                          placeholder="A brief description about yourself…"><%= admin && admin.bio ? admin.bio : '' %></textarea>
-                      </div>
-
-                      <div class="card-footer text-right px-0 pb-0 mt-2" style="border-top:none;">
+                      <div class="kp-card__foot">
+                        <button type="submit" class="kp-btn kp-btn--primary">Save profile</button>
                         <% if (!firstLogin) { %>
-                        <a href="/admin/main/dashboard" class="btn btn-secondary mr-2">Cancel</a>
+                        <a href="/admin/main/dashboard" class="kp-btn">Cancel</a>
                         <% } %>
-                        <button type="submit" class="btn btn-primary">Save Profile</button>
                       </div>
                     </form>
                   </div>
                 </div>
 
-              </div>
-            </div>
+                <!-- ══ Security ══════════════════════════════════════════ -->
+                <div class="kp-section" data-section="security">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Two-factor verification</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill <%= twoFaOn ? 'kp-pill--good' : 'kp-pill--warn' %>" id="twofa-badge">
+                          <%= twoFaOn ? 'On' : 'Off' %>
+                        </span>
+                      </div>
+                    </div>
+                    <div class="kp-card__body">
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Require a code at every sign-in</span>
+                          <p class="kp-row__hint">
+                            A 6-digit code is emailed to <%= admin.email %>. Off means your password
+                            alone signs you in.
+                          </p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <button type="button"
+                                  class="kp-btn <%= twoFaOn ? 'kp-btn--danger' : 'kp-btn--primary' %>"
+                                  id="twofa-toggle"
+                                  data-enabled="<%= twoFaOn ? 'true' : 'false' %>">
+                            <%= twoFaOn ? 'Turn off' : 'Turn on' %>
+                          </button>
+                        </div>
+                      </div>
 
-          </div>
-        </section>
-      </div>
+                      <% if (!twoFaOn && admin.twoFactorDisabledBy) { %>
+                      <div class="kp-row kp-row--stack">
+                        <p class="kp-note kp-note--warn" style="margin:0;">
+                          Disabled by <strong><%= admin.twoFactorDisabledBy %></strong><%
+                          if (admin.twoFactorDisabledAt) { %> on
+                          <%= new Date(admin.twoFactorDisabledAt).toLocaleString('en-GB') %><% } %><%
+                          if (admin.twoFactorDisabledReason) { %> — <%= admin.twoFactorDisabledReason %><% } %>
+                        </p>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
 
-      <footer class="main-footer">
-        <div class="footer-left">
-          &copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Password</h2></div>
+                    <div class="kp-card__body">
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Change your password</span>
+                          <p class="kp-row__hint">You will be signed out of other sessions.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <a href="/admin/forgot-password" class="kp-btn">Reset password</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
+
         </div>
-        <div class="footer-right"></div>
-      </footer>
+      </section>
     </div>
-  </div>
 
+    <%- include('../partials/footerAdmin.ejs') %>
+  </div>
+</div>
+
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
 <script>
-// ── Two-factor self-toggle ────────────────────────────────────────────
+// ── Two-factor self-toggle ──────────────────────────────────────────────────
 (function () {
   var btn = document.getElementById('twofa-toggle');
   if (!btn) return;
 
   btn.addEventListener('click', async function () {
-    var currentlyOn = this.dataset.enabled === 'true';
-    var turningOff  = currentlyOn;
+    var isOn = btn.dataset.enabled === 'true';
 
     var ask = await Swal.fire({
-      icon: turningOff ? 'warning' : 'question',
-      title: turningOff ? 'Turn off two-factor?' : 'Turn on two-factor?',
-      text: turningOff
-        ? 'Your password alone will sign you in. Only do this if you cannot receive the emailed code.'
-        : 'You will be asked for a 6-digit emailed code at every login.',
-      input: turningOff ? 'text' : undefined,
-      inputLabel: turningOff ? 'Reason (optional, recorded for audit)' : undefined,
+      icon: 'warning',
+      title: isOn ? 'Turn off two-factor?' : 'Turn on two-factor?',
+      text: isOn
+        ? 'Your password alone will sign you in. Anyone with it gets your account.'
+        : 'You will be asked for an emailed code at every sign-in.',
       showCancelButton: true,
-      confirmButtonText: turningOff ? 'Turn off' : 'Turn on',
-      confirmButtonColor: turningOff ? '#dc3545' : '#6777ef',
+      confirmButtonText: isOn ? 'Turn it off' : 'Turn it on',
+      confirmButtonColor: isOn ? '#d1453b' : '#15a844',
     });
     if (!ask.isConfirmed) return;
 
     btn.disabled = true;
+
     try {
       var res = await fetch('/admin/profile/two-factor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-        body: JSON.stringify({ enabled: !currentlyOn, reason: ask.value || '' }),
+        body: JSON.stringify({ enabled: !isOn }),
       });
       var data = await res.json();
+
       if (data.success) {
-        Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
-          .then(function () { location.reload(); });
+        await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
+        location.reload();
         return;
       }
-      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
     } catch (e) {
-      Swal.fire({ icon: 'error', text: 'Request failed. Please try again.', confirmButtonColor: '#6777ef' });
+      Swal.fire({ icon: 'error', text: 'Request failed. Please try again.', confirmButtonColor: '#15a844' });
     }
+
     btn.disabled = false;
   });
 })();

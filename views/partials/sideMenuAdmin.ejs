@@ -1,19 +1,39 @@
 ﻿      <style>
-        /* Make the sidebar scroll natively when content overflows */
+        /* The brand stays put; only the menu scrolls.
+           Previously .main-sidebar itself scrolled, which carried the logo up
+           and off the top along with the menu items. Making the wrapper a flex
+           column and giving the scroll to .sidebar-menu pins the brand while
+           the links below it still scroll when they overflow. */
         .main-sidebar {
-          overflow-y: auto !important;
+          overflow: hidden !important;
         }
 
-        .main-sidebar::-webkit-scrollbar {
+        #sidebar-wrapper {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+
+        .sidebar-brand {
+          flex-shrink: 0;
+        }
+
+        .sidebar-menu {
+          flex: 1 1 auto;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+        }
+
+        .sidebar-menu::-webkit-scrollbar {
           width: 4px;
         }
 
-        .main-sidebar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, .25);
+        .sidebar-menu::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, .18);
           border-radius: 4px;
         }
 
-        .main-sidebar::-webkit-scrollbar-track {
+        .sidebar-menu::-webkit-scrollbar-track {
           background: transparent;
         }
       </style>
