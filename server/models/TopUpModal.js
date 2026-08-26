@@ -63,13 +63,6 @@ const topupSchema = new mongoose.Schema({
         trim: true
     },
 
-    /**
-     * Balance either side of the credit. Recorded so the account statement has
-     * a chain that joins up — without these the row shows an amount with no
-     * before/after and the running balance breaks at that point.
-     */
-    balanceBefore: { type: Number, default: null },
-    balanceAfter:  { type: Number, default: null },
 
     confirmedBy: { type: String, default: '' },
     confirmedAt: { type: Date, default: null },
@@ -106,6 +99,28 @@ const topupSchema = new mongoose.Schema({
     walletCredited: {
         type: Boolean,
         default: false
+    },
+
+    // Wallet balance either side of the credit, so a top-up reads like any
+    // other ledger row on the admin account statement. Recorded at credit
+    // time; historic rows are filled in by
+    // scripts/backfill-statement-balances.js where they can be reconciled.
+    balanceBefore: {
+        type: Number,
+        default: null
+    },
+
+    balanceAfter: {
+        type: Number,
+        default: null
+    },
+
+    // 'live'      captured at the moment the wallet was credited
+    // 'backfill'  reconstructed afterwards by replaying the ledger
+    balanceSource: {
+        type: String,
+        enum: ['live', 'backfill', null],
+        default: null
     },
 
     webhookVerified: {

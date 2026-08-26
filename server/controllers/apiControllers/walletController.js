@@ -5,6 +5,7 @@ const TopUp    = require('../../models/TopUpModal');
 const Product  = require('../../models/ProductsModal');
 const Checkout = require('../../models/CheckoutModal');
 const Transaction = require('../../models/TransactionModel');
+const Conversion = require('../../models/ConversionModal');
 const SiteSettings = require('../../models/SiteSettingsModel');
 const { buyData, networkCode, userMessage } = require('../../services/ourdatastore');
 const { generateSignature, verifySignature } = require('../../utils/palmpay');
@@ -126,7 +127,7 @@ exports.payWithWallet = async (req, res) => {
               phone,
               data_plan: product.dataDetails.plan_id
             }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 25000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 60000))
           ]);
         } catch (err) {
           if (err.response) {
@@ -294,10 +295,19 @@ exports.confirmTopUp = async (req, res) => {
       wallet = new Wallet({ user: user._id, balances: { BTT: 0, RP: 0, USDT: 0 } });
     }
 
+    // Snapshot before mutating so this shows a real before/after on the admin
+    // account statement instead of a blank cell.
+    // NOTE: token top-ups store `amount` as the RAW amount, unlike PalmPay
+    // NAIRA top-ups which store kobo. Do not divide by 100 here.
+    const btBefore = wallet.balances[topup.balanceType] || 0;
+
     wallet.balances[topup.balanceType] += topup.amount;
     await wallet.save();
 
-    topup.status = 'COMPLETED';
+    topup.status        = 'COMPLETED';
+    topup.balanceBefore = btBefore;
+    topup.balanceAfter  = btBefore + topup.amount;
+    topup.balanceSource = 'live';
     await topup.save();
 
     res.json({ success: true, message: response.data.message || 'Top-up confirmed', balances: wallet.balances });
@@ -438,9 +448,39 @@ exports.convertUSDTtoNaira = async (req, res) => {
     const finalRate        = lowestRate - conversionMarkup;
     const nairaAmount      = amount * finalRate;
 
+    // Snapshot both sides before mutating, so this conversion can appear on the
+    // admin account statement with a real before/after balance.
+    const nairaBefore = wallet.balances.NAIRA || 0;
+    const usdtBefore  = wallet.balances.USDT  || 0;
+
     wallet.balances.USDT  -= amount;
     wallet.balances.NAIRA += nairaAmount;
     await wallet.save();
+
+    // This path previously left no audit trail at all — the wallet moved but
+    // nothing was recorded. Write the ledger row the web flow already wrote.
+    try {
+      await Conversion.create({
+        user: wallet.user,
+        usdtAmount: amount,
+        nairaAmount,
+        finalRate,
+        lowestRate,
+        providerARate: coinGeckoRate,
+        providerBRate: coinbaseRate,
+        providerCRate: cryptoCompareRate,
+        conversionMarkup,
+        rateSpread: Math.max(...validRates) - lowestRate,
+        status: 'COMPLETED',
+        balanceBefore: nairaBefore,
+        balanceAfter: nairaBefore + nairaAmount,
+        usdtBalanceBefore: usdtBefore,
+        usdtBalanceAfter: usdtBefore - amount,
+        balanceSource: 'live',
+      });
+    } catch (logErr) {
+      console.error('[api convert] conversion record failed:', logErr.message);
+    }
 
     res.json({
       success: true,
@@ -556,12 +596,26 @@ exports.palmPayWebhook = async (req, res) => {
         return res.json({ success: true, message: 'Already processed' });
       }
 
+      // new:false hands back the pre-update document, which is the only
+      // race-free way to know the balance this credit started from.
       const walletField = `balances.${topUp.balanceType}`;
-      await Wallet.findOneAndUpdate(
+      const creditAmount = topUp.amount / 100;
+      const walletSnap = await Wallet.findOneAndUpdate(
         { user: topUp.user },
-        { $inc: { [walletField]: topUp.amount / 100 } },
-        { upsert: true, setOnInsert: { user: topUp.user } }
+        { $inc: { [walletField]: creditAmount } },
+        { upsert: true, new: false, setOnInsert: { user: topUp.user } }
       );
+
+      // Bookkeeping only — must never undo a credit that already succeeded.
+      try {
+        const before = (walletSnap && walletSnap.balances && walletSnap.balances[topUp.balanceType]) || 0;
+        await TopUp.updateOne(
+          { _id: topUp._id },
+          { $set: { balanceBefore: before, balanceAfter: before + creditAmount, balanceSource: 'live' } }
+        );
+      } catch (snapErr) {
+        console.error('[api palmpay webhook] balance snapshot failed:', snapErr.message);
+      }
 
       return res.json({ success: true, message: 'Wallet funded successfully' });
     }

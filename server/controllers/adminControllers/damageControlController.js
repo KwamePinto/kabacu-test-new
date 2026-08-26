@@ -467,3 +467,226 @@ exports.resolveTransaction = [authenticateAdminUser, async (req, res) => {
     return res.json({ success: false, message: 'Server error' });
   }
 }];
+
+// =============================================================================
+// SHORT DELIVERY
+// =============================================================================
+// The provider splits large bundles into 5GB legs. When a leg fails it still
+// reports overall success, and the message we store still claims the full
+// amount was shared — so this is invisible from our data alone. The background
+// sweep in transactionPoller stamps affected transactions; this tab lists them
+// and offers the two ways to make the customer whole.
+
+const SHORT_DELIVERY_FILTER = {
+  status: 'success',
+  'apiResponse._shortDelivered': true,
+  'apiResponse._shortResolved': { $ne: true },
+  adminCleared: { $ne: true },
+};
+
+exports.shortDeliveryRows = [authenticateAdminUser, async (req, res) => {
+  try {
+    const { findTopUpProduct } = require('../../services/shortDeliveryAudit');
+
+    const rows = await Transaction.find(SHORT_DELIVERY_FILTER)
+      .populate('user', 'username email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Whether an exact top-up bundle exists decides if "Send data" is offered.
+    // It is not always possible: AIRTEL has no 5GB (1.5/2/3/4/10GB), so a
+    // short-delivered AIRTEL 10GB can only be refunded.
+    const out = [];
+    for (const tx of rows) {
+      const ar = tx.apiResponse || {};
+      const topUp = await findTopUpProduct(ar._shortNetwork || '', ar._shortMissingGb);
+      out.push({
+        ...tx,
+        _topUp: topUp ? {
+          id: String(topUp._id),
+          planType: topUp.dataDetails.plan_type,
+          planId: topUp.dataDetails.plan_id,
+          cost: topUp.costPrice,
+          price: topUp.dataDetails.amount,
+        } : null,
+      });
+    }
+
+    const totals = {
+      rows: out.length,
+      missingGb: out.reduce((s, r) => s + ((r.apiResponse || {})._shortMissingGb || 0), 0),
+      lostValue: out.reduce((s, r) => s + ((r.apiResponse || {})._shortLostValue || 0), 0),
+    };
+
+    res.json({ rows: out, totals });
+  } catch (err) {
+    console.error('[shortDelivery rows]', err);
+    res.json({ rows: [], totals: { rows: 0, missingGb: 0, lostValue: 0 } });
+  }
+}];
+
+/**
+ * Refunds the undelivered portion into the customer's wallet.
+ *
+ * Pro-rata on what they actually paid, and written as its own ledger row so the
+ * statement explains the credit instead of showing an unexplained jump.
+ */
+exports.shortDeliveryRefund = [authenticateAdminUser, async (req, res) => {
+  try {
+    const tx = await Transaction.findOne({ _id: req.params.id, ...SHORT_DELIVERY_FILTER });
+    if (!tx) return res.json({ success: false, message: 'Not found, or already resolved.' });
+
+    const ar = tx.apiResponse || {};
+    const amount = Number(ar._shortLostValue) || 0;
+    if (!(amount > 0)) return res.json({ success: false, message: 'No shortfall value recorded on this transaction.' });
+
+    // Atomic credit; new:false gives the true before-balance without a re-read.
+    const snap = await Wallet.findOneAndUpdate(
+      { user: tx.user },
+      { $inc: { 'balances.NAIRA': amount } },
+      { upsert: true, new: false, setOnInsert: { user: tx.user } },
+    );
+    const before = (snap && snap.balances && snap.balances.NAIRA) || 0;
+
+    await Transaction.create({
+      user: tx.user,
+      amount,
+      walletType: 'NAIRA',
+      paymentMethod: 'Admin',
+      status: 'success',
+      reference: 'ADMIN-REFUND-' + Date.now(),
+      balanceBefore: before,
+      balanceAfter: before + amount,
+      apiResponse: {
+        adminRefund: true,
+        adminRefundOf: String(tx._id),
+        originalRef: tx.reference,
+        refundReason: `Short delivery: ${ar._shortDeliveredGb}GB of ${ar._shortBoughtGb}GB delivered`,
+        refundBy: (req.user && req.user.username) || 'admin',
+        adminRefundedAt: new Date().toISOString(),
+        balanceBefore: before,
+        balanceAfter: before + amount,
+      },
+    });
+
+    tx.apiResponse = {
+      ...ar,
+      _shortResolved: true,
+      _shortResolvedAt: new Date().toISOString(),
+      _shortResolvedBy: (req.user && req.user.username) || 'admin',
+      _shortResolution: 'refund',
+      _shortRefundAmount: amount,
+    };
+    tx.markModified('apiResponse');
+    await tx.save();
+
+    notify(tx.user, {
+      type: 'refund',
+      text: `Only ${ar._shortDeliveredGb}GB of your ${ar._shortBoughtGb}GB purchase was delivered. ₦${amount.toLocaleString()} has been refunded to your wallet.`,
+      link: '/user/transaction-history',
+    });
+
+    res.json({ success: true, message: `₦${amount.toLocaleString()} refunded.` });
+  } catch (err) {
+    console.error('[shortDelivery refund]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];
+
+/**
+ * Sends the missing data instead of refunding, using the same-plan bundle for
+ * exactly the shortfall and the same validity.
+ *
+ * The customer already paid for the full bundle, so nothing is charged — the
+ * cost falls on our provider balance. Resolution is only recorded if the
+ * provider actually confirms success.
+ */
+exports.shortDeliveryTopUp = [authenticateAdminUser, async (req, res) => {
+  try {
+    const { findTopUpProduct } = require('../../services/shortDeliveryAudit');
+    const { buyData, networkCode, userMessage } = require('../../services/ourdatastore');
+
+    const tx = await Transaction.findOne({ _id: req.params.id, ...SHORT_DELIVERY_FILTER });
+    if (!tx) return res.json({ success: false, message: 'Not found, or already resolved.' });
+
+    const ar = tx.apiResponse || {};
+    const missingGb = Number(ar._shortMissingGb) || 0;
+    if (!(missingGb > 0)) return res.json({ success: false, message: 'No shortfall recorded on this transaction.' });
+
+    const network = ar._shortNetwork || '';
+    const topUp = await findTopUpProduct(network, missingGb);
+    if (!topUp) {
+      return res.json({
+        success: false,
+        message: `No ${missingGb}GB bundle exists on "${network}", so the shortfall cannot be topped up exactly. Refund instead.`,
+      });
+    }
+
+    let apiResponse;
+    try {
+      apiResponse = await Promise.race([
+        buyData({
+          network: await networkCode(topUp.dataDetails.network),
+          phone: tx.phone,
+          data_plan: topUp.dataDetails.plan_id,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 60000)),
+      ]);
+    } catch (err) {
+      return res.json({
+        success: false,
+        message: 'The provider did not confirm the top-up. Nothing was recorded — check the provider dashboard before retrying, so the customer is not sent data twice.',
+      });
+    }
+
+    if (!apiResponse || apiResponse.status !== 'success') {
+      return res.json({ success: false, message: userMessage(apiResponse, 'Top-up failed. Nothing was recorded.') });
+    }
+
+    // Auditable record of the goodwill delivery. Zero amount: the customer was
+    // already charged for the full bundle on the original transaction.
+    await Transaction.create({
+      user: tx.user,
+      product: topUp._id,
+      phone: tx.phone,
+      amount: 0,
+      rpEarned: 0,
+      walletType: 'NAIRA',
+      paymentMethod: 'Admin',
+      status: 'success',
+      reference: 'ADMIN-TOPUP-' + Date.now(),
+      apiResponse: {
+        ...apiResponse,
+        adminShortDeliveryTopUp: true,
+        topUpOf: String(tx._id),
+        originalRef: tx.reference,
+        topUpGb: missingGb,
+        providerCost: topUp.costPrice,
+        topUpBy: (req.user && req.user.username) || 'admin',
+      },
+    });
+
+    tx.apiResponse = {
+      ...ar,
+      _shortResolved: true,
+      _shortResolvedAt: new Date().toISOString(),
+      _shortResolvedBy: (req.user && req.user.username) || 'admin',
+      _shortResolution: 'topup',
+      _shortTopUpGb: missingGb,
+      _shortTopUpPlanId: topUp.dataDetails.plan_id,
+    };
+    tx.markModified('apiResponse');
+    await tx.save();
+
+    notify(tx.user, {
+      type: 'success',
+      text: `The missing ${missingGb}GB from your earlier purchase has been sent to ${tx.phone}.`,
+      link: '/user/transaction-history',
+    });
+
+    res.json({ success: true, message: `${missingGb}GB sent to ${tx.phone}.` });
+  } catch (err) {
+    console.error('[shortDelivery topup]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];

@@ -3,6 +3,7 @@ const Wallet      = require('../models/WalletModal');
 const User        = require('../models/UserModel');
 const { getTransactionStatus, lookupByPhoneAndTime } = require('./ourdatastore');
 const logger = require('../config/logger');
+const { notify } = require('./userNotificationService');
 
 const POLL_INTERVAL_MS      = 2  * 60 * 1000;  // check every 2 minutes
 const AUTO_REFUND_AFTER_MS  = 30 * 60 * 1000;  // start ODS check at 30 minutes
@@ -31,6 +32,8 @@ async function pollPendingTransactions() {
           odsResult = await lookupByPhoneAndTime(tx.phone, tx.createdAt);
         } catch (odsErr) {
           logger.error(`[POLLER] TX ${tx._id}: OurDataStore lookup error: ${odsErr.message}`);
+          // A thrown lookup is also "could not ask", never "not delivered".
+          odsResult = { found: false, unreachable: true, error: odsErr.message };
         }
 
         if (odsResult?.found && odsResult.planStatus === 1) {
@@ -54,9 +57,27 @@ async function pollPendingTransactions() {
           // OurDataStore confirms failure — refund is correct.
           await refundAndFail(tx, 'OurDataStore confirmed failure');
 
-        } else if (age > HARD_REFUND_AFTER_MS) {
-          // Still uncertain after 2 hours — refund and flag for admin review.
-          await refundAndFail(tx, 'auto-refund after 2h: OurDataStore status uncertain');
+        } else if (age > HARD_REFUND_AFTER_MS && !odsResult?.unreachable) {
+          // Still uncertain after 2 hours, and we DID manage to ask — the
+          // window was searched and no delivery was found. Refunding is
+          // justified. Flagged for admin review either way.
+          await refundAndFail(tx, 'auto-refund after 2h: OurDataStore searched, no delivery found');
+
+        } else if (age > HARD_REFUND_AFTER_MS && odsResult?.unreachable) {
+          // We could NOT ask. Refunding here is exactly how a delivered order
+          // gets its money returned too: an outage on their side would look
+          // identical to a failed delivery. Hold the transaction pending and
+          // surface it for a human instead of guessing.
+          tx.apiResponse = {
+            ...(tx.apiResponse || {}),
+            _odsUnreachable: true,
+            _odsUnreachableAt: new Date().toISOString(),
+            _odsUnreachableError: odsResult.error || '',
+            _needsManualReview: true,
+          };
+          tx.markModified('apiResponse');
+          await tx.save();
+          logger.warn(`[POLLER] TX ${tx._id}: past 2h but OurDataStore is UNREACHABLE (${odsResult.error}) — holding pending for manual review rather than refunding`);
 
         } else {
           // OurDataStore is uncertain or still processing — check again next poll cycle.
@@ -106,11 +127,20 @@ async function refundAndFail(tx, reason) {
       await wallet.save();
 
       tx.walletCredited = true;
+      // The refund restores the balance, so the row's net effect is zero.
+      // Recording after == before keeps the statement chain continuous —
+      // leaving the original debit here is what made 266 historic rows
+      // discontinuous.
+      tx.balanceAfter  = wallet.balances.NAIRA;
+      if (tx.balanceBefore == null) tx.balanceBefore = wallet.balances.NAIRA;
+      tx.balanceSource = 'live';
       tx.apiResponse = {
         ...(tx.apiResponse || {}),
         _pollerRefunded: true,
         _pollerRefundedAt: new Date().toISOString(),
         _pollerReason: reason,
+        _refundBalBefore: before,
+        _refundBalAfter: wallet.balances.NAIRA,
       };
       tx.markModified('apiResponse');
     }
@@ -121,12 +151,108 @@ async function refundAndFail(tx, reason) {
   logger.info(`[POLLER] TX ${tx._id} → FAILED & refunded (${reason})`);
 }
 
+
+// ── Short-delivery sweep ─────────────────────────────────────────────────────
+// Large bundles are split by the provider into 5GB legs. When a leg fails they
+// still report overall success and the message we store still claims the full
+// amount was shared, so a short delivery is invisible on our side. The only
+// signal is the leg summary on their record.
+//
+// This runs on its own slower interval and STAMPS the transaction, so the
+// flagged-transactions page stays an ordinary Mongo query like its other tabs
+// instead of making provider calls during a page render.
+const SHORT_DELIVERY_INTERVAL_MS = 10 * 60 * 1000; // every 10 minutes
+const SHORT_DELIVERY_LOOKBACK_MS = 48 * 60 * 60 * 1000; // only recent orders
+const SHORT_DELIVERY_BATCH       = 25; // provider calls per cycle
+
+async function pollShortDelivery() {
+  const { checkOne } = require('./shortDeliveryAudit');
+  const Product = require('../models/ProductsModal');
+
+  // Only bundles big enough to be split are worth checking.
+  const products = await Product.find({ category: 'DATA' }).select('dataDetails').lean();
+  const bigIds = products
+    .filter(p => {
+      const m = String(p.dataDetails && p.dataDetails.plan_type || '').match(/([\d.]+)\s*GB/i);
+      return m && parseFloat(m[1]) > 5;
+    })
+    .map(p => p._id);
+
+  if (!bigIds.length) return;
+
+  const candidates = await Transaction.find({
+    status: 'success',
+    product: { $in: bigIds },
+    createdAt: { $gte: new Date(Date.now() - SHORT_DELIVERY_LOOKBACK_MS) },
+    'apiResponse._shortChecked': { $ne: true },
+  }).limit(SHORT_DELIVERY_BATCH);
+
+  if (!candidates.length) return;
+  logger.info(`[SHORT-DELIVERY] Checking ${candidates.length} large-bundle purchase(s)`);
+
+  const productById = new Map(products.map(p => [String(p._id), p]));
+
+  for (const tx of candidates) {
+    try {
+      const result = await checkOne(tx, { productById });
+
+      // null means we could not determine it — provider unreachable or no
+      // record yet. Leave it unstamped so the next cycle retries, rather than
+      // recording an absence of evidence as evidence of delivery.
+      if (!result) continue;
+
+      tx.apiResponse = {
+        ...(tx.apiResponse || {}),
+        _shortChecked: true,
+        _shortCheckedAt: new Date().toISOString(),
+      };
+
+      if (result.short) {
+        Object.assign(tx.apiResponse, {
+          _shortDelivered: true,
+          _shortBoughtGb:  result.boughtGb,
+          _shortDeliveredGb: result.deliveredGb,
+          _shortMissingGb: result.missingGb,
+          _shortLegs:      result.legs,
+          _shortLegsOk:    result.legsOk,
+          _shortLostValue: result.lostValue,
+          _shortOdsMessage: result.odsMessage,
+          // Needed to find the matching top-up bundle on the same plan family
+          _shortNetwork:   result.network,
+          _shortPlanType:  result.planType,
+        });
+        logger.warn(`[SHORT-DELIVERY] TX ${tx._id} (${tx.reference}): bought ${result.boughtGb}GB, delivered ${result.deliveredGb}GB (${result.legsOk}/${result.legs} legs) — value not delivered ₦${result.lostValue}`);
+
+        notify(tx.user, {
+          type: 'attention',
+          text: `We found that only ${result.deliveredGb}GB of your ${result.boughtGb}GB purchase was delivered. Our team is resolving it.`,
+          link: '/user/transaction-history',
+        });
+      }
+
+      tx.markModified('apiResponse');
+      await tx.save();
+    } catch (err) {
+      logger.error(`[SHORT-DELIVERY] Error on TX ${tx._id}: ${err.message}`);
+    }
+  }
+}
+
 function startPoller() {
   setInterval(async () => {
     try { await pollPendingTransactions(); }
     catch (err) { logger.error(`[POLLER] Unhandled error: ${err.message}`); }
   }, POLL_INTERVAL_MS);
+
+  // Separate, slower interval: detects partial deliveries on large bundles and
+  // stamps them so the flagged page can query them like any other tab.
+  setInterval(async () => {
+    try { await pollShortDelivery(); }
+    catch (err) { logger.error(`[SHORT-DELIVERY] Unhandled error: ${err.message}`); }
+  }, SHORT_DELIVERY_INTERVAL_MS);
+
   logger.info('[POLLER] Transaction poller started — interval: 2 min, auto-refund after: 30 min');
+  logger.info('[SHORT-DELIVERY] Sweep started — interval: 10 min, lookback: 48h');
 }
 
-module.exports = { startPoller, pollPendingTransactions };
+module.exports = { startPoller, pollPendingTransactions, pollShortDelivery };

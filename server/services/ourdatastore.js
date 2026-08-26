@@ -114,7 +114,16 @@ async function executeBuyData(params) {
         'request-id': requestId,
       };
 
+      // This POST had NO timeout, which mattered because purchases run through
+      // a single sequential queue: one hung connection blocked every user
+      // behind it indefinitely. The caller's Promise.race only abandons its own
+      // wait — it cannot cancel this request or free the queue slot.
+      //
+      // Set just under the caller's 60s race so axios gives up first: the queue
+      // is released, and a no-response error is classified as `pending` (not
+      // `fail`), so the poller decides the outcome rather than a blind refund.
       const response = await axios.post(`${BASE_URL}/data`, payload, {
+        timeout: 55000,
         headers: {
           Authorization: `Token ${token}`,
           'Content-Type': 'application/json',
@@ -381,11 +390,21 @@ async function lookupByPhoneAndTime(phone, txDateUtc, { maxPages = 8, perPage = 
         if (oldestUtc < windowStart) break;
       }
     }
-  } catch (_) {
-    // OurDataStore unavailable — return not found so caller can fall back safely
+  } catch (err) {
+    // CRITICAL: "we could not ask" is NOT the same as "it was not delivered".
+    // This previously returned { found: false }, which the poller read as
+    // proof of non-delivery and used to justify a refund — so an outage in
+    // OurDataStore caused refunds on orders that had actually been delivered.
+    // The caller must be able to tell the two apart.
+    return {
+      found: false,
+      unreachable: true,
+      error: err && err.message ? err.message : String(err),
+    };
   }
 
-  return { found: false };
+  // Genuinely searched and found nothing in the window.
+  return { found: false, unreachable: false };
 }
 
 module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, fetchDataTransactions, getTransactionStatus, lookupByPhoneAndTime };

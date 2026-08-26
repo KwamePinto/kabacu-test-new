@@ -59,7 +59,7 @@ exports.retryTransaction = async (req, res) => {
           data_plan: product.dataDetails.plan_id
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), 25000)
+          setTimeout(() => reject(new Error('Request timeout')), 60000)
         ),
       ]);
     } catch (err) {

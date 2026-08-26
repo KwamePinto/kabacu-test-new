@@ -4,6 +4,7 @@ const adminLayouts = "layouts/adminLayout";
 
 const Transaction = require("../../models/TransactionModel");
 const TopUp = require("../../models/TopUpModal");
+const Conversion = require("../../models/ConversionModal");
 const Category = require("../../models/CategoryModal");
 const Product = require("../../models/ProductsModal");
 const User = require("../../models/UserModel");
@@ -398,7 +399,8 @@ exports.userDetails = [
       const user = await User.findById(req.params.id);
       if (!user) return res.redirect("/admin/product/view-users");
 
-      const [wallet, transactions, topups, referralsMade, referredBy, referralSettings] =
+      const [wallet, transactions, topups, conversions,
+             referralsMade, referredBy, referralSettings] =
         await Promise.all([
           Wallet.findOne({ user: user._id }).lean(),
           Transaction.find({ user: user._id })
@@ -408,6 +410,10 @@ exports.userDetails = [
             .limit(200)
             .lean(),
           TopUp.find({ user: user._id }).sort({ createdAt: -1 }).limit(100).lean(),
+
+          // Conversions move real wallet money (USDT out, NAIRA in) but were
+          // never part of the statement, leaving unexplained balance jumps.
+          Conversion.find({ user: user._id }).sort({ createdAt: -1 }).limit(100).lean(),
 
           // Everyone this user brought in, with the reward each one produced
           Referral.find({ referrer: user._id })
@@ -451,7 +457,6 @@ exports.userDetails = [
         commissionEarned: referralsMade.reduce((s, r) => s + (r.commissionEarned || 0), 0),
         commissionCount:  referralsMade.reduce((s, r) => s + (r.commissionCount || 0), 0),
       };
-
       const walletBalances = wallet?.balances || {
         BTT: 0,
         RP: 0,
@@ -527,7 +532,9 @@ exports.userDetails = [
             _id: tp._id, reference: tp.reference || '',
             description: (tp.balanceType || 'NAIRA') + ' wallet top-up',
             amount: tp.nairaAmount || tp.amount || 0, walletType: tp.balanceType || 'NAIRA',
-            balanceBefore: null, balanceAfter: null,
+            balanceBefore: tp.balanceBefore != null ? tp.balanceBefore : null,
+            balanceAfter:  tp.balanceAfter  != null ? tp.balanceAfter  : null,
+            _balanceSource: tp.balanceSource || null,
             status: tp.status === 'COMPLETED' ? 'success' : (tp.status ? tp.status.toLowerCase() : 'pending'),
             createdAt: tp.createdAt, rpEarned: 0,
             paymentMethod: pmDisplay, phone: '', performedBy: pmDisplay,
@@ -535,6 +542,20 @@ exports.userDetails = [
             _topupWalletCredited: tp.walletCredited, _topupBalanceType: tp.balanceType,
           };
         }),
+        ...conversions.map(cv => ({
+          _source: 'conversion', _entryType: 'conversion',
+          _id: cv._id, reference: '',
+          description: `Converted ${cv.usdtAmount} USDT to Naira @ ${Number(cv.finalRate || 0).toFixed(2)}`,
+          amount: cv.nairaAmount || 0, walletType: 'NAIRA',
+          balanceBefore: cv.balanceBefore != null ? cv.balanceBefore : null,
+          balanceAfter:  cv.balanceAfter  != null ? cv.balanceAfter  : null,
+          _balanceSource: cv.balanceSource || null,
+          status: cv.status === 'COMPLETED' ? 'success' : (cv.status || '').toLowerCase(),
+          createdAt: cv.createdAt, rpEarned: 0,
+          paymentMethod: 'Conversion', phone: '', performedBy: 'Conversion',
+          _refundOf: '', _originalRef: '',
+          _usdtAmount: cv.usdtAmount, _rate: cv.finalRate,
+        })),
       ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       res.render("adminview/tables/user-details", {
@@ -550,6 +571,7 @@ exports.userDetails = [
         walletBalances,
         transactions,
         topups,
+        conversions,
         accountStatements,
         totalSpent,
         totalToppedUp,

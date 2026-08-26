@@ -88,6 +88,11 @@ const transactionSchema = new mongoose.Schema({
     balanceBefore: { type: Number },
     balanceAfter:  { type: Number },
 
+    // 'live'      captured at the time the wallet moved
+    // 'backfill'  reconstructed later by scripts/backfill-statement-balances.js
+    // Absent on older rows that recorded balances before this field existed.
+    balanceSource: { type: String, enum: ['live', 'backfill', null], default: null },
+
     adminCleared:   { type: Boolean, default: false },
     adminClearedAt: { type: Date },
     adminClearedBy: { type: String },

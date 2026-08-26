@@ -16,6 +16,20 @@ const conversionSchema = new mongoose.Schema({
     enum: ['COMPLETED', 'FAILED'],
     default: 'COMPLETED',
   },
+
+  // Naira-side wallet balance either side of the conversion. A conversion
+  // moves real money (USDT out, NAIRA in) but never produced a statement row
+  // before, so it now carries the same snapshots as every other entry.
+  balanceBefore: { type: Number, default: null },
+  balanceAfter:  { type: Number, default: null },
+
+  // USDT side, for completeness on the statement.
+  usdtBalanceBefore: { type: Number, default: null },
+  usdtBalanceAfter:  { type: Number, default: null },
+
+  balanceSource: { type: String, enum: ['live', 'backfill', null], default: null },
 }, { timestamps: true });
+
+conversionSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Conversion', conversionSchema);
