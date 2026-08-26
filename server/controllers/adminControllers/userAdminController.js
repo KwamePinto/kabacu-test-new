@@ -1164,6 +1164,61 @@ exports.toggleOwnTwoFactor = [
   },
 ];
 
+/**
+ * An admin setting a new password from their own profile, while already
+ * signed in.
+ *
+ * Separate from the forgot-password flow (email OTP), which exists for the
+ * case where they cannot sign in at all. Here they already hold a valid
+ * session, so the re-authentication factor is their CURRENT password rather
+ * than an emailed code — the standard pattern for an in-session credential
+ * change, and it means nothing is emailed for something they initiated and
+ * can already prove they are authorised to do.
+ */
+exports.changeOwnPassword = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const currentPassword = String(req.body.currentPassword || '');
+      const newPassword     = String(req.body.newPassword || '');
+      const confirmPassword = String(req.body.confirmPassword || '');
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return res.json({ success: false, message: 'Fill in all three fields.' });
+      }
+      if (newPassword.length < 8) {
+        return res.json({ success: false, message: 'New password must be at least 8 characters.' });
+      }
+      if (newPassword !== confirmPassword) {
+        return res.json({ success: false, message: 'New password and confirmation do not match.' });
+      }
+
+      const admin = await UserAdminModel.findById(req.user.id);
+      if (!admin) return res.json({ success: false, message: 'Account not found.' });
+
+      const currentOk = await bcrypt.compare(currentPassword, admin.password);
+      if (!currentOk) {
+        return res.json({ success: false, message: 'Current password is incorrect.' });
+      }
+      if (newPassword === currentPassword) {
+        return res.json({ success: false, message: 'That is already your current password.' });
+      }
+
+      admin.password = await bcrypt.hash(newPassword, saltRounds);
+      // Any pending reset link becomes stale the moment the password actually
+      // changes, so it cannot be used to change it again later.
+      admin.resetPasswordToken = null;
+      admin.resetPasswordExpires = null;
+      await admin.save();
+
+      res.json({ success: true, message: 'Password updated.' });
+    } catch (err) {
+      console.error('[changeOwnPassword]', err);
+      res.json({ success: false, message: 'Server error. Please try again.' });
+    }
+  },
+];
+
 /** A super admin turning 2FA on or off for a lower-ranked admin. */
 exports.toggleAdminTwoFactor = [
   authenticateAdminUser,

@@ -186,16 +186,39 @@
 
                   <div class="kp-card">
                     <div class="kp-card__head"><h2 class="kp-card__title">Password</h2></div>
-                    <div class="kp-card__body">
-                      <div class="kp-row">
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-row kp-row--stack">
                         <div class="kp-row__main">
-                          <span class="kp-row__label">Change your password</span>
-                          <p class="kp-row__hint">You will be signed out of other sessions.</p>
+                          <span class="kp-row__label">Current password</span>
                         </div>
-                        <div class="kp-row__ctrl">
-                          <a href="/admin/forgot-password" class="kp-btn">Reset password</a>
-                        </div>
+                        <input type="password" id="pw-current" class="kp-input" style="width:100%;max-width:320px;"
+                               autocomplete="current-password" placeholder="••••••••">
                       </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">New password</span>
+                          <p class="kp-row__hint">At least 8 characters.</p>
+                        </div>
+                        <input type="password" id="pw-new" class="kp-input" style="width:100%;max-width:320px;"
+                               autocomplete="new-password" placeholder="••••••••">
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Confirm new password</span>
+                        </div>
+                        <input type="password" id="pw-confirm" class="kp-input" style="width:100%;max-width:320px;"
+                               autocomplete="new-password" placeholder="••••••••">
+                      </div>
+
+                      <p id="pw-error" class="kp-note kp-note--danger" style="display:none;"></p>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button type="button" class="kp-btn kp-btn--primary" id="pw-save">Update password</button>
+                      <a href="/admin/forgot-password" class="kp-mute" style="font-size:12.5px;">
+                        Forgot your current password?
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -257,6 +280,73 @@
     }
 
     btn.disabled = false;
+  });
+})();
+
+// ── Change password ─────────────────────────────────────────────────────────
+(function () {
+  var saveBtn = document.getElementById('pw-save');
+  if (!saveBtn) return;
+
+  var currentEl = document.getElementById('pw-current');
+  var newEl     = document.getElementById('pw-new');
+  var confirmEl = document.getElementById('pw-confirm');
+  var errorEl   = document.getElementById('pw-error');
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = '';
+  }
+  function clearError() {
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+  }
+
+  saveBtn.addEventListener('click', async function () {
+    clearError();
+
+    var current = currentEl.value;
+    var next    = newEl.value;
+    var confirm = confirmEl.value;
+
+    // Same checks the server makes, so a mistake is caught before a round trip
+    // rather than after — the server call is still the authority, this just
+    // saves a wasted request for the common slips.
+    if (!current || !next || !confirm) {
+      return showError('Fill in all three fields.');
+    }
+    if (next.length < 8) {
+      return showError('New password must be at least 8 characters.');
+    }
+    if (next !== confirm) {
+      return showError('New password and confirmation do not match.');
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Updating…';
+
+    try {
+      var res = await fetch('/admin/profile/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
+        body: JSON.stringify({ currentPassword: current, newPassword: next, confirmPassword: confirm }),
+      });
+      var data = await res.json();
+
+      if (data.success) {
+        currentEl.value = '';
+        newEl.value = '';
+        confirmEl.value = '';
+        await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
+      } else {
+        showError(data.message);
+      }
+    } catch (e) {
+      showError('Request failed. Please try again.');
+    }
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Update password';
   });
 })();
 </script>

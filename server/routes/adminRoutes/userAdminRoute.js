@@ -20,6 +20,7 @@ router.post("/admins/approve-reset/:id", getAdminUsers.approveReset);
 router.get("/profile", getAdminUsers.adminProfile);
 router.post("/profile", getAdminUsers.adminProfilePost);
 router.post("/profile/two-factor", getAdminUsers.toggleOwnTwoFactor);
+router.post("/profile/password", getAdminUsers.changeOwnPassword);
 
 // ── Admin management (super_admin only) ───────────────────
 router.get("/admins", getAdminUsers.viewAdmins);
