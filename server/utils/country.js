@@ -175,6 +175,22 @@ async function resolveLoginCountry(user) {
  */
 function countryFilter(viewer) {
   if (!viewer || !viewer.code) return {};
+
+  /* A plain `{ country: 'NG' }` does NOT match documents where the field is
+     absent, so on a database that predates country tagging every product would
+     silently disappear from the store. For the default market the filter
+     therefore accepts an untagged row as belonging to it — which is what an
+     untagged row always meant before markets existed.
+
+     Other markets stay an exact match: a Ghanaian shopper must not be shown
+     untagged stock that was only ever intended for Nigeria.
+
+     This keeps the code correct against un-migrated data instead of depending
+     on a backfill having been run, and it also covers a product created later
+     by some path that forgets to set a country. */
+  if (viewer.code === DEFAULT_COUNTRY) {
+    return { $or: [{ country: DEFAULT_COUNTRY }, { country: { $exists: false } }, { country: null }, { country: '' }] };
+  }
   return { country: viewer.code };
 }
 

@@ -19,10 +19,24 @@
         <div class="section-body">
 
           <%
+            /* The manual is split out from "All FAQs" rather than filtered
+               inside it: it is the panel's own documentation, edited by a
+               different person for a different reader than the customer FAQ. */
+            var _adminFaqs = (faqs || []).filter(function (f) { return f.category === 'admin-dashboard'; });
+            var _userFaqs  = (faqs || []).filter(function (f) { return f.category !== 'admin-dashboard'; });
+
             var _navSections = [
               { id: 'editor', label: 'New / Edit', icon: 'edit-3' },
-              { id: 'list',   label: 'All FAQs',   icon: 'list', badge: faqs.length }
+              { id: 'list',   label: 'All FAQs',   icon: 'list', badge: _userFaqs.length }
             ];
+
+            // Only a super admin can change the manual, so only they are offered it.
+            if (locals.isSuperAdmin) {
+              _navSections.push({
+                id: 'admin-manual', label: 'Admin Dashboard FAQ',
+                icon: 'book-open', badge: _adminFaqs.length
+              });
+            }
           %>
 
           <div class="kp-panel">
@@ -58,6 +72,12 @@
                           { id: 'account',         label: 'Account & Profile' },
                           { id: 'rewards',         label: 'Reward Points' },
                         ];
+                        /* Offering the category to someone who cannot save it
+                           would only produce a rejection at submit time. The
+                           server enforces the same rule regardless. */
+                        if (locals.isSuperAdmin) {
+                          FAQ_CATEGORIES.push({ id: 'admin-dashboard', label: 'Admin Dashboard (panel manual)' });
+                        }
                       %>
 
               <div id="editing-banner" class="kp-note kp-note--warn" style="display:none;"></div>
@@ -126,6 +146,24 @@
                 </div>
               </div>
 
+              <!-- Shown only for a manual entry: a customer-facing FAQ has no
+                   notion of an admin role, so the field would be noise there.
+                   toggleRoleNoteRow() shows and hides it with the category. -->
+              <div class="kp-row" id="role-note-row" style="display:none;">
+                <div class="kp-row__main">
+                  <span class="kp-row__label">Restricted to</span>
+                  <span class="kp-row__hint">Adds a note that only this role can complete the action</span>
+                </div>
+                <div class="kp-row__ctrl" style="width:220px;">
+                  <select id="faq-role-note" class="kp-select" style="width:100%;">
+                    <option value="">Any admin</option>
+                    <option value="super_admin">Super admin only</option>
+                    <option value="senior_admin">Senior admin and above</option>
+                    <option value="junior_admin">Junior admin</option>
+                  </select>
+                </div>
+              </div>
+
               <div class="kp-row">
                 <div class="kp-row__main"><span class="kp-row__label">Visible to users</span></div>
                 <div class="kp-row__ctrl">
@@ -149,10 +187,12 @@
                     <div class="kp-card__head">
                       <h2 class="kp-card__title">All FAQs</h2>
                       <div class="kp-card__aside">
-                        <span class="kp-pill" id="faq-count"><%= faqs.length %></span>
+                        <span class="kp-pill" id="faq-count"><%= _userFaqs.length %></span>
                 <select class="kp-select" id="category-filter" onchange="filterTable(this.value)" style="width:190px;height:32px;font-size:12.5px;">
                   <option value="">All categories</option>
-                  <% FAQ_CATEGORIES.forEach(function (c) { %>
+                  <%# The manual has its own section, so offering it here would
+                      only ever filter this table down to nothing. %>
+                  <% FAQ_CATEGORIES.filter(function (c) { return c.id !== 'admin-dashboard'; }).forEach(function (c) { %>
                   <option value="<%= c.id %>"><%= c.label %></option>
                   <% }) %>
                 </select>
@@ -170,15 +210,21 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <% if (faqs && faqs.length) { %>
+                    <% if (_userFaqs.length) { %>
                     <%
                       function catLabel(c) {
                         return { 'getting-started': 'Getting Started', 'wallet': 'Wallet & Payments',
                                  'data': 'Data Bundles', 'courses': 'Courses',
-                                 'account': 'Account & Profile', 'rewards': 'Reward Points' }[c] || c;
+                                 'account': 'Account & Profile', 'rewards': 'Reward Points',
+                                 'admin-dashboard': 'Admin Dashboard' }[c] || c;
+                      }
+                      function roleLabel(r) {
+                        return { 'super_admin': 'Super admin only',
+                                 'senior_admin': 'Senior admin and above',
+                                 'junior_admin': 'Junior admin' }[r] || '';
                       }
                     %>
-                    <% faqs.forEach(function(faq) { %>
+                    <% _userFaqs.forEach(function(faq) { %>
                     <tr data-id="<%= faq._id %>" data-category="<%= faq.category %>">
                       <td><span class="kp-pill"><%= catLabel(faq.category) %></span></td>
                       <td style="font-size:13px;"><%= faq.question %></td>
@@ -206,6 +252,75 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- ══ Admin Dashboard FAQ ═══════════════════════════════
+                     The panel's own manual. Rendered only for a super admin,
+                     matching the server-side guard on every write to it. -->
+                <% if (locals.isSuperAdmin) { %>
+                <div class="kp-section" data-section="admin-manual">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Admin Dashboard FAQ</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill"><%= _adminFaqs.length %></span>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-note">
+                        The panel manual, shown to admins here only &mdash; these entries never
+                        appear on the public FAQ page. Only a super admin can edit them.
+                        Where an action is restricted to one role, set <strong>Restricted to</strong>
+                        on the entry so the limit is visible to whoever reads it.
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <th>Question</th>
+                              <th style="width:180px;">Restricted to</th>
+                              <th style="width:90px;">Status</th>
+                              <th style="width:100px;">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if (_adminFaqs.length) { %>
+                            <% _adminFaqs.forEach(function (faq) { %>
+                            <tr data-id="<%= faq._id %>" data-category="<%= faq.category %>">
+                              <td style="font-size:13px;"><%= faq.question %></td>
+                              <td>
+                                <% if (faq.roleNote) { %>
+                                  <span class="kp-pill kp-pill--warn"><%= roleLabel(faq.roleNote) %></span>
+                                <% } else { %>
+                                  <span class="kp-muted" style="font-size:12.5px;">Any admin</span>
+                                <% } %>
+                              </td>
+                              <td>
+                                <% if (faq.isActive) { %>
+                                  <span class="kp-pill kp-pill--good">Active</span>
+                                <% } else { %>
+                                  <span class="kp-pill">Hidden</span>
+                                <% } %>
+                              </td>
+                              <td>
+                                <button class="kp-btn kp-btn--sm" onclick="editFaq('<%= faq._id %>')">Edit</button>
+                                <button class="kp-btn kp-btn--sm kp-btn--danger" onclick="deleteFaq('<%= faq._id %>', this)">Delete</button>
+                              </td>
+                            </tr>
+                            <% }) %>
+                            <% } else { %>
+                            <tr>
+                              <td colspan="4"><div class="kp-empty">The manual is empty. It seeds itself the first time this page loads.</div></td>
+                            </tr>
+                            <% } %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <% } %>
 
               </div><!-- /kp-panel__main -->
             </div><!-- /kp-panel__body -->
@@ -298,6 +413,8 @@ function resetForm() {
   document.getElementById('faq-question').value = '';
   document.getElementById('faq-category').value = '';
   document.getElementById('faq-active').checked = true;
+  document.getElementById('faq-role-note').value = '';
+  toggleRoleNoteRow();
   quill.setContents([]);
   document.getElementById('editor-card-title').textContent = 'Add New FAQ';
   document.getElementById('save-btn').innerHTML = '<i class="fas fa-save mr-1"></i> Save FAQ';
@@ -315,6 +432,8 @@ function editFaq(id) {
   document.getElementById('faq-question').value = faq.question;
   document.getElementById('faq-category').value = faq.category;
   document.getElementById('faq-active').checked = faq.isActive;
+  document.getElementById('faq-role-note').value = faq.roleNote || '';
+  toggleRoleNoteRow();
   quill.root.innerHTML = faq.answer;
 
   document.getElementById('editor-card-title').textContent = 'Edit FAQ';
@@ -330,12 +449,32 @@ function editFaq(id) {
   document.getElementById('faq-editor-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/* The role note only applies to the panel manual, so the field follows the
+   selected category rather than sitting there permanently. */
+function toggleRoleNoteRow() {
+  var row = document.getElementById('role-note-row');
+  if (!row) return;
+  var category = document.getElementById('faq-category').value;
+  row.style.display = category === 'admin-dashboard' ? '' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var sel = document.getElementById('faq-category');
+  if (sel) sel.addEventListener('change', toggleRoleNoteRow);
+  toggleRoleNoteRow();
+});
+
 // ── Save (create or update) ───────────────────────────────────────────────────
 async function saveFaq() {
   var question = document.getElementById('faq-question').value.trim();
   var category = document.getElementById('faq-category').value;
   var answer   = quill.root.innerHTML.trim();
   var isActive = document.getElementById('faq-active').checked;
+  // Only meaningful on a manual entry; sent empty otherwise so a category
+  // change from manual to customer clears any note that was set.
+  var roleNote = category === 'admin-dashboard'
+    ? document.getElementById('faq-role-note').value
+    : '';
 
   if (!question) {
     Swal.fire({ icon: 'warning', text: 'Please enter a question.', confirmButtonColor: '#6777ef' });
@@ -363,7 +502,7 @@ async function saveFaq() {
     var res  = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ question, category, answer, isActive }),
+      body: JSON.stringify({ question, category, answer, isActive, roleNote }),
     });
     var data = await res.json();
 

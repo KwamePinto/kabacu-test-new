@@ -826,7 +826,7 @@ document.getElementById('tab-short').addEventListener('click', async function (e
     title: topBtn ? 'Send ' + btn.dataset.gb + 'GB?' : 'Refund ₦' + Number(btn.dataset.amt).toLocaleString() + '?',
     text: topBtn
       ? 'The missing data will be sent to this number. The customer is not charged — they already paid for the full bundle.'
-      : 'The undelivered portion will be credited to the customer\\'s wallet.',
+      : "The undelivered portion will be credited to the customer's wallet.",
     showCancelButton: true,
     confirmButtonText: topBtn ? 'Send data' : 'Refund',
     confirmButtonColor: '#6777ef',

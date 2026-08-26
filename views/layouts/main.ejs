@@ -158,34 +158,68 @@
     <%- body %>
   </main>
 
-  <!-- Announcement popup — shown once per sign-in session -->
+  <!-- Announcement popups — a stepped tour, shown once per sign-in session.
+       Every active popup is rendered and the script moves between them, rather
+       than only the first being shown: a set of new features needs more than one
+       card to explain, and a user who is told about one of them and never the
+       rest is worse served than one who is walked through all of them. -->
   <% if (user && !locals.hideHeader && _popups.length) { %>
-  <% var _popup = _popups[0]; %>
-  <div class="ann-popup" id="annPopup" data-popup-id="<%= _popup._id %>" role="dialog" aria-modal="true" aria-labelledby="annPopupTitle" hidden>
+  <%
+    /* The whole set is identified by one key so finishing the tour dismisses it
+       as a unit. Built from the ids, so adding or changing a popup produces a
+       new key and the tour is offered again — which is the point of adding one. */
+    var _tourKey = _popups.map(function (p) { return String(p._id); }).join('.');
+  %>
+  <div class="ann-popup" id="annPopup" data-popup-id="<%= _tourKey %>"
+       data-popup-count="<%= _popups.length %>"
+       role="dialog" aria-modal="true" aria-labelledby="annPopupTitle" hidden>
     <div class="ann-popup__backdrop" data-ann-close></div>
     <div class="ann-popup__card">
       <button type="button" class="ann-popup__close" data-ann-close aria-label="Close">
         <i data-lucide="x"></i>
       </button>
 
-      <% if (_popup.image) { %>
-      <div class="ann-popup__media">
-        <img src="<%= _popup.image %>" alt="">
+      <% _popups.forEach(function (_popup, _i) { %>
+      <div class="ann-popup__step<%= _i === 0 ? ' is-active' : '' %>" data-step="<%= _i %>">
+        <% if (_popup.image) { %>
+        <div class="ann-popup__media">
+          <img src="<%= _popup.image %>" alt="">
+        </div>
+        <% } %>
+
+        <div class="ann-popup__body">
+          <% if (_popup.eyebrow) { %>
+          <span class="ann-popup__eyebrow"><%= _popup.eyebrow %></span>
+          <% } %>
+          <!-- The id is emitted with the unescaped output tag. The escaping
+               form turned its quotes into HTML entities, so the attribute never
+               existed and the dialog's aria-labelledby pointed at nothing. -->
+          <h3 class="ann-popup__title"<%- _i === 0 ? ' id="annPopupTitle"' : '' %>><%= _popup.title %></h3>
+          <% if (_popup.subtitle) { %>
+          <p class="ann-popup__text"><%= _popup.subtitle %></p>
+          <% } %>
+          <% if (_popup.ctaLabel) { %>
+          <a href="<%= _popup.ctaLink || '#' %>" class="ann-popup__cta"><%= _popup.ctaLabel %></a>
+          <% } %>
+        </div>
+      </div>
+      <% }) %>
+
+      <!-- Navigation, only when there is somewhere to navigate to. -->
+      <% if (_popups.length > 1) { %>
+      <div class="ann-popup__nav">
+        <button type="button" class="ann-popup__nav-btn" id="annPopupPrev" hidden>Back</button>
+
+        <div class="ann-popup__dots" role="tablist" aria-label="Steps">
+          <% _popups.forEach(function (p, i) { %>
+          <button type="button" class="ann-popup__dot<%= i === 0 ? ' is-active' : '' %>"
+                  data-goto="<%= i %>" aria-label="Step <%= i + 1 %>"></button>
+          <% }) %>
+        </div>
+
+        <button type="button" class="ann-popup__nav-btn ann-popup__nav-btn--primary" id="annPopupNext">Next</button>
       </div>
       <% } %>
-
-      <div class="ann-popup__body">
-        <% if (_popup.eyebrow) { %>
-        <span class="ann-popup__eyebrow"><%= _popup.eyebrow %></span>
-        <% } %>
-        <h3 class="ann-popup__title" id="annPopupTitle"><%= _popup.title %></h3>
-        <% if (_popup.subtitle) { %>
-        <p class="ann-popup__text"><%= _popup.subtitle %></p>
-        <% } %>
-        <% if (_popup.ctaLabel) { %>
-        <a href="<%= _popup.ctaLink || '#' %>" class="ann-popup__cta"><%= _popup.ctaLabel %></a>
-        <% } %>
-      </div>
     </div>
   </div>
   <% } %>
@@ -809,33 +843,86 @@
         var timer = setInterval(tick, 1000);
       }
 
-      /* ── Sign-in popup ─────────────────────────────────────────────────
+      /* ── Sign-in popup tour ────────────────────────────────────────────
          Shown once per browser session so it greets the user after login
-         without reappearing on every page they visit. */
+         without reappearing on every page they visit.
+
+         localStorage rather than sessionStorage: a feature tour is worth seeing
+         once, not once per browser session. Reading it in a try/catch because a
+         private window can throw on access rather than merely return null — and
+         a storage failure must not cost the user the tour, so the fallback is to
+         show it. */
       var popup = document.getElementById('annPopup');
       if (popup) {
         var key = 'kbc_popup_seen_' + popup.dataset.popupId;
+        var steps = Array.prototype.slice.call(popup.querySelectorAll('.ann-popup__step'));
+        var dots  = Array.prototype.slice.call(popup.querySelectorAll('.ann-popup__dot'));
+        var prevBtn = document.getElementById('annPopupPrev');
+        var nextBtn = document.getElementById('annPopupNext');
+        var index = 0;
 
         var close = function () {
           popup.hidden = true;
           document.body.style.overflow = '';
-          try { sessionStorage.setItem(key, '1'); } catch (e) {}
+          try { localStorage.setItem(key, '1'); } catch (e) {}
+        };
+
+        var show = function (i) {
+          // Clamped rather than trusted: a dot index comes from the DOM.
+          index = Math.max(0, Math.min(i, steps.length - 1));
+
+          steps.forEach(function (el, n) { el.classList.toggle('is-active', n === index); });
+          dots.forEach(function (el, n) {
+            el.classList.toggle('is-active', n === index);
+            el.setAttribute('aria-selected', n === index ? 'true' : 'false');
+          });
+
+          if (prevBtn) prevBtn.hidden = index === 0;
+          if (nextBtn) {
+            // The last step closes rather than advances, so the label has to say so.
+            nextBtn.textContent = index === steps.length - 1 ? 'Got it' : 'Next';
+          }
+
+          // Long steps scroll; a new step should start at its own top.
+          var card = popup.querySelector('.ann-popup__card');
+          if (card) card.scrollTop = 0;
         };
 
         var alreadySeen = false;
-        try { alreadySeen = sessionStorage.getItem(key) === '1'; } catch (e) {}
+        try { alreadySeen = localStorage.getItem(key) === '1'; } catch (e) {}
 
         if (!alreadySeen) {
           popup.hidden = false;
           document.body.style.overflow = 'hidden';
+          show(0);
           if (typeof lucide !== 'undefined') lucide.createIcons();
         }
+
+        if (nextBtn) {
+          nextBtn.addEventListener('click', function () {
+            if (index >= steps.length - 1) close();
+            else show(index + 1);
+          });
+        }
+        if (prevBtn) {
+          prevBtn.addEventListener('click', function () { show(index - 1); });
+        }
+        dots.forEach(function (dot) {
+          dot.addEventListener('click', function () {
+            show(parseInt(dot.dataset.goto, 10) || 0);
+          });
+        });
 
         popup.querySelectorAll('[data-ann-close]').forEach(function (el) {
           el.addEventListener('click', close);
         });
+
         document.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape' && !popup.hidden) close();
+          if (popup.hidden) return;
+          if (e.key === 'Escape') close();
+          // Arrow keys mirror the buttons for anyone navigating by keyboard.
+          else if (e.key === 'ArrowRight' && index < steps.length - 1) show(index + 1);
+          else if (e.key === 'ArrowLeft'  && index > 0) show(index - 1);
         });
       }
     })();

@@ -396,6 +396,11 @@
 .kp-stat__num--warn { color: var(--kp-warn); }
 .kp-stat__num--mute { color: var(--kp-muted); }
 
+/* Secondary text utility. The token already existed; this is the class for the
+   places that just need de-emphasised text — an optional-field hint, a "no
+   value" placeholder in a table cell — without a component of their own. */
+.kp-muted { color: var(--kp-muted); }
+
 /* ── Notes ───────────────────────────────────────────────────────────────── */
 
 .kp-note {

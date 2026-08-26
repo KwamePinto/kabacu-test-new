@@ -1,5 +1,5 @@
 const CountryWallet = require('../models/CountryWalletModel');
-const { toCode, DEFAULT_COUNTRY } = require('../utils/country');
+const { toCode, DEFAULT_COUNTRY, currencyFor } = require('../utils/country');
 
 /**
  * The live market list, cached.
@@ -26,14 +26,44 @@ function invalidate() {
   cachedAt = 0;
 }
 
-/** Every active market, as plain objects. */
+/**
+ * Every active market, as plain objects.
+ *
+ * When the collection is empty — a database that predates country wallets, or
+ * one an admin has not seeded yet — an implicit Nigeria market stands in. Before
+ * markets existed, Nigeria was the only one there was, so reporting it as live is
+ * describing the truth rather than inventing a default: those users hold Naira in
+ * `balances.NAIRA` whether or not a CountryWallet row exists to say so.
+ *
+ * Without this, every market-dependent path fails closed at once: the wallet
+ * switcher empties, balances render with no currency symbol, and the guard on
+ * the purchase path refuses every order. That is a hard outage caused purely by
+ * a missing row, which is not a reasonable thing to make the site depend on.
+ */
 async function markets() {
   const now = Date.now();
   if (cache && now - cachedAt < TTL_MS) return cache;
 
-  cache = await CountryWallet.find({ isActive: true }).sort({ country: 1 }).lean();
+  const rows = await CountryWallet.find({ isActive: true }).sort({ country: 1 }).lean();
+  cache = rows.length ? rows : [implicitDefault()];
   cachedAt = now;
   return cache;
+}
+
+/* The stand-in Nigeria market. Currency comes from the same static table the
+   admin form pre-fills from, so the symbol matches what a seeded row would hold.
+   `implicit` lets a caller tell it apart from a real one — the admin market list
+   uses it to keep prompting for a proper seed. */
+function implicitDefault() {
+  const cur = currencyFor(DEFAULT_COUNTRY);
+  return {
+    country: DEFAULT_COUNTRY,
+    currencyCode: cur.code,
+    currencySymbol: cur.symbol,
+    currencyName: cur.name,
+    isActive: true,
+    implicit: true,
+  };
 }
 
 /** One market, or null when that country has no live wallet. */
@@ -63,7 +93,14 @@ async function hasWallet(country) {
  */
 async function currency(country) {
   const m = (await market(country)) || (await market(DEFAULT_COUNTRY));
-  if (!m) return { symbol: '', code: '', name: '' };
+  // Last resort is the static table rather than an empty symbol: a bare number
+  // where a price should be is worse than a symbol from a known-good source.
+  // currencyFor always returns an object — a stub with an empty code for a
+  // country it does not know — so test the code rather than the object.
+  if (!m) {
+    const known = currencyFor(country);
+    return known.code ? known : currencyFor(DEFAULT_COUNTRY);
+  }
   return { symbol: m.currencySymbol, code: m.currencyCode, name: m.currencyName };
 }
 

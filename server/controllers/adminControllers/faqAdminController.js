@@ -1,5 +1,31 @@
 const Faq = require('../../models/FaqModel');
 const { authenticateAdminUser } = require('../../config/authMiddleware');
+const ADMIN_FAQ_SEED = require('../../data/adminFaqSeed');
+
+/* The admin manual is a settings surface, not content: it describes what the
+   panel does and which role may do it, so a lower admin reading a step it says
+   they cannot take must not be able to simply delete the restriction. Writes to
+   audience 'admin' are therefore super_admin only.
+
+   Enforced here rather than in the route because the route serves both
+   audiences — which one is being written is only known from the body. */
+function deniedForAdminAudience(req, body) {
+  const targetsAdmin = body.audience === 'admin' || body.category === 'admin-dashboard';
+  if (!targetsAdmin) return null;
+  if (req.user.role === 'super_admin') return null;
+  return 'Only a super admin can change the admin dashboard manual.';
+}
+
+/* An entry's audience follows its category — the manual is exactly the
+   admin-dashboard category, so the two can never disagree. */
+function audienceFor(category) {
+  return category === 'admin-dashboard' ? 'admin' : 'user';
+}
+
+const ROLE_NOTES = ['', 'super_admin', 'senior_admin', 'junior_admin'];
+function cleanRoleNote(value) {
+  return ROLE_NOTES.includes(value) ? value : '';
+}
 
 const SEED_FAQS = [
   // ── Getting Started ──────────────────────────────────────────────────────────
@@ -69,15 +95,33 @@ const SEED_FAQS = [
 
 exports.viewPanel = [authenticateAdminUser, async (req, res) => {
   try {
-    const count = await Faq.countDocuments();
-    if (count === 0) {
+    /* Two independent seeds. The user FAQ seeds only on a completely empty
+       collection, as before. The admin manual is counted separately so it still
+       arrives on a database that already has user FAQs in it — which is every
+       existing install, including live. */
+    const userCount = await Faq.countDocuments({ audience: { $ne: 'admin' } });
+    if (userCount === 0) {
       await Faq.insertMany(SEED_FAQS);
     }
 
-    const faqs = await Faq.find().sort({ category: 1, order: 1 }).lean();
+    const adminCount = await Faq.countDocuments({ category: 'admin-dashboard' });
+    if (adminCount === 0) {
+      await Faq.insertMany(ADMIN_FAQ_SEED);
+    }
+
+    /* Scoped by role, not filtered in the view. The page embeds the whole list
+       as JSON for its editor, so hiding the manual section while still sending
+       the rows would ship the manual to an admin who is not allowed to open it.
+       Leaving it out of the query is the only way the page genuinely does not
+       contain it. */
+    const visible = req.user.role === 'super_admin'
+      ? {}
+      : { audience: { $ne: 'admin' } };
+    const faqs = await Faq.find(visible).sort({ category: 1, order: 1 }).lean();
     res.render('adminview/faq', {
       layout: 'layouts/adminLayout',
       faqs,
+      isSuperAdmin: req.user.role === 'super_admin',
       csrfToken: res.locals.csrfToken,
     });
   } catch (err) {
@@ -85,6 +129,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     res.render('adminview/faq', {
       layout: 'layouts/adminLayout',
       faqs: [],
+      isSuperAdmin: req.user.role === 'super_admin',
       csrfToken: res.locals.csrfToken,
     });
   }
@@ -92,15 +137,20 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
 
 exports.createFaq = [authenticateAdminUser, async (req, res) => {
   try {
-    const { question, category, answer, isActive } = req.body;
+    const { question, category, answer, isActive, roleNote } = req.body;
     if (!question || !category || !answer) {
       return res.json({ success: false, message: 'Question, category, and answer are required.' });
     }
+
+    const denied = deniedForAdminAudience(req, req.body);
+    if (denied) return res.status(403).json({ success: false, message: denied });
 
     const count = await Faq.countDocuments({ category });
     const faq = await Faq.create({
       question: question.trim(),
       category,
+      audience: audienceFor(category),
+      roleNote: cleanRoleNote(roleNote),
       answer,
       isActive: isActive !== false && isActive !== 'false',
       order: count + 1,
@@ -115,16 +165,28 @@ exports.createFaq = [authenticateAdminUser, async (req, res) => {
 
 exports.updateFaq = [authenticateAdminUser, async (req, res) => {
   try {
-    const { question, category, answer, isActive } = req.body;
+    const { question, category, answer, isActive, roleNote } = req.body;
     if (!question || !category || !answer) {
       return res.json({ success: false, message: 'Question, category, and answer are required.' });
     }
+
+    /* Checked against BOTH the existing entry and the submitted one. Testing
+       only the submission would let a lower admin edit a manual entry by
+       posting it as a user category, which both changes the manual and moves
+       the entry onto the public FAQ page. */
+    const existing = await Faq.findById(req.params.id).select('category audience').lean();
+    if (!existing) return res.json({ success: false, message: 'FAQ not found.' });
+
+    const denied = deniedForAdminAudience(req, req.body) || deniedForAdminAudience(req, existing);
+    if (denied) return res.status(403).json({ success: false, message: denied });
 
     const faq = await Faq.findByIdAndUpdate(
       req.params.id,
       {
         question: question.trim(),
         category,
+        audience: audienceFor(category),
+        roleNote: cleanRoleNote(roleNote),
         answer,
         isActive: isActive !== false && isActive !== 'false',
       },
@@ -141,6 +203,13 @@ exports.updateFaq = [authenticateAdminUser, async (req, res) => {
 
 exports.deleteFaq = [authenticateAdminUser, async (req, res) => {
   try {
+    // Read before deleting: the audience decides whether this admin may.
+    const existing = await Faq.findById(req.params.id).select('category audience').lean();
+    if (!existing) return res.json({ success: false, message: 'FAQ not found.' });
+
+    const denied = deniedForAdminAudience(req, existing);
+    if (denied) return res.status(403).json({ success: false, message: denied });
+
     const faq = await Faq.findByIdAndDelete(req.params.id);
     if (!faq) return res.json({ success: false, message: 'FAQ not found.' });
     res.json({ success: true, message: 'FAQ deleted.' });

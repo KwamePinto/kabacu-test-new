@@ -1,0 +1,588 @@
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1 kp-has-drawer">
+    <div class="navbar-bg"></div>
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
+
+    <div class="main-content">
+      <section class="section">
+        <div class="section-body">
+
+          <%
+            var _openCount = (reports || []).filter(function (r) { return r.status === 'open'; }).length;
+
+            var _navSections = [
+              { id: 'dev-info', label: 'Dev Info',        icon: 'user-check' },
+              { id: 'create',   label: 'Create a Report', icon: 'plus-circle' },
+              { id: 'reports',  label: 'Reports',         icon: 'inbox', badge: (reports || []).length }
+            ];
+
+            var SIDE_LABEL   = { client: 'Client site', admin: 'Admin dashboard' };
+            var STATUS_LABEL = { 'open': 'Open', 'in-progress': 'In progress',
+                                 'resolved': 'Resolved', 'wont-fix': "Won't fix" };
+            var STATUS_CLASS = { 'open': 'kp-pill--warn', 'in-progress': 'kp-pill',
+                                 'resolved': 'kp-pill--good', 'wont-fix': 'kp-pill' };
+            var ROLE_LABEL   = { super_admin: 'Super admin', senior_admin: 'Senior admin',
+                                 junior_admin: 'Junior admin' };
+
+            function fmtWhen(d) {
+              if (!d) return '—';
+              var dt = new Date(d);
+              return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                   + ' · ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            }
+          %>
+
+          <div class="kp-panel">
+
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Support &amp; Reports</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
+            </div>
+
+            <div class="kp-panel__body">
+
+              <%- include('partials/panelDrawer', {
+                panelKey: 'support',
+                drawerLabel: 'Support & Reports',
+                sections: _navSections
+              }) %>
+
+              <div class="kp-panel__main">
+
+                <!-- ══ Dev Info ══════════════════════════════════════════ -->
+                <div class="kp-section" data-section="dev-info">
+
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Developer contact</h2>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad">
+
+                      <div class="kp-contact">
+                        <div class="kp-contact__avatar">
+                          <%= (settings.devName || '?').trim().charAt(0).toUpperCase() %>
+                        </div>
+                        <div class="kp-contact__meta">
+                          <div class="kp-contact__name"><%= settings.devName %></div>
+                          <% if (settings.devRole) { %>
+                          <div class="kp-contact__role"><%= settings.devRole %></div>
+                          <% } %>
+                          <a class="kp-contact__mail" href="mailto:<%= settings.devEmail %>"><%= settings.devEmail %></a>
+                          <% if (settings.devPhone) { %>
+                          <div class="kp-contact__role"><%= settings.devPhone %></div>
+                          <% } %>
+                        </div>
+                      </div>
+
+                      <% if (settings.notes) { %>
+                      <div class="kp-note"><%= settings.notes %></div>
+                      <% } %>
+
+                      <div class="kp-note">
+                        Every report submitted from this panel is emailed to this address.
+                        Use a report for anything that can wait, and this contact for something
+                        actively breaking.
+                      </div>
+                    </div>
+                  </div>
+
+                  <% if (isSuperAdmin) { %>
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Edit contact</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill kp-pill--warn">Super admin only</span>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad">
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main"><span class="kp-row__label">Name</span></div>
+                        <input type="text" id="dev-name" class="kp-input" style="width:100%;"
+                               value="<%= settings.devName %>" placeholder="Full name">
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Email</span>
+                          <span class="kp-row__hint">New reports are sent here — check it carefully</span>
+                        </div>
+                        <input type="email" id="dev-email" class="kp-input" style="width:100%;"
+                               value="<%= settings.devEmail %>" placeholder="name@example.com">
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main"><span class="kp-row__label">Role <span class="kp-muted">(optional)</span></span></div>
+                        <input type="text" id="dev-role" class="kp-input" style="width:100%;"
+                               value="<%= settings.devRole %>" placeholder="e.g. Lead Developer">
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main"><span class="kp-row__label">Phone <span class="kp-muted">(optional)</span></span></div>
+                        <input type="text" id="dev-phone" class="kp-input" style="width:100%;"
+                               value="<%= settings.devPhone %>" placeholder="For urgent issues">
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main"><span class="kp-row__label">Note <span class="kp-muted">(optional)</span></span></div>
+                        <textarea id="dev-notes" class="kp-input" rows="2" style="width:100%;"
+                                  placeholder="e.g. best reached weekdays 9–6 WAT"><%= settings.notes %></textarea>
+                      </div>
+
+                      <% if (settings.updatedByName) { %>
+                      <p class="kp-muted" style="font-size:12.5px;margin:4px 0 0;">
+                        Last changed by <%= settings.updatedByName %> on <%= fmtWhen(settings.updatedAt) %>.
+                      </p>
+                      <% } %>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button type="button" class="kp-btn kp-btn--primary" id="save-dev-btn" onclick="saveDevInfo()">Save contact</button>
+                    </div>
+                  </div>
+                  <% } else { %>
+                  <div class="kp-card">
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-note kp-note--warn">
+                        Only a super admin can change the developer contact. You can still file
+                        a report from <strong>Create a Report</strong> — it is sent to the address above.
+                      </div>
+                    </div>
+                  </div>
+                  <% } %>
+
+                </div>
+
+                <!-- ══ Create a Report ═══════════════════════════════════ -->
+                <div class="kp-section" data-section="create">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Report a bug</h2>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad">
+
+                      <div class="kp-note">
+                        Say what you did, what you expected, and what actually happened.
+                        A report that says only &ldquo;it is broken&rdquo; usually needs a second
+                        conversation before anyone can act on it.
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main"><span class="kp-row__label">Title</span></div>
+                        <input type="text" id="rep-title" class="kp-input" style="width:100%;"
+                               placeholder="A one-line summary of the problem">
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Where is it?</span>
+                          <span class="kp-row__hint">Which side of the product the bug is on</span>
+                        </div>
+                        <div class="kp-row__ctrl" style="width:220px;">
+                          <select id="rep-side" class="kp-select" style="width:100%;">
+                            <option value="">— Select —</option>
+                            <option value="client">Client site</option>
+                            <option value="admin">Admin dashboard</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Page</span>
+                          <span class="kp-row__hint">The page or screen it happens on</span>
+                        </div>
+                        <input type="text" id="rep-page" class="kp-input" style="width:100%;"
+                               placeholder="e.g. Flagged Transactions, or /my-wallet">
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Severity</span></div>
+                        <div class="kp-row__ctrl" style="width:220px;">
+                          <select id="rep-severity" class="kp-select" style="width:100%;">
+                            <option value="low">Low — cosmetic or minor</option>
+                            <option value="medium" selected>Medium — awkward but usable</option>
+                            <option value="high">High — blocking work</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Description</span>
+                          <span class="kp-row__hint">What you did, what you expected, what happened</span>
+                        </div>
+                        <textarea id="rep-description" class="kp-input" rows="6" style="width:100%;"
+                                  placeholder="1. Opened …&#10;2. Clicked …&#10;Expected: …&#10;Instead: …"></textarea>
+                      </div>
+
+                    </div>
+                    <div class="kp-card__foot">
+                      <button type="button" class="kp-btn kp-btn--primary" id="submit-report-btn" onclick="submitReport()">Submit report</button>
+                      <span class="kp-muted" style="font-size:12.5px;">
+                        Emailed to <%= settings.devName %> &lt;<%= settings.devEmail %>&gt;
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ══ Reports ═══════════════════════════════════════════ -->
+                <div class="kp-section" data-section="reports">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title"><%= isSuperAdmin ? 'All reports' : 'My reports' %></h2>
+                      <div class="kp-card__aside">
+                        <% if (_openCount) { %>
+                        <span class="kp-pill kp-pill--warn"><%= _openCount %> open</span>
+                        <% } %>
+                        <span class="kp-pill"><%= (reports || []).length %></span>
+                      </div>
+                    </div>
+
+                    <% if (!isSuperAdmin) { %>
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-note">
+                        These are the reports you have filed. A super admin sees every report
+                        and updates their status as they are worked through.
+                      </div>
+                    </div>
+                    <% } %>
+
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <th>Report</th>
+                              <th style="width:130px;">Side</th>
+                              <% if (isSuperAdmin) { %>
+                              <th style="width:150px;">Reported by</th>
+                              <% } %>
+                              <th style="width:170px;">Submitted</th>
+                              <th style="width:110px;">Status</th>
+                              <th style="width:<%= isSuperAdmin ? '150' : '70' %>px;">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if ((reports || []).length) { %>
+                            <% reports.forEach(function (r) { %>
+                            <tr data-id="<%= r._id %>">
+                              <td>
+                                <div style="font-size:13px;font-weight:600;"><%= r.title %></div>
+                                <div class="kp-muted" style="font-size:12px;margin-top:2px;">
+                                  <%= r.page %>
+                                  <% if (r.severity && r.severity !== 'medium') { %>
+                                    &middot; <%= r.severity %> severity
+                                  <% } %>
+                                </div>
+                              </td>
+                              <td><span class="kp-pill"><%= SIDE_LABEL[r.side] || r.side %></span></td>
+                              <% if (isSuperAdmin) { %>
+                              <td style="font-size:12.5px;">
+                                <%= r.reporterName || 'Unknown' %>
+                                <div class="kp-muted" style="font-size:11.5px;">
+                                  <%= ROLE_LABEL[r.reporterRole] || r.reporterRole || '' %>
+                                </div>
+                              </td>
+                              <% } %>
+                              <td style="font-size:12.5px;"><%= fmtWhen(r.createdAt) %></td>
+                              <td>
+                                <span class="kp-pill <%= STATUS_CLASS[r.status] || 'kp-pill' %>">
+                                  <%= STATUS_LABEL[r.status] || r.status %>
+                                </span>
+                              </td>
+                              <td>
+                                <button class="kp-btn kp-btn--sm"
+                                        onclick="viewReport('<%= r._id %>')">View</button>
+                                <% if (isSuperAdmin) { %>
+                                <button class="kp-btn kp-btn--sm kp-btn--danger"
+                                        onclick="deleteReport('<%= r._id %>', this)">Delete</button>
+                                <% } %>
+                              </td>
+                            </tr>
+                            <% }) %>
+                            <% } else { %>
+                            <tr>
+                              <td colspan="<%= isSuperAdmin ? 6 : 5 %>">
+                                <div class="kp-empty">
+                                  <%= isSuperAdmin ? 'No reports have been filed yet.' : 'You have not filed any reports yet.' %>
+                                </div>
+                              </td>
+                            </tr>
+                            <% } %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
+
+        </div>
+      </section>
+    </div>
+
+    <%- include('../partials/footerAdmin.ejs') %>
+  </div>
+</div>
+
+<style>
+  /* Contact card — the one bit of this page that is not a form or a table. */
+  .kp-contact {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 0 12px;
+  }
+  .kp-contact__avatar {
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #15a844;
+    color: #fff;
+    font-size: 19px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .kp-contact__meta { min-width: 0; }
+  .kp-contact__name { font-size: 15px; font-weight: 700; color: #1a1d21; }
+  .kp-contact__role { font-size: 12.5px; color: #6b7280; margin-top: 1px; }
+  .kp-contact__mail {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: #15a844;
+    word-break: break-all;
+  }
+  .kp-contact__mail:hover { text-decoration: underline; }
+</style>
+
+<script>
+  var CSRF = '<%= csrfToken %>';
+  var IS_SUPER = <%= isSuperAdmin ? 'true' : 'false' %>;
+
+  /* Rendered as JSON so the detail dialog can show the full description without
+     a second request — the list is already capped at 200 rows server-side. */
+  var ALL_REPORTS = <%- JSON.stringify(reports || []) %>;
+
+  var SIDE_LABEL_JS   = { client: 'Client site', admin: 'Admin dashboard' };
+  var STATUS_LABEL_JS = { 'open': 'Open', 'in-progress': 'In progress',
+                          'resolved': 'Resolved', 'wont-fix': "Won't fix" };
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── Dev contact ────────────────────────────────────────────────────────────
+  async function saveDevInfo() {
+    var devName  = document.getElementById('dev-name').value.trim();
+    var devEmail = document.getElementById('dev-email').value.trim();
+
+    if (!devName) {
+      Swal.fire({ icon: 'warning', text: 'Enter a name.', confirmButtonColor: '#6777ef' });
+      return;
+    }
+    if (!devEmail) {
+      Swal.fire({ icon: 'warning', text: 'Enter an email address.', confirmButtonColor: '#6777ef' });
+      return;
+    }
+
+    var btn = document.getElementById('save-dev-btn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Saving…';
+
+    try {
+      var res = await fetch('/admin/support/dev-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({
+          devName: devName,
+          devEmail: devEmail,
+          devRole:  document.getElementById('dev-role').value.trim(),
+          devPhone: document.getElementById('dev-phone').value.trim(),
+          notes:    document.getElementById('dev-notes').value.trim(),
+        }),
+      });
+      var data = await res.json();
+
+      if (data.success) {
+        Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1800, showConfirmButton: false });
+        setTimeout(function () { location.reload(); }, 1300);
+      } else {
+        Swal.fire({ icon: 'error', text: data.message || 'Could not save.', confirmButtonColor: '#6777ef' });
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  }
+
+  // ── Submit a report ────────────────────────────────────────────────────────
+  async function submitReport() {
+    var title       = document.getElementById('rep-title').value.trim();
+    var side        = document.getElementById('rep-side').value;
+    var page        = document.getElementById('rep-page').value.trim();
+    var severity    = document.getElementById('rep-severity').value;
+    var description = document.getElementById('rep-description').value.trim();
+
+    if (!title)       { Swal.fire({ icon: 'warning', text: 'Give the report a title.',  confirmButtonColor: '#6777ef' }); return; }
+    if (!side)        { Swal.fire({ icon: 'warning', text: 'Choose where the bug is.',  confirmButtonColor: '#6777ef' }); return; }
+    if (!page)        { Swal.fire({ icon: 'warning', text: 'Name the page it is on.',   confirmButtonColor: '#6777ef' }); return; }
+    if (!description) { Swal.fire({ icon: 'warning', text: 'Describe the problem.',     confirmButtonColor: '#6777ef' }); return; }
+
+    var btn = document.getElementById('submit-report-btn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Sending…';
+
+    try {
+      var res = await fetch('/admin/support/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ title, side, page, severity, description }),
+      });
+      var data = await res.json();
+
+      if (data.success) {
+        /* The report is saved either way. When the email did not go out that is
+           said plainly rather than shown as a success — an admin who thinks the
+           developer was notified will not follow up, and the report would sit
+           there unread. */
+        Swal.fire({
+          icon: data.emailed ? 'success' : 'warning',
+          title: data.emailed ? 'Report sent' : 'Report saved',
+          text: data.message,
+          confirmButtonColor: '#6777ef',
+        }).then(function () { location.reload(); });
+      } else {
+        Swal.fire({ icon: 'error', text: data.message || 'Could not submit.', confirmButtonColor: '#6777ef' });
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  }
+
+  // ── View one report ────────────────────────────────────────────────────────
+  function viewReport(id) {
+    var r = ALL_REPORTS.find(function (x) { return String(x._id) === String(id); });
+    if (!r) return;
+
+    var when = new Date(r.createdAt).toLocaleString('en-GB');
+    var meta = ''
+      + '<div style="text-align:left;font-size:13px;line-height:1.7;">'
+      +   '<div><strong>Side:</strong> ' + escapeHtml(SIDE_LABEL_JS[r.side] || r.side) + '</div>'
+      +   '<div><strong>Page:</strong> ' + escapeHtml(r.page) + '</div>'
+      +   '<div><strong>Severity:</strong> ' + escapeHtml(r.severity) + '</div>'
+      +   '<div><strong>Status:</strong> ' + escapeHtml(STATUS_LABEL_JS[r.status] || r.status) + '</div>'
+      +   (IS_SUPER ? '<div><strong>Reported by:</strong> ' + escapeHtml(r.reporterName || 'Unknown') + '</div>' : '')
+      +   '<div><strong>Submitted:</strong> ' + escapeHtml(when) + '</div>'
+      +   '<div style="margin-top:10px;padding:10px 12px;background:#f9fafb;border-left:3px solid #15a844;border-radius:6px;white-space:pre-wrap;">'
+      +     escapeHtml(r.description)
+      +   '</div>'
+      +   (r.resolutionNote
+            ? '<div style="margin-top:10px;"><strong>Resolution:</strong> ' + escapeHtml(r.resolutionNote) + '</div>'
+            : '')
+      + '</div>';
+
+    if (!IS_SUPER) {
+      Swal.fire({ title: r.title, html: meta, confirmButtonColor: '#6777ef', width: 620 });
+      return;
+    }
+
+    // A super admin triages from the same dialog they read it in.
+    Swal.fire({
+      title: r.title,
+      html: meta
+        + '<div style="text-align:left;margin-top:14px;">'
+        +   '<label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;">Status</label>'
+        +   '<select id="swal-status" class="swal2-select" style="width:100%;margin:0;">'
+        +     ['open', 'in-progress', 'resolved', 'wont-fix'].map(function (s) {
+                return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>'
+                     + STATUS_LABEL_JS[s] + '</option>';
+              }).join('')
+        +   '</select>'
+        +   '<label style="font-size:12.5px;font-weight:600;display:block;margin:10px 0 4px;">Resolution note</label>'
+        +   '<textarea id="swal-note" class="swal2-textarea" style="width:100%;margin:0;" rows="2"'
+        +     ' placeholder="What was done about it">' + escapeHtml(r.resolutionNote || '') + '</textarea>'
+        + '</div>',
+      width: 620,
+      showCancelButton: true,
+      confirmButtonText: 'Update',
+      confirmButtonColor: '#6777ef',
+      preConfirm: function () {
+        return {
+          status: document.getElementById('swal-status').value,
+          resolutionNote: document.getElementById('swal-note').value.trim(),
+        };
+      },
+    }).then(async function (result) {
+      if (!result.isConfirmed) return;
+      try {
+        var res = await fetch('/admin/support/report/' + id + '/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify(result.value),
+        });
+        var data = await res.json();
+        if (data.success) {
+          Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1600, showConfirmButton: false });
+          setTimeout(function () { location.reload(); }, 1200);
+        } else {
+          Swal.fire({ icon: 'error', text: data.message || 'Could not update.', confirmButtonColor: '#6777ef' });
+        }
+      } catch (e) {
+        Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+      }
+    });
+  }
+
+  // ── Delete ─────────────────────────────────────────────────────────────────
+  async function deleteReport(id, btn) {
+    var confirmed = await Swal.fire({
+      icon: 'warning',
+      title: 'Delete this report?',
+      text: 'This cannot be undone.',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      confirmButtonColor: '#dc3545',
+    });
+    if (!confirmed.isConfirmed) return;
+
+    btn.disabled = true;
+    try {
+      var res = await fetch('/admin/support/report/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      });
+      var data = await res.json();
+      if (data.success) {
+        var row = btn.closest('tr');
+        if (row) row.remove();
+        Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1600, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'error', text: data.message || 'Could not delete.', confirmButtonColor: '#6777ef' });
+        btn.disabled = false;
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+      btn.disabled = false;
+    }
+  }
+</script>

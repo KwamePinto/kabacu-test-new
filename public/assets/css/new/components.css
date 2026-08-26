@@ -703,6 +703,86 @@
 
 .ann-popup__cta:hover { opacity: .9; color: var(--white); }
 
+/* ── Popup tour: steps + navigation ──────────────────────────
+   Several active popups become one stepped card. Only the active step is in
+   the layout, so the card takes the height of the step being read rather than
+   the tallest one in the set. */
+.ann-popup__step { display: none; }
+.ann-popup__step.is-active { display: block; }
+
+/* A long step scrolls inside the card instead of pushing the nav off-screen
+   on a short viewport. */
+.ann-popup__card {
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.ann-popup__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, .08));
+}
+
+.ann-popup__dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Takes the middle so Back and Next stay pinned to the edges, and the row
+     does not shift as the Next label changes to "Got it" on the last step. */
+  flex: 1;
+  justify-content: center;
+}
+
+.ann-popup__dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--border, rgba(0, 0, 0, .18));
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+
+.ann-popup__dot.is-active {
+  background: var(--primary);
+  transform: scale(1.32);
+}
+
+.ann-popup__nav-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border: 1px solid var(--border, rgba(0, 0, 0, .12));
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+
+.ann-popup__nav-btn:hover { background: var(--input-bg); }
+.ann-popup__nav-btn[hidden] { display: none; }
+
+.ann-popup__nav-btn--primary {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--white);
+  /* Wide enough for "Got it" and "Next" alike, so the button does not resize
+     when the label changes on the final step. */
+  min-width: 82px;
+}
+
+.ann-popup__nav-btn--primary:hover { background: var(--primary); opacity: .9; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ann-popup__dot { transition: none; }
+}
+
 /* ── Data card: cashback + bonus (home page) ─────────────── */
 /* Mirrors the data-section card so both read identically. Cashback is the
    saving against the struck-through old price — display only, never credited. */

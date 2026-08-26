@@ -156,6 +156,7 @@ app.use('/admin/notifications',       require('./server/routes/adminRoutes/admin
 app.use('/admin/transactions',        require('./server/routes/adminRoutes/transactionsAdminRoute'));
 app.use('/admin/faq',                 require('./server/routes/adminRoutes/faqRoute'));
 app.use('/admin/announcements',       require('./server/routes/adminRoutes/announcementsRoute'));
+app.use('/admin/support',             require('./server/routes/adminRoutes/supportRoute'));
 app.use('/admin/referrals',           require('./server/routes/adminRoutes/referralsRoute'));
 app.use('/admin/payments-wallets',    require('./server/routes/adminRoutes/paymentsWalletsRoute'));
 

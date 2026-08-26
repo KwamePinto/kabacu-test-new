@@ -157,6 +157,34 @@
     var submit = document.getElementById('otpSubmit');
     if (!input || !form) return;
 
+    /* Submitted at most once per page load.
+       WHY: there are only five attempts before the code is burned and the admin
+       is sent back to the login page. The auto-submit below fires on an `input`
+       event, and this field is autocomplete="one-time-code" — so a browser that
+       re-fills a stale code after an error re-render triggers another submit
+       immediately, which fails, re-renders, and fills again. Five of those in a
+       row exhausts the attempts and bounces the admin to the login screen,
+       which looks exactly like 2FA being broken outright. */
+    var submitted = false;
+
+    function submitOnce() {
+      if (submitted) return;
+      submitted = true;
+
+      /* requestSubmit(), not submit(): form.submit() does NOT fire the submit
+         event, so the handler below — the thing that disables the button —
+         never ran on an auto-submit. The guard was only ever active on the path
+         that needed it least. Falls back on older browsers. */
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else { lockButton(); form.submit(); }
+    }
+
+    function lockButton() {
+      if (!submit) return;
+      submit.disabled = true;
+      submit.textContent = 'Verifying…';
+    }
+
     // Digits only, and tolerate a pasted code that arrives with spaces or dashes.
     input.addEventListener('input', function () {
       var cleaned = this.value.replace(/\D/g, '').slice(0, 6);
@@ -164,13 +192,14 @@
 
       // Submit as soon as six digits are in — saves a tap on mobile, where the
       // code is usually pasted from the mail app.
-      if (cleaned.length === 6) form.submit();
+      if (cleaned.length === 6) submitOnce();
     });
 
-    // Guard against a double submit burning two of the five attempts.
     form.addEventListener('submit', function () {
-      submit.disabled = true;
-      submit.textContent = 'Verifying…';
+      // A manual click counts too, so a stray input event afterwards cannot
+      // send a second request.
+      submitted = true;
+      lockButton();
     });
   })();
 </script>

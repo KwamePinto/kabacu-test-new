@@ -640,17 +640,36 @@ exports.requestManualTopUp = async (req, res) => {
       });
     }
 
-    const cw = await CountryWallet.findOne({ country: market, isActive: true }).lean();
+    /* Resolved through the market service, not the collection directly, so an
+       un-seeded database still lets Nigerians fund their wallet — the service
+       stands Nigeria in when no wallet rows exist. Reading the model here would
+       refuse every top-up on a database that simply has not been migrated. */
+    const cw = await marketService.market(market);
     if (!cw) {
       return res.json({ success: false, message: "That market is not currently open." });
     }
 
-    // The method has to be one the admin actually registered for this market.
-    const method = await PaymentMethod.findOne({
-      country: market,
+    /* The method has to be one the admin actually registered for this market.
+       Methods that predate country tagging carry no country at all; those belong
+       to Nigeria, which is the only market that existed when they were created.
+       Matching them for the default market keeps top-ups working on a database
+       that has not been migrated — otherwise every method looks foreign and
+       nobody can fund a wallet. */
+    const methodQuery = {
       name: String(req.body.paymentMethod || "").trim(),
       isActive: true,
-    }).lean();
+    };
+    if (market === DEFAULT_COUNTRY) {
+      methodQuery.$or = [
+        { country: DEFAULT_COUNTRY },
+        { country: { $exists: false } },
+        { country: null },
+        { country: "" },
+      ];
+    } else {
+      methodQuery.country = market;
+    }
+    const method = await PaymentMethod.findOne(methodQuery).lean();
 
     if (!method) {
       return res.json({ success: false, message: "Pick a payment method for your market." });
@@ -699,7 +718,9 @@ exports.switchMarket = async (req, res) => {
       httpOnly: false,
     });
 
-    const cw = await CountryWallet.findOne({ country: result.walletCountry }).lean();
+    // Same reason: the service always resolves a currency, so the response never
+    // carries a balance with no symbol attached to it.
+    const cw = await marketService.market(result.walletCountry);
     const balance = walletUtil.getBalance(
       await Wallet.findOne({ user: req.user.id }).lean(),
       result.walletCountry,
@@ -2221,7 +2242,17 @@ exports.faqPage = async (req, res) => {
   try {
     const Faq = require('../models/FaqModel');
     const CATEGORY_ORDER = ['getting-started', 'wallet', 'data', 'courses', 'account', 'rewards'];
-    const faqs = await Faq.find({ isActive: true }).sort({ category: 1, order: 1 }).lean();
+    /* `$ne: 'admin'` rather than `audience: 'user'` on purpose: every FAQ
+       written before the audience field existed has no such field, and an
+       equality match would not match a missing one — which would empty this
+       page. $ne matches missing fields, so the pre-existing entries stay.
+
+       The grouping below also only keeps CATEGORY_ORDER categories, so the
+       admin manual could not render here anyway; filtering in the query means
+       it is never even read. */
+    const faqs = await Faq.find({ isActive: true, audience: { $ne: 'admin' } })
+      .sort({ category: 1, order: 1 })
+      .lean();
 
     const faqsByCategory = {};
     CATEGORY_ORDER.forEach(function(cat) { faqsByCategory[cat] = []; });

@@ -27,7 +27,13 @@ const userAdminSchema = new Schema({
   // 6-digit code cannot be brute-forced, and the expiry bounds the window.
   // On by default: 2FA has to be opted OUT of, never opted in to, or a new
   // admin silently starts out unprotected.
-  twoFactorEnabled:   { type: Boolean, default: true },
+  /* Off by default.
+     It was on by default, which meant every admin — including ones whose email
+     was never checked — had to complete an emailed code, and an admin who could
+     not receive one had no way in except through another super admin. Opt-in is
+     the safer default for a panel whose lockout escape hatch is itself behind
+     the panel. Turn it on per account from My Profile → Security. */
+  twoFactorEnabled:   { type: Boolean, default: false },
 
   // Audit trail for the exemption. Disabling a second factor is a security
   // decision, so who did it and why is recorded rather than left implicit.
