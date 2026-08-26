@@ -43,8 +43,8 @@
   --cat-ring-active: #d0eddc;
   --cat-icon:        #4a9c68;
 
-  /* The footer / mobile-about band is dark in light mode and must stay dark in
-     dark mode, so it gets its own tokens rather than reusing --text. */
+  /* The footer band is dark in light mode and must stay dark in dark mode, so
+     it gets its own tokens rather than reusing --text. */
   --band-bg:        #1a1a2e;
   --band-text:      rgba(255, 255, 255, .70);
   --band-text-dim:  rgba(255, 255, 255, .45);
