@@ -1,1104 +1,690 @@
-<style>
-  .rf-stat        { text-align: center; padding: 14px 8px; }
-  .rf-stat__num   { font-size: 26px; font-weight: 700; line-height: 1; }
-  .rf-stat__lbl   { font-size: 12px; color: #6c757d; margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
-  .rf-help        { font-size: 12px; color: #6c757d; margin-top: 4px; }
-  .rf-pkg-table   { max-height: 340px; overflow-y: auto; border: 1px solid #e4e6fc; border-radius: 6px; }
-  .rf-pkg-table table { margin-bottom: 0; }
-  .rf-pkg-row     { cursor: pointer; }
-  .rf-pkg-row.selected { background: #eef1ff !important; }
-  .rf-pkg-row td  { vertical-align: middle; }
-  .field-group[hidden] { display: none !important; }
-  .rf-chosen      { background: #eef1ff; border: 1px solid #c9d0ff; border-radius: 6px; padding: 10px 14px; font-size: 13px; }
-</style>
-
 <div class="loader"></div>
 <div id="app">
   <div class="main-wrapper main-wrapper-1">
     <div class="navbar-bg"></div>
+
     <%- include('../partials/headerAdmin.ejs') %>
     <%- include('../partials/sideMenuAdmin.ejs') %>
 
     <div class="main-content">
       <section class="section">
-        <div class="section-header">
-          <h1>Growth &amp; Rewards</h1>
-          <div class="section-header-breadcrumb">
-            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-            <div class="breadcrumb-item">Growth &amp; Rewards</div>
-          </div>
-        </div>
-
         <div class="section-body">
 
-          <!-- ── Stats ───────────────────────────────────────────────────── -->
-          <div class="row">
-            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
-              <div class="rf-stat__num"><%= stats.pending %></div><div class="rf-stat__lbl">Pending</div>
-            </div></div></div>
-            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
-              <div class="rf-stat__num"><%= stats.qualified %></div><div class="rf-stat__lbl">Qualified</div>
-            </div></div></div>
-            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
-              <div class="rf-stat__num text-success"><%= stats.rewarded %></div><div class="rf-stat__lbl">Rewarded</div>
-            </div></div></div>
-            <div class="col-6 col-md-3"><div class="card"><div class="rf-stat">
-              <div class="rf-stat__num text-muted"><%= stats.void %></div><div class="rf-stat__lbl">Void</div>
-            </div></div></div>
-          </div>
-
-          <!-- ── Reward configuration ────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header"><h4>Reward Configuration</h4></div>
-            <div class="card-body">
-
-              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                A referrer is paid <strong>after the person they referred completes their first purchase</strong>.
-                A user can only ever apply one code, cannot use their own, and cannot use a code
-                belonging to an account newer than theirs.
-              </div>
-
-              <div class="row">
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Reward type <span class="text-danger">*</span></label>
-                    <select id="f-rewardtype" class="form-control" onchange="onRewardTypeChange()">
-                      <option value="money"       <%= settings.rewardType === 'money'       ? 'selected' : '' %>>Money — credited to wallet</option>
-                      <option value="data"        <%= settings.rewardType === 'data'        ? 'selected' : '' %>>Data — award a package</option>
-                      <option value="rewardpoint" <%= settings.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-12 col-md-4 field-group" id="grp-amount">
-                  <div class="form-group">
-                    <label>Amount per referral <span class="text-danger">*</span></label>
-                    <input type="number" id="f-amount" class="form-control" min="1" step="any"
-                           value="<%= settings.amount || '' %>" placeholder="e.g. 200">
-                    <div class="rf-help" id="amount-help">Naira credited to the referrer's wallet.</div>
-                  </div>
-                </div>
-
-                <div class="col-6 col-md-2">
-                  <div class="form-group">
-                    <label>Min. purchase</label>
-                    <input type="number" id="f-minpurchase" class="form-control" min="0" step="any"
-                           value="<%= settings.minPurchaseAmount || 0 %>">
-                    <div class="rf-help">0 = any purchase qualifies.</div>
-                  </div>
-                </div>
-
-                <div class="col-6 col-md-2">
-                  <div class="form-group">
-                    <label>Max / referrer</label>
-                    <input type="number" id="f-maxrewards" class="form-control" min="0"
-                           value="<%= settings.maxRewardsPerReferrer || 0 %>">
-                    <div class="rf-help">0 = unlimited.</div>
-                  </div>
-                </div>
-
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Programme status</label>
-                    <select id="f-active" class="form-control">
-                      <option value="true"  <%= settings.isActive  ? 'selected' : '' %>>Active</option>
-                      <option value="false" <%= !settings.isActive ? 'selected' : '' %>>Paused</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Data reward: pick the exact package to award -->
-              <div class="field-group" id="grp-data" hidden>
-                <hr>
-                <h6>Choose the data package to award</h6>
-                <p class="rf-help mb-2">
-                  A data reward has to name a real package, so pick the exact bundle a
-                  referrer receives. Click a row to select it.
-                </p>
-
-                <div id="chosen-wrap" class="rf-chosen mb-2" style="display:none;">
-                  Selected: <strong id="chosen-label">—</strong>
-                </div>
-
-                <div class="rf-pkg-table">
-                  <table class="table table-sm table-hover mb-0">
-                    <thead>
-                      <tr><th style="width:40px;"></th><th>Plan</th><th>Network</th><th>Validity</th><th class="text-right">Price</th></tr>
-                    </thead>
-                    <tbody>
-                      <% if (!dataProducts.length) { %>
-                      <tr><td colspan="5" class="text-center text-muted py-3">No data packages exist yet.</td></tr>
-                      <% } %>
-                      <% dataProducts.forEach(function(p) {
-                           var d = p.dataDetails || {};
-                           var label = (d.plan_type || 'Plan') + ' · ' + (d.network || '') + ' · ' + (d.validate_period || '');
-                           var isSel = settings.dataProduct && String(settings.dataProduct) === String(p._id);
-                      %>
-                      <tr class="rf-pkg-row <%= isSel ? 'selected' : '' %>"
-                          data-id="<%= p._id %>" data-label="<%= label %>"
-                          onclick="selectPackage(this)">
-                        <td>
-                          <input type="radio" name="rf-pkg" value="<%= p._id %>" <%= isSel ? 'checked' : '' %>>
-                        </td>
-                        <td><%= d.plan_type || '—' %></td>
-                        <td><%= d.network || '—' %></td>
-                        <td><%= d.validate_period || '—' %></td>
-                        <td class="text-right">&#8358;<%= d.amount != null ? d.amount : '—' %></td>
-                      </tr>
-                      <% }) %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="mt-3">
-                <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
-                <div class="rf-help" style="margin-top:8px;">
-                  Saves every setting on this page — the reward, the signup bonus, the commission
-                  and the paid codes.
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- ── Signup bonus promotion ─────────────────────────────────── -->
           <%
-            var sb = settings.signupBonus || {};
-            var rc = settings.referralCommission || {};
-          %>
-          <div class="card">
-            <div class="card-header">
-              <h4>Signup Bonus <small class="text-muted">— promotion, can be switched on and off</small></h4>
-            </div>
-            <div class="card-body">
-
-              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                Applies to <strong>every new user</strong>, not only those who signed up with a
-                referral code. Credited when the user <strong>verifies their email</strong>, not at
-                signup — signing up is free and unlimited, so paying before a working inbox is
-                proven would let one person farm the bonus with throwaway addresses.
-                <br><small class="text-muted">Paid once per account, and never twice even if verification is retried.</small>
-              </div>
-
-              <div class="row">
-                <div class="col-12 col-md-3">
-                  <div class="form-group">
-                    <label>Promotion</label>
-                    <select id="sb-active" class="form-control">
-                      <option value="true"  <%= sb.isActive  ? 'selected' : '' %>>Running</option>
-                      <option value="false" <%= !sb.isActive ? 'selected' : '' %>>Off</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Bonus type</label>
-                    <select id="sb-type" class="form-control" onchange="onSignupBonusTypeChange()">
-                      <option value="money"       <%= sb.rewardType === 'money'       ? 'selected' : '' %>>Money — credited to wallet</option>
-                      <option value="rewardpoint" <%= sb.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
-                    </select>
-                    <div class="rf-help">Data isn't offered — a bundle needs a phone number a new account hasn't given.</div>
-                  </div>
-                </div>
-                <div class="col-12 col-md-3">
-                  <div class="form-group">
-                    <label>Amount</label>
-                    <input type="number" id="sb-amount" class="form-control" min="0" step="any"
-                           value="<%= sb.amount || '' %>" placeholder="e.g. 100">
-                    <div class="rf-help" id="sb-amount-help">Naira per verified signup.</div>
-                  </div>
-                </div>
-              </div>
-
-                <div class="mt-3 pt-3" style="border-top:1px solid #e4e6fc;">
-                  <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
-                  <span class="rf-help" style="margin-left:10px;">Saves every setting on this page.</span>
-                </div>
-            </div>
-          </div>
-
-          <!-- ── Ongoing referral commission ────────────────────────────── -->
-          <div class="card">
-            <div class="card-header">
-              <h4>Referral Commission <small class="text-muted">— ongoing, per purchase</small></h4>
-            </div>
-            <div class="card-body">
-
-              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                Once a referred user has <strong>qualified</strong> (met the threshold and paid out
-                the one-off reward above), <strong>every later purchase</strong> they make earns
-                their referrer a percentage.
-                <br>
-                <strong>This is always a gift on top, never a deduction.</strong> The buyer is
-                charged the full amount and keeps their full reward points; the commission is
-                credited to the referrer separately, so revenue and profit reporting are unaffected.
-              </div>
-
-              <div class="row">
-                <div class="col-12 col-md-3">
-                  <div class="form-group">
-                    <label>Commission</label>
-                    <select id="rc-active" class="form-control">
-                      <option value="true"  <%= rc.isActive  ? 'selected' : '' %>>Running</option>
-                      <option value="false" <%= !rc.isActive ? 'selected' : '' %>>Off</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Type</label>
-                    <select id="rc-type" class="form-control" onchange="onCommissionTypeChange()">
-                      <option value="cashback"    <%= rc.type === 'cashback'    ? 'selected' : '' %>>Cash back — % of the purchase value</option>
-                      <option value="rewardpoint" <%= rc.type === 'rewardpoint' ? 'selected' : '' %>>Reward Points — % of the RP earned</option>
-                    </select>
-                    <div class="rf-help" id="rc-type-help"></div>
-                  </div>
-                </div>
-                <div class="col-6 col-md-2">
-                  <div class="form-group">
-                    <label>Percentage</label>
-                    <div class="input-group">
-                      <input type="number" id="rc-percent" class="form-control" min="0" max="100" step="any"
-                             value="<%= rc.percent || '' %>" placeholder="5">
-                      <div class="input-group-append"><span class="input-group-text">%</span></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-6 col-md-3">
-                  <div class="form-group">
-                    <label>Cap per referred user</label>
-                    <input type="number" id="rc-cap" class="form-control" min="0" step="any"
-                           value="<%= rc.maxPerReferredUser || 0 %>">
-                    <div class="rf-help">Lifetime ceiling per referred user. 0 = unlimited.</div>
-                  </div>
-                </div>
-              </div>
-
-                <div class="mt-3 pt-3" style="border-top:1px solid #e4e6fc;">
-                  <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
-                  <span class="rf-help" style="margin-left:10px;">Saves every setting on this page.</span>
-                </div>
-            </div>
-          </div>
-
-          <!-- ── Paid codes: pricing, bonuses and review ─────────────────── -->
-          <%
-            var pc = settings.paidCodes || {};
+            var sb  = settings.signupBonus || {};
+            var rc  = settings.referralCommission || {};
+            var pc  = settings.paidCodes || {};
             var pcs = pc.special || {};
-            var pcc = pc.custom || {};
-            var cs = typeof codeStats !== 'undefined' ? codeStats : { system: 0, special: 0, custom: 0 };
-            var rq = typeof requestStats !== 'undefined' ? requestStats : { pending: 0, approved: 0, rejected: 0 };
+            var pcc = pc.custom  || {};
+            var cs  = typeof codeStats    !== 'undefined' ? codeStats    : { system: 0, special: 0, custom: 0 };
+            var rq  = typeof requestStats !== 'undefined' ? requestStats : { pending: 0, approved: 0, rejected: 0 };
+            var reqs = (typeof codeRequests !== 'undefined' && codeRequests) || [];
+            var pool = (specialCodes || []);
+            var unsold = pool.filter(function (c) { return !c.permittedUser; }).length;
           %>
-          <div class="card">
-            <div class="card-header">
-              <h4>
-                Paid Codes
-                <small class="text-muted">— what a special or custom code costs and earns</small>
-              </h4>
-              <div class="card-header-action">
-                <span class="badge badge-light" style="border:1px solid #e4e6fc;">
-                  <%= cs.system %> free · <%= cs.special %> reserved · <%= cs.custom %> custom
-                </span>
-              </div>
+
+          <div class="kp-panel">
+
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Growth &amp; Rewards</h1>
+              <p class="kp-panel__sub">Referrals, bonuses and the codes users can buy</p>
             </div>
-            <div class="card-body">
 
-              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                A paid code earns its owner <strong>more than their free one</strong> — that uplift is
-                what a buyer is actually paying for. Each kind carries
-                <strong>two bonuses, set separately</strong>:
-                <br>
-                <strong>Reward bonus</strong> — added to the one-off referral reward above. Paid once
-                per referral, so the cost is bounded and predictable: 25% turns a 100 RP reward into 125 RP.
-                <br>
-                <strong>Commission bonus</strong> — added to the ongoing per-purchase commission.
-                Applies for as long as that referred user keeps buying, so it is an open-ended
-                commitment. <strong>Leave it at 0</strong> for a paid code to earn the standard
-                commission with no uplift.
-                <br>
-                Both are <strong>frozen onto the code when it is bought</strong>. Changing them here
-                affects future purchases only; nobody who has already paid gets re-priced.
-                <br>
-                <small class="text-muted">
-                  A <em>data</em> reward carries no bonus — there is no meaningful way to pay 25% more
-                  of one fixed bundle. Use money or reward points if paid codes should be worth more.
-                </small>
-              </div>
+            <div class="kp-panel__body">
 
-              <div class="row">
-                <div class="col-12 col-md-3">
-                  <div class="form-group">
-                    <label>Selling codes</label>
-                    <select id="pc-active" class="form-control">
-                      <option value="true"  <%= pc.isActive  ? 'selected' : '' %>>On sale</option>
-                      <option value="false" <%= !pc.isActive ? 'selected' : '' %>>Off</option>
-                    </select>
-                    <div class="rf-help">Off hides the option from users entirely.</div>
-                  </div>
-                </div>
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Review</label>
-                    <select id="pc-auto" class="form-control">
-                      <option value="false" <%= !pc.autoApprove ? 'selected' : '' %>>Every request is reviewed by an admin</option>
-                      <option value="true"  <%= pc.autoApprove  ? 'selected' : '' %>>Approve automatically</option>
-                    </select>
-                    <div class="rf-help" style="color:#e67700;">
-                      Auto-approve issues codes with no one reading them first. Custom codes are text
-                      other users will see — keep review on unless the queue is unmanageable.
+              <%- include('partials/panelDrawer', {
+                panelKey: 'referrals',
+                drawerLabel: 'Referrals',
+                sections: [
+                  { id: 'overview',  label: 'Overview',      icon: 'bar-chart-2' },
+                  { id: 'reward',    label: 'Reward',        icon: 'gift' },
+                  { id: 'signup',    label: 'Signup Bonus',  icon: 'user-plus' },
+                  { id: 'comm',      label: 'Commission',    icon: 'repeat' },
+                  { id: 'paid',      label: 'Paid Codes',    icon: 'tag' },
+                  { id: 'requests',  label: 'Requests',      icon: 'inbox', badge: rq.pending || 0 },
+                  { id: 'reserved',  label: 'Reserved Pool', icon: 'bookmark' }
+                ]
+              }) %>
+
+              <div class="kp-panel__main">
+
+                <!-- ══ Overview ══════════════════════════════════════════ -->
+                <div class="kp-section" data-section="overview">
+                  <div class="kp-stats">
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= stats.pending %></div>
+                      <div class="kp-stat__lbl">Pending</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= stats.qualified %></div>
+                      <div class="kp-stat__lbl">Qualified</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--good"><%= stats.rewarded %></div>
+                      <div class="kp-stat__lbl">Rewarded</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--mute"><%= stats.void %></div>
+                      <div class="kp-stat__lbl">Void</div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <hr>
-
-              <div class="row">
-                <!-- Reserved -->
-                <div class="col-12 col-md-6">
-                  <h6 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">
-                    Reserved codes
-                  </h6>
-                  <p class="rf-help" style="margin-bottom:12px;">
-                    Picked from the pool you have built below. Scarce — once one is sold nobody else
-                    can have it.
-                  </p>
-                  <div class="row">
-                    <div class="col-12">
-                      <div class="form-group">
-                        <label>Default price</label>
-                        <input type="number" id="pc-sp-price" class="form-control" min="0" step="any"
-                               value="<%= pcs.price || 0 %>">
-                        <div class="rf-help">A code with its own price keeps it.</div>
+                  <div class="kp-grid kp-grid--2">
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Codes in issue</h2></div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Free system codes</span></div>
+                          <div class="kp-row__ctrl"><span class="kp-row__value"><%= cs.system.toLocaleString() %></span></div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Reserved, sold</span></div>
+                          <div class="kp-row__ctrl"><span class="kp-row__value"><%= cs.special.toLocaleString() %></span></div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Custom, sold</span></div>
+                          <div class="kp-row__ctrl"><span class="kp-row__value"><%= cs.custom.toLocaleString() %></span></div>
+                        </div>
                       </div>
                     </div>
-                    <div class="col-6">
-                      <div class="form-group">
-                        <label>Reward bonus</label>
-                        <div class="input-group">
-                          <input type="number" id="pc-sp-reward" class="form-control" min="0" max="500" step="any"
-                                 value="<%= pcs.rewardBonusPercent || 0 %>">
-                          <div class="input-group-append"><span class="input-group-text">%</span></div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Programme state</h2></div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Referrals</span></div>
+                          <div class="kp-row__ctrl">
+                            <span class="kp-pill <%= settings.isActive ? 'kp-pill--good' : '' %>"><%= settings.isActive ? 'Running' : 'Paused' %></span>
+                          </div>
                         </div>
-                        <div class="rf-help">On the one-off reward.</div>
-                      </div>
-                    </div>
-                    <div class="col-6">
-                      <div class="form-group">
-                        <label>Commission bonus</label>
-                        <div class="input-group">
-                          <input type="number" id="pc-sp-comm" class="form-control" min="0" max="500" step="any"
-                                 value="<%= pcs.commissionBonusPercent || 0 %>">
-                          <div class="input-group-append"><span class="input-group-text">%</span></div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Paid codes</span></div>
+                          <div class="kp-row__ctrl">
+                            <span class="kp-pill <%= pc.isActive ? 'kp-pill--good' : '' %>"><%= pc.isActive ? 'On sale' : 'Off' %></span>
+                          </div>
                         </div>
-                        <div class="rf-help">On every later purchase. 0 = none.</div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Requests waiting</span></div>
+                          <div class="kp-row__ctrl">
+                            <% if (rq.pending > 0) { %>
+                            <a href="#requests" class="kp-pill kp-pill--warn"><%= rq.pending %> to review</a>
+                            <% } else { %>
+                            <span class="kp-row__value">None</span>
+                            <% } %>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Custom -->
-                <div class="col-12 col-md-6">
-                  <h6 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">
-                    Custom codes
-                  </h6>
-                  <p class="rf-help" style="margin-bottom:12px;">
-                    Chosen by the user — their name, a word, anything still free. These are the ones
-                    that need reading before they go live.
-                  </p>
-                  <div class="row">
-                    <div class="col-12">
-                      <div class="form-group">
-                        <label>Price</label>
-                        <input type="number" id="pc-cu-price" class="form-control" min="0" step="any"
-                               value="<%= pcc.price || 0 %>">
-                      </div>
-                    </div>
-                    <div class="col-6">
-                      <div class="form-group">
-                        <label>Reward bonus</label>
-                        <div class="input-group">
-                          <input type="number" id="pc-cu-reward" class="form-control" min="0" max="500" step="any"
-                                 value="<%= pcc.rewardBonusPercent || 0 %>">
-                          <div class="input-group-append"><span class="input-group-text">%</span></div>
-                        </div>
-                        <div class="rf-help">On the one-off reward.</div>
-                      </div>
-                    </div>
-                    <div class="col-6">
-                      <div class="form-group">
-                        <label>Commission bonus</label>
-                        <div class="input-group">
-                          <input type="number" id="pc-cu-comm" class="form-control" min="0" max="500" step="any"
-                                 value="<%= pcc.commissionBonusPercent || 0 %>">
-                          <div class="input-group-append"><span class="input-group-text">%</span></div>
-                        </div>
-                        <div class="rf-help">On every later purchase. 0 = none.</div>
-                      </div>
-                    </div>
-                    <div class="col-6">
-                      <div class="form-group">
-                        <label>Min length</label>
-                        <input type="number" id="pc-cu-min" class="form-control" min="3" max="32"
-                               value="<%= pcc.minLength || 4 %>">
-                      </div>
-                    </div>
-                    <div class="col-6">
-                      <div class="form-group">
-                        <label>Max length</label>
-                        <input type="number" id="pc-cu-max" class="form-control" min="4" max="64"
-                               value="<%= pcc.maxLength || 16 %>">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Recent referrals</h2></div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <th>Referrer</th><th>Referred</th><th>Code</th>
+                              <th>Status</th><th>Reward</th><th>When</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if (!referrals.length) { %>
+                            <tr><td colspan="6"><div class="kp-empty">No referrals yet.</div></td></tr>
+                            <% } %>
+                            <% referrals.slice(0, 25).forEach(function (r) { %>
+                            <tr>
+                              <td><span class="kp-strong"><%= r.referrer ? r.referrer.username : '—' %></span></td>
+                              <td><%= r.referred ? r.referred.username : '—' %></td>
+                              <td><span class="kp-code"><%= r.codeUsed %></span></td>
+                              <td>
+                                <span class="kp-pill <%= r.status === 'rewarded' ? 'kp-pill--good' : (r.status === 'void' ? '' : 'kp-pill--warn') %>"><%= r.status %></span>
+                              </td>
+                              <td><%= r.rewardNote || '—' %></td>
+                              <td><%= new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) %></td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-                <div class="mt-3 pt-3" style="border-top:1px solid #e4e6fc;">
-                  <button class="btn btn-primary js-save-settings" onclick="saveSettings()">Save Settings</button>
-                  <span class="rf-help" style="margin-left:10px;">Saves every setting on this page.</span>
-                </div>
-            </div>
-          </div>
+                <!-- ══ Reward ════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="reward">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Referral reward</h2></div>
+                    <div class="kp-card__body">
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Programme</span>
+                          <p class="kp-row__hint">Paused stops all new rewards.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="f-active" <%= settings.isActive ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
 
-          <!-- ── Review queue ────────────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header">
-              <h4>
-                Code Requests
-                <% if (rq.pending > 0) { %>
-                <span class="badge badge-warning" style="font-size:12px;"><%= rq.pending %> waiting</span>
-                <% } %>
-              </h4>
-              <div class="card-header-action">
-                <select id="cr-filter" class="form-control form-control-sm" style="width:auto;display:inline-block;"
-                        onchange="loadCodeRequests(this.value)">
-                  <option value="pending">Waiting (<%= rq.pending %>)</option>
-                  <option value="approved">Approved (<%= rq.approved %>)</option>
-                  <option value="rejected">Rejected (<%= rq.rejected %>)</option>
-                </select>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                <strong>Approving is what charges the user.</strong> Nothing is taken from a wallet
-                while a request sits here, so rejecting costs them nothing and there is no refund to
-                make. If their balance is short at the moment you approve, the request stays waiting
-                rather than issuing an unpaid code.
-              </div>
-            </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Reward type</span>
+                          <p class="kp-row__hint" id="amount-help"></p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <select id="f-rewardtype" class="kp-select" onchange="onRewardTypeChange()">
+                            <option value="rewardpoint" <%= settings.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
+                            <option value="money"       <%= settings.rewardType === 'money'       ? 'selected' : '' %>>Money</option>
+                            <option value="data"        <%= settings.rewardType === 'data'        ? 'selected' : '' %>>Data bundle</option>
+                          </select>
+                        </div>
+                      </div>
 
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped mb-0" id="cr-table">
-                  <thead>
-                    <tr>
-                      <th>Requested</th>
-                      <th>User</th>
-                      <th>Code</th>
-                      <th>Kind</th>
-                      <th>Price</th>
-                      <th>Reward<br><small class="text-muted">bonus</small></th>
-                      <th>Comm.<br><small class="text-muted">bonus</small></th>
-                      <th class="text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cr-body">
-                    <% if (!codeRequests || !codeRequests.length) { %>
-                    <tr><td colspan="8" class="text-center py-4 text-muted">Nothing waiting.</td></tr>
-                    <% } %>
-                    <% (codeRequests || []).forEach(function (r) { %>
-                    <tr id="cr-row-<%= r._id %>">
-                      <td><small><%= new Date(r.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) %></small></td>
-                      <td>
-                        <% if (r.user) { %>
-                        <a href="/admin/product/user-details/<%= r.user._id %>"><strong><%= r.user.username %></strong></a><br>
-                        <small class="text-muted"><%= r.user.email %></small>
-                        <% } else { %>
-                        <span class="text-muted">Deleted user</span>
-                        <% } %>
-                      </td>
-                      <td><code style="font-size:15px;font-weight:700;letter-spacing:.08em;"><%= r.code %></code></td>
-                      <td>
-                        <span class="badge <%= r.type === 'custom' ? 'badge-warning' : 'badge-info' %>">
-                          <%= r.type === 'custom' ? 'custom' : 'reserved' %>
+                      <div class="kp-row" id="grp-amount">
+                        <div class="kp-row__main"><span class="kp-row__label">Amount</span></div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="f-amount" class="kp-input kp-input--num" min="0" step="any"
+                                 value="<%= settings.amount || '' %>" placeholder="0">
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Minimum first purchase</span>
+                          <p class="kp-row__hint">0 means any purchase qualifies.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="f-minpurchase" class="kp-input kp-input--num" min="0" step="any"
+                                 value="<%= settings.minPurchaseAmount || 0 %>">
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Cap per referrer</span>
+                          <p class="kp-row__hint">0 means unlimited.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="f-maxrewards" class="kp-input kp-input--num" min="0" step="1"
+                                 value="<%= settings.maxRewardsPerReferrer || 0 %>">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button class="kp-btn kp-btn--primary js-save-settings" onclick="saveSettings()">Save</button>
+                      <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
+                    </div>
+                  </div>
+
+                  <!-- Data reward needs a real package, so it gets its own card -->
+                  <div class="kp-card" id="grp-data" hidden>
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Package to award</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill" id="chosen-wrap" style="display:none;">
+                          <strong id="chosen-label">—</strong>
                         </span>
-                      </td>
-                      <td><%= (r.price || 0).toLocaleString() %></td>
-                      <td><%= r.rewardBonusPercent || 0 %>%</td>
-                      <td><%= r.commissionBonusPercent || 0 %>%</td>
-                      <td class="text-right" style="white-space:nowrap;">
-                        <button class="btn btn-sm btn-success" style="border-radius:45px;"
-                                onclick="approveCodeRequest('<%= r._id %>', '<%= r.code %>', '<%= (r.price || 0) %>')">Approve</button>
-                        <button class="btn btn-sm btn-outline-danger" style="border-radius:45px;"
-                                onclick="rejectCodeRequest('<%= r._id %>', '<%= r.code %>')">Reject</button>
-                      </td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── Special / vanity codes ──────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header">
-              <h4>Special Codes <small class="text-muted">— premium codes sold to users</small></h4>
-            </div>
-            <div class="card-body">
-
-              <div class="alert alert-light" style="border:1px solid #e4e6fc;">
-                A code is <strong>reserved and blocked from the whole system</strong> the moment you
-                add it, and becomes usable only once a user buys it and you approve the request.
-                <br>
-                <strong>Letters and numbers only.</strong> Punctuation is not allowed — a comma
-                would split one code into two on paste, and spaces make two codes that look
-                identical into different strings.
-              </div>
-
-              <div class="form-group">
-                <label>Codes <span class="text-danger">*</span></label>
-                <textarea id="sc-codes" class="form-control" rows="5"
-                          style="text-transform:uppercase;font-family:monospace;font-size:14px;line-height:1.7;"
-                          placeholder="VICTOR1, KABACU01, LAGOS2026, 07000000"></textarea>
-                <div class="rf-help">
-                  Paste as many as you like, separated by commas. Newlines and semicolons work too,
-                  so a column copied out of a spreadsheet pastes straight in. Every code is reported
-                  on separately — one bad entry does not lose the rest.
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-6 col-md-3">
-                  <div class="form-group">
-                    <label>Price for this batch</label>
-                    <input type="number" id="sc-price" class="form-control" min="0" step="any" placeholder="0">
-                    <div class="rf-help">0 falls back to the special-code price set above.</div>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr><th style="width:44px;"></th><th>Plan</th><th>Network</th><th>Validity</th><th class="kp-table__num">Price</th></tr>
+                          </thead>
+                          <tbody>
+                            <% if (!dataProducts.length) { %>
+                            <tr><td colspan="5"><div class="kp-empty">No data packages exist yet.</div></td></tr>
+                            <% } %>
+                            <% dataProducts.forEach(function (p) {
+                                 var d = p.dataDetails || {};
+                                 var label = (d.plan_type || 'Plan') + ' · ' + (d.network || '');
+                                 var isSel = settings.dataProduct && String(settings.dataProduct) === String(p._id);
+                            %>
+                            <tr class="rf-pkg-row <%= isSel ? 'selected' : '' %>"
+                                data-id="<%= p._id %>" data-label="<%= label %>"
+                                onclick="selectPackage(this)" style="cursor:pointer;">
+                              <td><input type="radio" name="rf-pkg" value="<%= p._id %>" <%= isSel ? 'checked' : '' %>></td>
+                              <td><span class="kp-strong"><%= d.plan_type || '—' %></span></td>
+                              <td><%= d.network || '—' %></td>
+                              <td><%= d.validate_period || '—' %></td>
+                              <td class="kp-table__num">&#8358;<%= d.amount != null ? d.amount : '—' %></td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="col-12 col-md-6">
-                  <div class="form-group">
-                    <label>Note <small class="text-muted">(applied to all in this batch)</small></label>
-                    <input type="text" id="sc-note" class="form-control" placeholder="e.g. Lagos launch batch">
+
+                <!-- ══ Signup bonus ══════════════════════════════════════ -->
+                <div class="kp-section" data-section="signup">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Signup bonus</h2></div>
+                    <div class="kp-card__body">
+                      <p class="kp-note" style="margin-top:14px;">
+                        Paid at email verification, not at signup, and to <strong>every</strong> new
+                        user — not only those who arrived on a code.
+                      </p>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Promotion</span></div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="sb-active" <%= sb.isActive ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Bonus type</span>
+                          <p class="kp-row__hint" id="sb-amount-help"></p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <select id="sb-type" class="kp-select" onchange="onSignupBonusTypeChange()">
+                            <option value="rewardpoint" <%= sb.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
+                            <option value="money"       <%= sb.rewardType === 'money'       ? 'selected' : '' %>>Money</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Amount</span></div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="sb-amount" class="kp-input kp-input--num" min="0" step="any"
+                                 value="<%= sb.amount || '' %>" placeholder="0">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button class="kp-btn kp-btn--primary js-save-settings" onclick="saveSettings()">Save</button>
+                      <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <button class="btn btn-primary" id="sc-create-btn" onclick="bulkCreateSpecialCodes()">Reserve Codes</button>
+                <!-- ══ Commission ════════════════════════════════════════ -->
+                <div class="kp-section" data-section="comm">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Ongoing commission</h2></div>
+                    <div class="kp-card__body">
+                      <p class="kp-note" style="margin-top:14px;">
+                        Once a referred user has qualified, every later purchase earns their referrer
+                        a percentage. <strong>Always a gift on top</strong> — the buyer is charged in
+                        full and keeps their own reward points.
+                      </p>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Commission</span></div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="rc-active" <%= rc.isActive ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Type</span>
+                          <p class="kp-row__hint" id="rc-type-help"></p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <select id="rc-type" class="kp-select" onchange="onCommissionTypeChange()">
+                            <option value="cashback"    <%= rc.type === 'cashback'    ? 'selected' : '' %>>Cash back</option>
+                            <option value="rewardpoint" <%= rc.type === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Percentage</span></div>
+                        <div class="kp-row__ctrl">
+                          <span class="kp-affix">
+                            <input type="number" id="rc-percent" class="kp-input kp-input--num" min="0" max="100" step="any"
+                                   value="<%= rc.percent || '' %>" placeholder="0">
+                            <span class="kp-affix__unit">%</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Lifetime cap per referred user</span>
+                          <p class="kp-row__hint">0 means unlimited.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="rc-cap" class="kp-input kp-input--num" min="0" step="any"
+                                 value="<%= rc.maxPerReferredUser || 0 %>">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button class="kp-btn kp-btn--primary js-save-settings" onclick="saveSettings()">Save</button>
+                      <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
+                    </div>
+                  </div>
+                </div>
 
-              <!-- Per-code outcome of the last paste -->
-              <div id="sc-bulk-report" class="mt-3" style="display:none;"></div>
-            </div>
+                <!-- ══ Paid codes ════════════════════════════════════════ -->
+                <div class="kp-section" data-section="paid">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Selling codes</h2></div>
+                    <div class="kp-card__body">
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">On sale</span>
+                          <p class="kp-row__hint">Off hides the option from users entirely.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="pc-active" <%= pc.isActive ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Approve automatically</span>
+                          <p class="kp-row__hint">Skips review. Custom codes are text other users see.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="pc-auto" <%= pc.autoApprove ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                  <thead>
-                    <tr><th>Code</th><th>Price</th><th>Status</th><th>Held by</th><th>Note</th><th class="text-right">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    <% if (!specialCodes || !specialCodes.length) { %>
-                    <tr><td colspan="6" class="text-center text-muted py-4">No special codes reserved yet.</td></tr>
-                    <% } %>
-                    <% (specialCodes || []).forEach(function(sc) { %>
-                    <tr>
-                      <td><code style="font-size:13px;"><%= sc.code %></code></td>
-                      <td>&#8358;<%= (sc.price || 0).toLocaleString() %></td>
-                      <td>
-                        <% if (!sc.isActive) { %>
-                          <span class="badge badge-secondary">Inactive</span>
-                        <% } else if (sc.permittedUser) { %>
-                          <span class="badge badge-success">Assigned</span>
-                        <% } else { %>
-                          <span class="badge badge-warning">Reserved &mdash; blocked</span>
-                        <% } %>
-                      </td>
-                      <td>
-                        <% if (sc.permittedUser) { %>
-                          <strong><%= sc.permittedUser.username %></strong><br>
-                          <small class="text-muted"><%= sc.permittedUser.email %></small>
-                        <% } else { %>
-                          <small class="text-muted">&mdash;</small>
-                        <% } %>
-                      </td>
-                      <td><small><%= sc.note || '—' %></small></td>
-                      <td class="text-right" style="white-space:nowrap;">
-                        <% if (sc.permittedUser) { %>
-                        <button class="btn btn-sm btn-warning" onclick="unassignSpecialCode('<%= sc._id %>')">Unassign</button>
-                        <% } else { %>
-                        <button class="btn btn-sm btn-info" onclick="assignSpecialCode('<%= sc._id %>', '<%= sc.code %>')">Assign</button>
-                        <button class="btn btn-sm btn-secondary" onclick="toggleSpecialCode('<%= sc._id %>')"><%= sc.isActive ? 'Disable' : 'Enable' %></button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteSpecialCode('<%= sc._id %>')">Delete</button>
-                        <% } %>
-                      </td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+                  <div class="kp-grid kp-grid--2">
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">Reserved</h2>
+                        <div class="kp-card__aside"><span class="kp-pill"><%= unsold %> unsold</span></div>
+                      </div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Default price</span>
+                            <p class="kp-row__hint">A code with its own price keeps it.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <input type="number" id="pc-sp-price" class="kp-input kp-input--num" min="0" step="any"
+                                   value="<%= pcs.price || 0 %>">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Reward bonus</span>
+                            <p class="kp-row__hint">On the one-off reward.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <span class="kp-affix">
+                              <input type="number" id="pc-sp-reward" class="kp-input kp-input--num" min="0" max="500" step="any"
+                                     value="<%= pcs.rewardBonusPercent || 0 %>">
+                              <span class="kp-affix__unit">%</span>
+                            </span>
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Commission bonus</span>
+                            <p class="kp-row__hint">On every later purchase. 0 = none.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <span class="kp-affix">
+                              <input type="number" id="pc-sp-comm" class="kp-input kp-input--num" min="0" max="500" step="any"
+                                     value="<%= pcs.commissionBonusPercent || 0 %>">
+                              <span class="kp-affix__unit">%</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-          <!-- ── Recent referrals ────────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header"><h4>Recent Referrals</h4></div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                  <thead>
-                    <tr><th>Referrer</th><th>Referred user</th><th>Code</th><th>Status</th><th>Reward</th><th>When</th></tr>
-                  </thead>
-                  <tbody>
-                    <% if (!referrals.length) { %>
-                    <tr><td colspan="6" class="text-center text-muted py-4">No referrals recorded yet.</td></tr>
-                    <% } %>
-                    <% referrals.forEach(function(r) {
-                         var badge = r.status === 'rewarded' ? 'success'
-                                   : r.status === 'qualified' ? 'info'
-                                   : r.status === 'void' ? 'secondary' : 'warning';
-                    %>
-                    <tr>
-                      <td><%= (r.referrer && r.referrer.username) || '—' %></td>
-                      <td><%= (r.referred && r.referred.username) || '—' %></td>
-                      <td><code><%= r.codeUsed %></code></td>
-                      <td><span class="badge badge-<%= badge %>"><%= r.status %></span></td>
-                      <td><small><%= r.rewardNote || '—' %></small></td>
-                      <td><small><%= new Date(r.createdAt).toLocaleDateString() %></small></td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">Custom</h2>
+                        <div class="kp-card__aside"><span class="kp-pill"><%= cs.custom %> sold</span></div>
+                      </div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Price</span>
+                            <p class="kp-row__hint">What a user pays to choose their own.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <input type="number" id="pc-cu-price" class="kp-input kp-input--num" min="0" step="any"
+                                   value="<%= pcc.price || 0 %>">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Reward bonus</span>
+                            <p class="kp-row__hint">On the one-off reward.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <span class="kp-affix">
+                              <input type="number" id="pc-cu-reward" class="kp-input kp-input--num" min="0" max="500" step="any"
+                                     value="<%= pcc.rewardBonusPercent || 0 %>">
+                              <span class="kp-affix__unit">%</span>
+                            </span>
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Commission bonus</span>
+                            <p class="kp-row__hint">On every later purchase. 0 = none.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <span class="kp-affix">
+                              <input type="number" id="pc-cu-comm" class="kp-input kp-input--num" min="0" max="500" step="any"
+                                     value="<%= pcc.commissionBonusPercent || 0 %>">
+                              <span class="kp-affix__unit">%</span>
+                            </span>
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Length</span></div>
+                          <div class="kp-row__ctrl">
+                            <input type="number" id="pc-cu-min" class="kp-input kp-input--num" min="3" max="32"
+                                   value="<%= pcc.minLength || 4 %>" style="width:74px;">
+                            <span class="kp-mute">to</span>
+                            <input type="number" id="pc-cu-max" class="kp-input kp-input--num" min="4" max="64"
+                                   value="<%= pcc.maxLength || 16 %>" style="width:74px;">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="kp-card">
+                    <div class="kp-card__foot">
+                      <button class="kp-btn kp-btn--primary js-save-settings" onclick="saveSettings()">Save</button>
+                      <span class="kp-mute" style="font-size:12.5px;">
+                        Bonuses are frozen onto a code when it is bought — changes affect future purchases only.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ══ Requests ══════════════════════════════════════════ -->
+                <div class="kp-section" data-section="requests">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Code requests</h2>
+                      <div class="kp-card__aside">
+                        <select id="cr-filter" class="kp-select kp-select--sm" onchange="loadCodeRequests(this.value)" style="height:32px;font-size:12.5px;">
+                          <option value="pending">Waiting (<%= rq.pending %>)</option>
+                          <option value="approved">Approved (<%= rq.approved %>)</option>
+                          <option value="rejected">Rejected (<%= rq.rejected %>)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad" style="padding-bottom:0;">
+                      <p class="kp-note">
+                        <strong>Approving charges the user.</strong> Nothing is taken while a request
+                        waits here, so rejecting costs them nothing. If their balance is short at
+                        approval the request stays waiting.
+                      </p>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table" id="cr-table">
+                          <thead>
+                            <tr>
+                              <th>When</th><th>User</th><th>Code</th><th>Kind</th>
+                              <th class="kp-table__num">Price</th>
+                              <th class="kp-table__num">Reward</th>
+                              <th class="kp-table__num">Comm.</th>
+                              <th class="kp-table__act">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody id="cr-body">
+                            <% if (!reqs.length) { %>
+                            <tr><td colspan="8"><div class="kp-empty">Nothing waiting.</div></td></tr>
+                            <% } %>
+                            <% reqs.forEach(function (r) { %>
+                            <tr id="cr-row-<%= r._id %>">
+                              <td><%= new Date(r.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) %></td>
+                              <td>
+                                <% if (r.user) { %>
+                                <a href="/admin/product/user-details/<%= r.user._id %>" class="kp-strong"><%= r.user.username %></a><br>
+                                <span class="kp-mute" style="font-size:12px;"><%= r.user.email %></span>
+                                <% } else { %><span class="kp-mute">Deleted user</span><% } %>
+                              </td>
+                              <td><span class="kp-code"><%= r.code %></span></td>
+                              <td><span class="kp-pill <%= r.type === 'custom' ? 'kp-pill--warn' : 'kp-pill--info' %>"><%= r.type === 'custom' ? 'custom' : 'reserved' %></span></td>
+                              <td class="kp-table__num"><%= (r.price || 0).toLocaleString() %></td>
+                              <td class="kp-table__num"><%= r.rewardBonusPercent || 0 %>%</td>
+                              <td class="kp-table__num"><%= r.commissionBonusPercent || 0 %>%</td>
+                              <td class="kp-table__act">
+                                <button class="kp-btn kp-btn--sm kp-btn--primary"
+                                        onclick="approveCodeRequest('<%= r._id %>', '<%= r.code %>', '<%= (r.price || 0) %>')">Approve</button>
+                                <button class="kp-btn kp-btn--sm kp-btn--danger"
+                                        onclick="rejectCodeRequest('<%= r._id %>', '<%= r.code %>')">Reject</button>
+                              </td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ══ Reserved pool ═════════════════════════════════════ -->
+                <div class="kp-section" data-section="reserved">
+                  <div class="kp-card">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Add reserved codes</h2></div>
+                    <div class="kp-card__body kp-card__body--pad">
+                      <p class="kp-note">
+                        Letters and numbers only. A code is <strong>blocked from the system</strong>
+                        the moment you add it, and becomes usable only when a user buys it and you
+                        approve.
+                      </p>
+
+                      <div class="kp-stack">
+                        <div class="kp-field">
+                          <label class="kp-field__label" for="sc-codes">Codes, separated by commas</label>
+                          <textarea id="sc-codes" class="kp-input kp-input--code" rows="4"
+                                    style="text-transform:uppercase;"
+                                    placeholder="VICTOR1, KABACU01, LAGOS2026"></textarea>
+                        </div>
+
+                        <div class="kp-grid kp-grid--2">
+                          <div class="kp-field">
+                            <label class="kp-field__label" for="sc-price">Price for this batch</label>
+                            <input type="number" id="sc-price" class="kp-input" min="0" step="any" placeholder="0">
+                          </div>
+                          <div class="kp-field">
+                            <label class="kp-field__label" for="sc-note">Note</label>
+                            <input type="text" id="sc-note" class="kp-input" placeholder="e.g. Lagos launch batch">
+                          </div>
+                        </div>
+                      </div>
+
+                      <div id="sc-bulk-report" style="display:none;margin-top:14px;"></div>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button class="kp-btn kp-btn--primary" id="sc-create-btn" onclick="bulkCreateSpecialCodes()">Reserve codes</button>
+                      <span class="kp-mute" style="font-size:12.5px;">Newlines and semicolons work too.</span>
+                    </div>
+                  </div>
+
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">The pool</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill"><%= unsold %> unsold</span>
+                        <span class="kp-pill"><%= pool.length %> total</span>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <th>Code</th><th class="kp-table__num">Price</th><th>Status</th>
+                              <th>Held by</th><th>Note</th><th class="kp-table__act">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if (!pool.length) { %>
+                            <tr><td colspan="6"><div class="kp-empty">No reserved codes yet.</div></td></tr>
+                            <% } %>
+                            <% pool.forEach(function (sc) { %>
+                            <tr>
+                              <td><span class="kp-code"><%= sc.code %></span></td>
+                              <td class="kp-table__num"><%= (sc.price || 0).toLocaleString() %></td>
+                              <td>
+                                <% if (!sc.isActive) { %>
+                                <span class="kp-pill">Disabled</span>
+                                <% } else if (sc.permittedUser) { %>
+                                <span class="kp-pill kp-pill--good">Sold</span>
+                                <% } else { %>
+                                <span class="kp-pill kp-pill--info">For sale</span>
+                                <% } %>
+                              </td>
+                              <td>
+                                <% if (sc.permittedUser) { %>
+                                <span class="kp-strong"><%= sc.permittedUser.username %></span>
+                                <% } else { %><span class="kp-mute">—</span><% } %>
+                              </td>
+                              <td><span class="kp-mute" style="font-size:12.5px;"><%= sc.note || '—' %></span></td>
+                              <td class="kp-table__act">
+                                <% if (sc.permittedUser) { %>
+                                <button class="kp-btn kp-btn--sm" onclick="unassignSpecialCode('<%= sc._id %>')">Take back</button>
+                                <% } else { %>
+                                <button class="kp-btn kp-btn--sm" onclick="assignSpecialCode('<%= sc._id %>', '<%= sc.code %>')">Assign</button>
+                                <% } %>
+                                <button class="kp-btn kp-btn--sm" onclick="toggleSpecialCode('<%= sc._id %>')"><%= sc.isActive ? 'Disable' : 'Enable' %></button>
+                                <button class="kp-btn kp-btn--sm kp-btn--danger" onclick="deleteSpecialCode('<%= sc._id %>')">Delete</button>
+                              </td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
 
         </div>
       </section>
     </div>
+
+    <%- include('../partials/footerAdmin.ejs') %>
   </div>
 </div>
 
-<script>
-var CSRF = '<%= csrfToken %>';
-var selectedPackageId = <%- settings.dataProduct ? JSON.stringify(String(settings.dataProduct)) : 'null' %>;
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
 
-function onRewardTypeChange() {
-  var type = document.getElementById('f-rewardtype').value;
-  document.getElementById('grp-amount').hidden = (type === 'data');
-  document.getElementById('grp-data').hidden   = (type !== 'data');
-
-  var help = document.getElementById('amount-help');
-  if (type === 'money')       help.textContent = "Naira credited to the referrer's wallet.";
-  if (type === 'rewardpoint') help.textContent = 'Reward Points added to the referrer’s RP balance.';
-}
-
-function selectPackage(row) {
-  document.querySelectorAll('.rf-pkg-row').forEach(function(r) { r.classList.remove('selected'); });
-  row.classList.add('selected');
-  var radio = row.querySelector('input[type=radio]');
-  if (radio) radio.checked = true;
-
-  selectedPackageId = row.dataset.id;
-  document.getElementById('chosen-wrap').style.display = '';
-  document.getElementById('chosen-label').textContent = row.dataset.label;
-}
-
-async function saveSettings() {
-  var type = document.getElementById('f-rewardtype').value;
-
-  var payload = {
-    rewardType: type,
-    amount: document.getElementById('f-amount').value,
-    dataProduct: selectedPackageId,
-    minPurchaseAmount: document.getElementById('f-minpurchase').value,
-    maxRewardsPerReferrer: document.getElementById('f-maxrewards').value,
-    isActive: document.getElementById('f-active').value,
-
-    // Signup bonus promotion
-    signupBonusActive: document.getElementById('sb-active').value,
-    signupBonusType:   document.getElementById('sb-type').value,
-    signupBonusAmount: document.getElementById('sb-amount').value,
-
-    // Ongoing referral commission
-    commissionActive:  document.getElementById('rc-active').value,
-    commissionType:    document.getElementById('rc-type').value,
-    commissionPercent: document.getElementById('rc-percent').value,
-    commissionMaxPerReferredUser: document.getElementById('rc-cap').value,
-
-    // Paid codes — priced and bonused separately for reserved and custom
-    paidCodesActive:      document.getElementById('pc-active').value,
-    paidCodesAutoApprove: document.getElementById('pc-auto').value,
-    specialPrice:           document.getElementById('pc-sp-price').value,
-    specialRewardBonus:     document.getElementById('pc-sp-reward').value,
-    specialCommissionBonus: document.getElementById('pc-sp-comm').value,
-    customPrice:            document.getElementById('pc-cu-price').value,
-    customRewardBonus:      document.getElementById('pc-cu-reward').value,
-    customCommissionBonus:  document.getElementById('pc-cu-comm').value,
-    customMinLength:        document.getElementById('pc-cu-min').value,
-    customMaxLength:        document.getElementById('pc-cu-max').value,
-  };
-
-  /* A commission bonus pays nothing unless the commission programme is running,
-     so catch it here rather than saving a setting that silently does nothing. */
-  var anyCommBonus = Number(payload.specialCommissionBonus) > 0 ||
-                     Number(payload.customCommissionBonus) > 0;
-  if (anyCommBonus && payload.commissionActive !== 'true') {
-    return Swal.fire({
-      icon: 'warning',
-      text: 'A commission bonus only pays out while the ongoing commission is running. Switch that on, or set the commission bonuses to 0.',
-      confirmButtonColor: '#6777ef',
-    });
-  }
-
-  if (Number(payload.customMinLength) > Number(payload.customMaxLength)) {
-    return Swal.fire({ icon: 'warning', text: 'The custom code minimum length cannot exceed the maximum.', confirmButtonColor: '#6777ef' });
-  }
-
-  /* Turning auto-approve on removes the human check that stops a slur going
-     live as somebody's public code, so it is confirmed rather than just saved. */
-  if (payload.paidCodesAutoApprove === 'true' && payload.paidCodesActive === 'true') {
-    var warn = await Swal.fire({
-      icon: 'warning',
-      title: 'Issue codes without review?',
-      text: 'Custom codes are text other users will see. With auto-approve on, nobody reads one before it goes live.',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, auto-approve',
-      confirmButtonColor: '#e67700',
-    });
-    if (!warn.isConfirmed) return;
-  }
-
-  if (payload.signupBonusActive === 'true' && !(Number(payload.signupBonusAmount) > 0)) {
-    return Swal.fire({ icon: 'warning', text: 'Set a signup bonus amount above zero, or switch the promotion off.', confirmButtonColor: '#6777ef' });
-  }
-  if (payload.commissionActive === 'true' && !(Number(payload.commissionPercent) > 0)) {
-    return Swal.fire({ icon: 'warning', text: 'Set a commission percentage above zero, or switch it off.', confirmButtonColor: '#6777ef' });
-  }
-
-  if (type === 'data' && !selectedPackageId) {
-    return Swal.fire({ icon: 'warning', text: 'Choose the data package to award.', confirmButtonColor: '#6777ef' });
-  }
-  if (type !== 'data' && !(Number(payload.amount) > 0)) {
-    return Swal.fire({ icon: 'warning', text: 'Enter a reward amount greater than zero.', confirmButtonColor: '#6777ef' });
-  }
-
-  /* There is one save button per settings card, all calling this. Drive them
-     together so the page cannot be saved twice from two different buttons. */
-  var btns = document.querySelectorAll('.js-save-settings');
-  btns.forEach(function (b) { b.disabled = true; b.textContent = 'Saving…'; });
-
-  try {
-    var res  = await fetch('/admin/referrals/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify(payload),
-    });
-    var data = await res.json();
-
-    if (data.success) {
-      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1800, showConfirmButton: false });
-    } else {
-      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-    }
-  } catch (e) {
-    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
-  }
-
-  btns.forEach(function (b) { b.disabled = false; b.textContent = 'Save Settings'; });
-}
-
-/* Reflect any already-saved data package on load */
-function onSignupBonusTypeChange() {
-  var t = document.getElementById('sb-type').value;
-  document.getElementById('sb-amount-help').textContent =
-    t === 'money' ? 'Naira per verified signup.' : 'Reward Points per verified signup.';
-}
-
-function onCommissionTypeChange() {
-  var t = document.getElementById('rc-type').value;
-  document.getElementById('rc-type-help').textContent = t === 'cashback'
-    ? 'Referrer receives this % of the purchase value as cash. The buyer still pays in full.'
-    : 'Referrer receives this % of the RP the buyer earned. The buyer still keeps all their RP.';
-}
-
-(function () {
-  onRewardTypeChange();
-  onSignupBonusTypeChange();
-  onCommissionTypeChange();
-  var sel = document.querySelector('.rf-pkg-row.selected');
-  if (sel) {
-    document.getElementById('chosen-wrap').style.display = '';
-    document.getElementById('chosen-label').textContent = sel.dataset.label;
-  }
-})();
-</script>
-
-<script>
-/* ── Special / vanity codes ──────────────────────────────────────────────── */
-
-async function scPost(url, body) {
-  var opts = { method: 'POST', headers: { 'X-CSRF-Token': CSRF } };
-  if (body) {
-    opts.headers['Content-Type'] = 'application/json';
-    opts.body = JSON.stringify(body);
-  }
-  var res = await fetch(url, opts);
-  return res.json();
-}
-
-/* ── Bulk reservation ─────────────────────────────────────────────────────── */
-
-async function bulkCreateSpecialCodes() {
-  var raw = document.getElementById('sc-codes').value.trim();
-  if (!raw) {
-    return Swal.fire({ icon: 'warning', text: 'Paste at least one code.', confirmButtonColor: '#6777ef' });
-  }
-
-  var btn = document.getElementById('sc-create-btn');
-  btn.disabled = true;
-  btn.textContent = 'Reserving…';
-
-  try {
-    var data = await scPost('/admin/referrals/special/bulk', {
-      codes: raw,
-      price: document.getElementById('sc-price').value,
-      note: document.getElementById('sc-note').value,
-    });
-
-    renderBulkReport(data);
-
-    if (data.created && data.created.length) {
-      // Keep the report on screen: an admin who pasted fifty codes needs to see
-      // which ones did not take, and a reload would wipe it. The table below is
-      // refreshed instead.
-      document.getElementById('sc-codes').value = '';
-      Swal.fire({
-        icon: 'success', text: data.message, toast: true, position: 'top',
-        timer: 2400, showConfirmButton: false,
-      });
-    } else {
-      Swal.fire({ icon: 'warning', text: data.message || 'Nothing was reserved.', confirmButtonColor: '#6777ef' });
-    }
-  } catch (e) {
-    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Reserve Codes';
-}
-
-/** Per-code outcome, so a big paste is auditable rather than a single tally. */
-function renderBulkReport(data) {
-  var box = document.getElementById('sc-bulk-report');
-  if (!box) return;
-
-  function chips(list, colour, withReason) {
-    return (list || []).map(function (item) {
-      var code = withReason ? item.code : item;
-      var why = withReason && item.reason ? ' — ' + item.reason : '';
-      return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:4px 9px;border-radius:20px;' +
-             'font-size:12px;font-family:monospace;background:' + colour.bg + ';color:' + colour.fg + ';">' +
-             code + why + '</span>';
-    }).join('');
-  }
-
-  var html = '';
-  if (data.created && data.created.length) {
-    html += '<div style="margin-bottom:8px;"><strong style="font-size:13px;">Reserved (' + data.created.length + ')</strong><br>' +
-            chips(data.created, { bg: '#e8f8ee', fg: '#137a3c' }, false) + '</div>';
-  }
-  if (data.skipped && data.skipped.length) {
-    html += '<div style="margin-bottom:8px;"><strong style="font-size:13px;">Skipped (' + data.skipped.length + ')</strong><br>' +
-            chips(data.skipped, { bg: '#fff6e5', fg: '#8a5a00' }, true) + '</div>';
-  }
-  if (data.rejected && data.rejected.length) {
-    html += '<div><strong style="font-size:13px;">Rejected (' + data.rejected.length + ')</strong><br>' +
-            chips(data.rejected, { bg: '#fdecea', fg: '#a11c12' }, true) + '</div>';
-  }
-
-  box.innerHTML = html
-    ? '<div style="border:1px solid #e4e6fc;border-radius:8px;padding:12px;">' + html +
-      '<div style="margin-top:10px;"><button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">Refresh the list</button></div></div>'
-    : '';
-  box.style.display = html ? '' : 'none';
-}
-
-/* ── Review queue ────────────────────────────────────────────────────────── */
-
-async function loadCodeRequests(status) {
-  var body = document.getElementById('cr-body');
-  body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>';
-
-  try {
-    var res = await fetch('/admin/referrals/requests?status=' + encodeURIComponent(status));
-    var data = await res.json();
-
-    if (!data.success || !data.requests.length) {
-      body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nothing here.</td></tr>';
-      return;
-    }
-
-    body.innerHTML = data.requests.map(function (r) {
-      var when = new Date(r.createdAt).toLocaleString('en-GB',
-        { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-      var user = r.user
-        ? '<a href="/admin/product/user-details/' + r.user._id + '"><strong>' + r.user.username +
-          '</strong></a><br><small class="text-muted">' + r.user.email + '</small>'
-        : '<span class="text-muted">Deleted user</span>';
-
-      // Settled rows show who decided and why, not buttons.
-      var action = status === 'pending'
-        ? '<button class="btn btn-sm btn-success" style="border-radius:45px;" onclick="approveCodeRequest(\'' +
-            r._id + '\',\'' + r.code + '\',\'' + (r.price || 0) + '\')">Approve</button> ' +
-          '<button class="btn btn-sm btn-outline-danger" style="border-radius:45px;" onclick="rejectCodeRequest(\'' +
-            r._id + '\',\'' + r.code + '\')">Reject</button>'
-        : '<small class="text-muted">' + (r.autoApproved ? 'auto-approved' : (r.reviewedBy || '—')) +
-          (r.rejectionReason ? '<br>' + r.rejectionReason : '') + '</small>';
-
-      return '<tr id="cr-row-' + r._id + '">' +
-        '<td><small>' + when + '</small></td>' +
-        '<td>' + user + '</td>' +
-        '<td><code style="font-size:15px;font-weight:700;letter-spacing:.08em;">' + r.code + '</code></td>' +
-        '<td><span class="badge ' + (r.type === 'custom' ? 'badge-warning' : 'badge-info') + '">' +
-          (r.type === 'custom' ? 'custom' : 'reserved') + '</span></td>' +
-        '<td>' + Number(r.price || 0).toLocaleString() + '</td>' +
-        '<td>' + (r.rewardBonusPercent || 0) + '%</td>' +
-        '<td>' + (r.commissionBonusPercent || 0) + '%</td>' +
-        '<td class="text-right" style="white-space:nowrap;">' + action + '</td>' +
-        '</tr>';
-    }).join('');
-  } catch (e) {
-    body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-danger">Could not load. Please retry.</td></tr>';
-  }
-}
-
-async function approveCodeRequest(id, code, price) {
-  var priced = Number(price) > 0;
-  var ask = await Swal.fire({
-    icon: 'question',
-    title: 'Issue ' + code + '?',
-    html: priced
-      // Spelled out because this click is what takes the money.
-      ? '<p style="font-size:14px;">' + Number(price).toLocaleString() +
-        ' will be charged to their wallet now, and the code becomes theirs.</p>' +
-        '<p style="font-size:13px;color:#6c757d;">If their balance is short the request stays waiting — no partial charge.</p>'
-      : '<p style="font-size:14px;">The code becomes theirs. Nothing to charge.</p>',
-    showCancelButton: true,
-    confirmButtonText: priced ? 'Charge and issue' : 'Issue',
-    confirmButtonColor: '#47c363',
-  });
-  if (!ask.isConfirmed) return;
-
-  try {
-    var data = await scPost('/admin/referrals/requests/' + id + '/approve', {});
-    if (data.success) {
-      await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' });
-      loadCodeRequests(document.getElementById('cr-filter').value);
-      return;
-    }
-    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-  } catch (e) {
-    Swal.fire({
-      icon: 'error',
-      text: 'Request failed. Reload before retrying so you do not charge twice.',
-      confirmButtonColor: '#6777ef',
-    });
-  }
-}
-
-async function rejectCodeRequest(id, code) {
-  var ask = await Swal.fire({
-    icon: 'warning',
-    title: 'Reject ' + code + '?',
-    input: 'text',
-    inputLabel: 'Why — the user is shown this',
-    inputPlaceholder: 'e.g. Not appropriate for a public code',
-    showCancelButton: true,
-    confirmButtonText: 'Reject',
-    confirmButtonColor: '#fc544b',
-    inputValidator: function (v) {
-      // A user told only "rejected" will simply request the same thing again.
-      if (!v || !v.trim()) return 'Give a reason so they know what to change.';
-    },
-  });
-  if (!ask.isConfirmed) return;
-
-  try {
-    var data = await scPost('/admin/referrals/requests/' + id + '/reject', { reason: ask.value });
-    if (data.success) {
-      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 2200, showConfirmButton: false });
-      loadCodeRequests(document.getElementById('cr-filter').value);
-      return;
-    }
-    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-  } catch (e) {
-    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
-  }
-}
-
-async function assignSpecialCode(id, code) {
-  var r = await Swal.fire({
-    title: 'Assign ' + code,
-    input: 'text',
-    inputLabel: "User's email or username",
-    inputPlaceholder: 'someone@example.com',
-    showCancelButton: true,
-    confirmButtonText: 'Assign',
-    confirmButtonColor: '#6777ef',
-  });
-  if (!r.isConfirmed || !r.value || !r.value.trim()) return;
-
-  var data = await scPost('/admin/referrals/special/' + id + '/assign', { user: r.value.trim() });
-  if (data.success) {
-    Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
-      .then(function () { location.reload(); });
-  } else {
-    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-  }
-}
-
-async function unassignSpecialCode(id) {
-  var r = await Swal.fire({
-    icon: 'warning',
-    title: 'Release this code?',
-    text: "The user's previous referral code will be restored.",
-    showCancelButton: true,
-    confirmButtonText: 'Unassign',
-    confirmButtonColor: '#dc3545',
-  });
-  if (!r.isConfirmed) return;
-
-  var data = await scPost('/admin/referrals/special/' + id + '/unassign');
-  if (data.success) {
-    Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#6777ef' })
-      .then(function () { location.reload(); });
-  } else {
-    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-  }
-}
-
-async function toggleSpecialCode(id) {
-  var data = await scPost('/admin/referrals/special/' + id + '/toggle');
-  if (data.success) location.reload();
-  else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-}
-
-async function deleteSpecialCode(id) {
-  var r = await Swal.fire({
-    icon: 'warning',
-    title: 'Delete this reserved code?',
-    text: 'This cannot be undone.',
-    showCancelButton: true,
-    confirmButtonText: 'Delete',
-    confirmButtonColor: '#dc3545',
-  });
-  if (!r.isConfirmed) return;
-
-  var data = await scPost('/admin/referrals/special/' + id + '/delete');
-  if (data.success) location.reload();
-  else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
-}
-</script>
+<%- include('partials/referralsScripts.ejs') %>

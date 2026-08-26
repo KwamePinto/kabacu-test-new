@@ -1,0 +1,407 @@
+<script>
+var CSRF = '<%= csrfToken %>';
+var selectedPackageId = <%- settings.dataProduct ? JSON.stringify(String(settings.dataProduct)) : 'null' %>;
+
+/* On/off settings are toggles now rather than selects, so read `checked` and
+   send the same 'true'/'false' strings the server already parses. One helper so
+   a new toggle cannot be read the wrong way. */
+function onOff(id) {
+  var el = document.getElementById(id);
+  return el && el.checked ? 'true' : 'false';
+}
+
+function onRewardTypeChange() {
+  var type = document.getElementById('f-rewardtype').value;
+  document.getElementById('grp-amount').hidden = (type === 'data');
+  document.getElementById('grp-data').hidden   = (type !== 'data');
+
+  var help = document.getElementById('amount-help');
+  if (type === 'money')       help.textContent = 'Naira credited to the referrer wallet.';
+  if (type === 'rewardpoint') help.textContent = 'Points added to the referrer RP balance.';
+  if (type === 'data')        help.textContent = 'Pick the exact bundle below.';
+}
+
+function onSignupBonusTypeChange() {
+  var t = document.getElementById('sb-type').value;
+  document.getElementById('sb-amount-help').textContent =
+    t === 'money' ? 'Naira per verified signup.' : 'Points per verified signup.';
+}
+
+function onCommissionTypeChange() {
+  var t = document.getElementById('rc-type').value;
+  document.getElementById('rc-type-help').textContent =
+    t === 'cashback' ? 'Percent of the purchase value.' : 'Percent of the points earned.';
+}
+
+function selectPackage(row) {
+  document.querySelectorAll('.rf-pkg-row').forEach(function (r) { r.classList.remove('selected'); });
+  row.classList.add('selected');
+  var radio = row.querySelector('input[type=radio]');
+  if (radio) radio.checked = true;
+
+  selectedPackageId = row.dataset.id;
+  document.getElementById('chosen-wrap').style.display = '';
+  document.getElementById('chosen-label').textContent = row.dataset.label;
+}
+
+async function saveSettings() {
+  var type = document.getElementById('f-rewardtype').value;
+
+  var payload = {
+    rewardType: type,
+    amount: document.getElementById('f-amount').value,
+    dataProduct: selectedPackageId,
+    minPurchaseAmount: document.getElementById('f-minpurchase').value,
+    maxRewardsPerReferrer: document.getElementById('f-maxrewards').value,
+    isActive: onOff('f-active'),
+
+    signupBonusActive: onOff('sb-active'),
+    signupBonusType:   document.getElementById('sb-type').value,
+    signupBonusAmount: document.getElementById('sb-amount').value,
+
+    commissionActive:  onOff('rc-active'),
+    commissionType:    document.getElementById('rc-type').value,
+    commissionPercent: document.getElementById('rc-percent').value,
+    commissionMaxPerReferredUser: document.getElementById('rc-cap').value,
+
+    paidCodesActive:        onOff('pc-active'),
+    paidCodesAutoApprove:   onOff('pc-auto'),
+    specialPrice:           document.getElementById('pc-sp-price').value,
+    specialRewardBonus:     document.getElementById('pc-sp-reward').value,
+    specialCommissionBonus: document.getElementById('pc-sp-comm').value,
+    customPrice:            document.getElementById('pc-cu-price').value,
+    customRewardBonus:      document.getElementById('pc-cu-reward').value,
+    customCommissionBonus:  document.getElementById('pc-cu-comm').value,
+    customMinLength:        document.getElementById('pc-cu-min').value,
+    customMaxLength:        document.getElementById('pc-cu-max').value,
+  };
+
+  /* A commission bonus pays nothing unless the commission programme is running,
+     so catch it here rather than saving a setting that silently does nothing. */
+  var anyCommBonus = Number(payload.specialCommissionBonus) > 0 ||
+                     Number(payload.customCommissionBonus) > 0;
+  if (anyCommBonus && payload.commissionActive !== 'true') {
+    return Swal.fire({
+      icon: 'warning',
+      text: 'A commission bonus only pays out while the ongoing commission is running. Switch that on, or set the commission bonuses to 0.',
+      confirmButtonColor: '#15a844',
+    });
+  }
+
+  if (Number(payload.customMinLength) > Number(payload.customMaxLength)) {
+    return Swal.fire({ icon: 'warning', text: 'The custom code minimum length cannot exceed the maximum.', confirmButtonColor: '#15a844' });
+  }
+
+  /* Auto-approve removes the human check that stops a slur going live as
+     somebody's public code, so it is confirmed rather than just saved. */
+  if (payload.paidCodesAutoApprove === 'true' && payload.paidCodesActive === 'true') {
+    var warn = await Swal.fire({
+      icon: 'warning',
+      title: 'Issue codes without review?',
+      text: 'Custom codes are text other users will see. With auto-approve on, nobody reads one before it goes live.',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, auto-approve',
+      confirmButtonColor: '#b7791f',
+    });
+    if (!warn.isConfirmed) return;
+  }
+
+  if (payload.signupBonusActive === 'true' && !(Number(payload.signupBonusAmount) > 0)) {
+    return Swal.fire({ icon: 'warning', text: 'Set a signup bonus amount above zero, or switch the promotion off.', confirmButtonColor: '#15a844' });
+  }
+  if (payload.commissionActive === 'true' && !(Number(payload.commissionPercent) > 0)) {
+    return Swal.fire({ icon: 'warning', text: 'Set a commission percentage above zero, or switch it off.', confirmButtonColor: '#15a844' });
+  }
+  if (type === 'data' && !selectedPackageId) {
+    return Swal.fire({ icon: 'warning', text: 'Choose the data package to award.', confirmButtonColor: '#15a844' });
+  }
+  if (type !== 'data' && !(Number(payload.amount) > 0)) {
+    return Swal.fire({ icon: 'warning', text: 'Enter a reward amount greater than zero.', confirmButtonColor: '#15a844' });
+  }
+
+  /* One save button per section, all calling this. Drive them together so the
+     panel cannot be saved twice from two different buttons. */
+  var btns = document.querySelectorAll('.js-save-settings');
+  btns.forEach(function (b) { b.disabled = true; b.textContent = 'Saving…'; });
+
+  try {
+    var res  = await fetch('/admin/referrals/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload),
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1800, showConfirmButton: false });
+    } else {
+      Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+    }
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#15a844' });
+  }
+
+  btns.forEach(function (b) { b.disabled = false; b.textContent = 'Save'; });
+}
+
+/* ── Reserved codes ─────────────────────────────────────────────────────── */
+
+async function scPost(url, body) {
+  var res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify(body || {}),
+  });
+  return res.json();
+}
+
+async function bulkCreateSpecialCodes() {
+  var raw = document.getElementById('sc-codes').value.trim();
+  if (!raw) {
+    return Swal.fire({ icon: 'warning', text: 'Paste at least one code.', confirmButtonColor: '#15a844' });
+  }
+
+  var btn = document.getElementById('sc-create-btn');
+  btn.disabled = true;
+  btn.textContent = 'Reserving…';
+
+  try {
+    var data = await scPost('/admin/referrals/special/bulk', {
+      codes: raw,
+      price: document.getElementById('sc-price').value,
+      note: document.getElementById('sc-note').value,
+    });
+
+    renderBulkReport(data);
+
+    if (data.created && data.created.length) {
+      // The report stays on screen: someone who pasted fifty codes needs to see
+      // which did not take, and a reload would wipe it.
+      document.getElementById('sc-codes').value = '';
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 2400, showConfirmButton: false });
+    } else {
+      Swal.fire({ icon: 'warning', text: data.message || 'Nothing was reserved.', confirmButtonColor: '#15a844' });
+    }
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#15a844' });
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Reserve codes';
+}
+
+/** Per-code outcome, so a big paste is auditable rather than a single tally. */
+function renderBulkReport(data) {
+  var box = document.getElementById('sc-bulk-report');
+  if (!box) return;
+
+  function chips(list, cls, withReason) {
+    return (list || []).map(function (item) {
+      var code = withReason ? item.code : item;
+      var why = withReason && item.reason ? ' · ' + item.reason : '';
+      return '<span class="kp-pill ' + cls + '" style="margin:2px 4px 2px 0;">' + code + why + '</span>';
+    }).join('');
+  }
+
+  var parts = [];
+  if (data.created && data.created.length) {
+    parts.push('<div style="margin-bottom:10px;"><div class="kp-field__label">Reserved (' +
+      data.created.length + ')</div>' + chips(data.created, 'kp-pill--good', false) + '</div>');
+  }
+  if (data.skipped && data.skipped.length) {
+    parts.push('<div style="margin-bottom:10px;"><div class="kp-field__label">Skipped (' +
+      data.skipped.length + ')</div>' + chips(data.skipped, 'kp-pill--warn', true) + '</div>');
+  }
+  if (data.rejected && data.rejected.length) {
+    parts.push('<div><div class="kp-field__label">Rejected (' +
+      data.rejected.length + ')</div>' + chips(data.rejected, 'kp-pill--danger', true) + '</div>');
+  }
+
+  box.innerHTML = parts.length
+    ? '<div class="kp-note">' + parts.join('') +
+      '<div style="margin-top:10px;"><button class="kp-btn kp-btn--sm" onclick="location.reload()">Refresh the pool</button></div></div>'
+    : '';
+  box.style.display = parts.length ? '' : 'none';
+}
+
+/* ── Review queue ───────────────────────────────────────────────────────── */
+
+async function loadCodeRequests(status) {
+  var body = document.getElementById('cr-body');
+  body.innerHTML = '<tr><td colspan="8"><div class="kp-empty">Loading…</div></td></tr>';
+
+  try {
+    var res = await fetch('/admin/referrals/requests?status=' + encodeURIComponent(status));
+    var data = await res.json();
+
+    if (!data.success || !data.requests.length) {
+      body.innerHTML = '<tr><td colspan="8"><div class="kp-empty">Nothing here.</div></td></tr>';
+      return;
+    }
+
+    body.innerHTML = data.requests.map(function (r) {
+      var when = new Date(r.createdAt).toLocaleString('en-GB',
+        { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      var user = r.user
+        ? '<a href="/admin/product/user-details/' + r.user._id + '" class="kp-strong">' + r.user.username +
+          '</a><br><span class="kp-mute" style="font-size:12px;">' + r.user.email + '</span>'
+        : '<span class="kp-mute">Deleted user</span>';
+
+      // Settled rows show who decided and why, not buttons.
+      var action = status === 'pending'
+        ? '<button class="kp-btn kp-btn--sm kp-btn--primary" onclick="approveCodeRequest(\'' +
+            r._id + '\',\'' + r.code + '\',\'' + (r.price || 0) + '\')">Approve</button> ' +
+          '<button class="kp-btn kp-btn--sm kp-btn--danger" onclick="rejectCodeRequest(\'' +
+            r._id + '\',\'' + r.code + '\')">Reject</button>'
+        : '<span class="kp-mute" style="font-size:12.5px;">' +
+          (r.autoApproved ? 'auto-approved' : (r.reviewedBy || '—')) +
+          (r.rejectionReason ? '<br>' + r.rejectionReason : '') + '</span>';
+
+      return '<tr id="cr-row-' + r._id + '">' +
+        '<td>' + when + '</td>' +
+        '<td>' + user + '</td>' +
+        '<td><span class="kp-code">' + r.code + '</span></td>' +
+        '<td><span class="kp-pill ' + (r.type === 'custom' ? 'kp-pill--warn' : 'kp-pill--info') + '">' +
+          (r.type === 'custom' ? 'custom' : 'reserved') + '</span></td>' +
+        '<td class="kp-table__num">' + Number(r.price || 0).toLocaleString() + '</td>' +
+        '<td class="kp-table__num">' + (r.rewardBonusPercent || 0) + '%</td>' +
+        '<td class="kp-table__num">' + (r.commissionBonusPercent || 0) + '%</td>' +
+        '<td class="kp-table__act">' + action + '</td>' +
+        '</tr>';
+    }).join('');
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="8"><div class="kp-empty">Could not load. Please retry.</div></td></tr>';
+  }
+}
+
+async function approveCodeRequest(id, code, price) {
+  var priced = Number(price) > 0;
+  var ask = await Swal.fire({
+    icon: 'question',
+    title: 'Issue ' + code + '?',
+    html: priced
+      // Spelled out because this click is what takes the money.
+      ? '<p style="font-size:14px;">' + Number(price).toLocaleString() +
+        ' will be charged to their wallet now, and the code becomes theirs.</p>' +
+        '<p style="font-size:13px;color:#8b919c;">If their balance is short the request stays waiting — no partial charge.</p>'
+      : '<p style="font-size:14px;">The code becomes theirs. Nothing to charge.</p>',
+    showCancelButton: true,
+    confirmButtonText: priced ? 'Charge and issue' : 'Issue',
+    confirmButtonColor: '#15a844',
+  });
+  if (!ask.isConfirmed) return;
+
+  try {
+    var data = await scPost('/admin/referrals/requests/' + id + '/approve', {});
+    if (data.success) {
+      await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
+      loadCodeRequests(document.getElementById('cr-filter').value);
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+  } catch (e) {
+    Swal.fire({
+      icon: 'error',
+      text: 'Request failed. Reload before retrying so you do not charge twice.',
+      confirmButtonColor: '#15a844',
+    });
+  }
+}
+
+async function rejectCodeRequest(id, code) {
+  var ask = await Swal.fire({
+    icon: 'warning',
+    title: 'Reject ' + code + '?',
+    input: 'text',
+    inputLabel: 'Why — the user is shown this',
+    inputPlaceholder: 'e.g. Not appropriate for a public code',
+    showCancelButton: true,
+    confirmButtonText: 'Reject',
+    confirmButtonColor: '#d1453b',
+    inputValidator: function (v) {
+      // Someone told only "rejected" will simply request the same thing again.
+      if (!v || !v.trim()) return 'Give a reason so they know what to change.';
+    },
+  });
+  if (!ask.isConfirmed) return;
+
+  try {
+    var data = await scPost('/admin/referrals/requests/' + id + '/reject', { reason: ask.value });
+    if (data.success) {
+      Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 2200, showConfirmButton: false });
+      loadCodeRequests(document.getElementById('cr-filter').value);
+      return;
+    }
+    Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+  } catch (e) {
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#15a844' });
+  }
+}
+
+/* ── Pool actions ───────────────────────────────────────────────────────── */
+
+async function assignSpecialCode(id, code) {
+  var ask = await Swal.fire({
+    title: 'Assign ' + code,
+    input: 'text',
+    inputLabel: 'User email or username',
+    inputPlaceholder: 'someone@example.com',
+    showCancelButton: true,
+    confirmButtonText: 'Assign',
+    confirmButtonColor: '#15a844',
+    inputValidator: function (v) { if (!v || !v.trim()) return 'Enter an email or username.'; },
+  });
+  if (!ask.isConfirmed) return;
+
+  var data = await scPost('/admin/referrals/special/' + id + '/assign', { user: ask.value });
+  if (data.success) {
+    await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
+    location.reload();
+    return;
+  }
+  Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+}
+
+async function unassignSpecialCode(id) {
+  var ask = await Swal.fire({
+    icon: 'warning',
+    text: 'Take this code back and restore their previous one?',
+    showCancelButton: true,
+    confirmButtonText: 'Take back',
+    confirmButtonColor: '#b7791f',
+  });
+  if (!ask.isConfirmed) return;
+
+  var data = await scPost('/admin/referrals/special/' + id + '/unassign', {});
+  if (data.success) { location.reload(); return; }
+  Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+}
+
+async function toggleSpecialCode(id) {
+  var data = await scPost('/admin/referrals/special/' + id + '/toggle', {});
+  if (data.success) { location.reload(); return; }
+  Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+}
+
+async function deleteSpecialCode(id) {
+  var ask = await Swal.fire({
+    icon: 'warning',
+    text: 'Delete this reserved code? It becomes available for anyone to take.',
+    showCancelButton: true,
+    confirmButtonText: 'Delete',
+    confirmButtonColor: '#d1453b',
+  });
+  if (!ask.isConfirmed) return;
+
+  var data = await scPost('/admin/referrals/special/' + id + '/delete', {});
+  if (data.success) { location.reload(); return; }
+  Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
+}
+
+/* Reflect saved state on load. */
+document.addEventListener('DOMContentLoaded', function () {
+  onRewardTypeChange();
+  onSignupBonusTypeChange();
+  onCommissionTypeChange();
+});
+</script>

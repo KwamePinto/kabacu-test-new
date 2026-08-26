@@ -1,0 +1,33 @@
+<%
+/**
+ * Secondary drawer for a settings panel.
+ *
+ * Give it `sections`: [{ id, label, icon, badge }] and `panelTitle`. Each id
+ * must match a `.kp-section` with the same `data-section` in the page body.
+ *
+ * Switching is client-side rather than a page load per section: an admin
+ * comparing two settings should not wait for a round trip, and everything on
+ * the page is already rendered. The chosen section is remembered per panel and
+ * mirrored into the URL hash, so a reload or a shared link comes back to the
+ * same place.
+ */
+var _sections = (typeof sections !== 'undefined' && sections) || [];
+var _panelKey = (typeof panelKey !== 'undefined' && panelKey) || 'panel';
+%>
+<div class="kp-drawer">
+  <div class="kp-drawer__label"><%= typeof drawerLabel !== 'undefined' ? drawerLabel : 'Settings' %></div>
+  <ul class="kp-drawer__list" id="kpDrawer" data-panel="<%= _panelKey %>">
+    <% _sections.forEach(function (sec, i) { %>
+    <li>
+      <button type="button"
+              class="kp-drawer__item<%= i === 0 ? ' is-active' : '' %>"
+              data-target="<%= sec.id %>"
+              aria-current="<%= i === 0 ? 'true' : 'false' %>">
+        <% if (sec.icon) { %><i data-feather="<%= sec.icon %>"></i><% } %>
+        <span><%= sec.label %></span>
+        <% if (sec.badge) { %><span class="kp-drawer__badge"><%= sec.badge %></span><% } %>
+      </button>
+    </li>
+    <% }) %>
+  </ul>
+</div>
