@@ -25,17 +25,8 @@
 
           <div class="kp-panel">
 
-            <div class="kp-panel__head">
-              <h1 class="kp-panel__title">Growth &amp; Rewards</h1>
-              <p class="kp-panel__sub">Referrals, bonuses and the codes users can buy</p>
-            </div>
-
-            <div class="kp-panel__body">
-
-              <%- include('partials/panelDrawer', {
-                panelKey: 'referrals',
-                drawerLabel: 'Referrals',
-                sections: [
+            <%
+              var _navSections = [
                   { id: 'overview',  label: 'Overview',      icon: 'bar-chart-2' },
                   { id: 'reward',    label: 'Reward',        icon: 'gift' },
                   { id: 'signup',    label: 'Signup Bonus',  icon: 'user-plus' },
@@ -43,7 +34,19 @@
                   { id: 'paid',      label: 'Paid Codes',    icon: 'tag' },
                   { id: 'requests',  label: 'Requests',      icon: 'inbox', badge: rq.pending || 0 },
                   { id: 'reserved',  label: 'Reserved Pool', icon: 'bookmark' }
-                ]
+                ];
+            %>
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Referrals</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
+            </div>
+
+            <div class="kp-panel__body">
+
+              <%- include('partials/panelDrawer', {
+                panelKey: 'referrals',
+                drawerLabel: 'Referrals',
+                sections: _navSections
               }) %>
 
               <div class="kp-panel__main">

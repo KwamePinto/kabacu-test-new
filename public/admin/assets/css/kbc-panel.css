@@ -895,3 +895,42 @@
     margin-bottom: 14px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gap under the header, and icon-only stat cards
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The theme reserves 130px under the fixed header on pages with no secondary
+   drawer — about 60px of dead band below the 70px navbar. Matched to the
+   drawer pages' spacing instead (70px nav + 22px). Drawer pages get their own,
+   more specific `.kp-has-drawer .main-content` rule, which wins regardless of
+   source order, so this is safe to apply everywhere. */
+.main-content { padding-top: 92px; }
+
+/* ── Stat cards: icon only, no colour block ──────────────────────────────────
+   .card-statistic-1/2 ships an 80px filled circle behind the icon, with the
+   icon itself painted white so it only reads against that fill. Stripping the
+   fill without recolouring the icon would make it invisible, so each bg-*
+   variant is given the colour it used to supply as a background instead —
+   same palette, just carried by the icon rather than a block behind it. */
+.main-content .card-statistic-1 .card-icon,
+.main-content .card-statistic-2 .card-icon {
+  width: auto;
+  height: auto;
+  margin: 22px 0 0 22px;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  line-height: 1;
+  font-size: 26px;
+}
+.main-content .card-statistic-1 .card-icon.bg-primary,
+.main-content .card-statistic-2 .card-icon.bg-primary { color: #3b82f6 !important; }
+.main-content .card-statistic-1 .card-icon.bg-success,
+.main-content .card-statistic-2 .card-icon.bg-success { color: var(--kp-accent) !important; }
+.main-content .card-statistic-1 .card-icon.bg-warning,
+.main-content .card-statistic-2 .card-icon.bg-warning { color: var(--kp-warn) !important; }
+.main-content .card-statistic-1 .card-icon.bg-danger,
+.main-content .card-statistic-2 .card-icon.bg-danger { color: var(--kp-danger) !important; }
+.main-content .card-statistic-1 .card-icon.bg-info,
+.main-content .card-statistic-2 .card-icon.bg-info { color: #1c5cbe !important; }

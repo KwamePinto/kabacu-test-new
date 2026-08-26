@@ -20,6 +20,13 @@
     var scope = drawer.closest('.kp-panel') || document;
     var storeKey = 'kbc_panel_' + panel;
 
+    /* The visible label of a drawer item, minus its badge count — that text
+       becomes the page's subtitle when the item is selected. */
+    function labelOf(btn) {
+      var span = btn.querySelector('span:not(.kp-drawer__badge)');
+      return span ? span.textContent.trim() : btn.textContent.trim();
+    }
+
     function show(target, remember) {
       var found = false;
 
@@ -30,11 +37,23 @@
       });
       if (!found) return false;
 
+      var activeBtn = null;
       items.forEach(function (btn) {
         var on = btn.dataset.target === target;
         btn.classList.toggle('is-active', on);
         btn.setAttribute('aria-current', on ? 'true' : 'false');
+        if (on) activeBtn = btn;
       });
+
+      /* The big page title stays the drawer's own name (e.g. "Referrals"); the
+         line under it names whichever section is open, so the two together
+         read "Referrals — Overview" without literally saying so. */
+      if (activeBtn) {
+        var label = labelOf(activeBtn);
+        scope.querySelectorAll('.kp-panel__section-label').forEach(function (el) {
+          el.textContent = label;
+        });
+      }
 
       if (remember) {
         try { localStorage.setItem(storeKey, target); } catch (e) { /* private mode */ }

@@ -9,57 +9,78 @@
 
 <div class="loader"></div>
 <div id="app">
-  <div class="main-wrapper main-wrapper-1">
+  <div class="main-wrapper main-wrapper-1 kp-has-drawer">
     <div class="navbar-bg"></div>
     <%- include('../partials/headerAdmin.ejs') %>
     <%- include('../partials/sideMenuAdmin.ejs') %>
 
     <div class="main-content">
       <section class="section">
-        <div class="section-header">
-          <h1>FAQ Manager</h1>
-          <div class="section-header-breadcrumb">
-            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-            <div class="breadcrumb-item">FAQ Manager</div>
-          </div>
-        </div>
-
         <div class="section-body">
 
-          <!-- ── Editor card ─────────────────────────────────────────────── -->
-          <div class="card" id="faq-editor-card">
-            <div class="card-header">
-              <h4 id="editor-card-title">Add New FAQ</h4>
+          <%
+            var _navSections = [
+              { id: 'editor', label: 'New / Edit', icon: 'edit-3' },
+              { id: 'list',   label: 'All FAQs',   icon: 'list', badge: faqs.length }
+            ];
+          %>
+
+          <div class="kp-panel">
+
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">FAQ Manager</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
-            <div class="card-body">
 
-              <div id="editing-banner" class="editing-banner" style="display:none;"></div>
+            <div class="kp-panel__body">
 
-              <div class="row">
-                <div class="col-12 col-md-8">
-                  <div class="form-group">
-                    <label>Question (Title) <span class="text-danger">*</span></label>
-                    <input type="text" id="faq-question" class="form-control" placeholder="Enter the FAQ question...">
-                  </div>
-                </div>
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Category <span class="text-danger">*</span></label>
-                    <select id="faq-category" class="form-control">
+              <%- include('partials/panelDrawer', {
+                panelKey: 'faq',
+                drawerLabel: 'FAQ Manager',
+                sections: _navSections
+              }) %>
+
+              <div class="kp-panel__main">
+
+                <!-- ══ Editor ════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="editor">
+                  <div class="kp-card" id="faq-editor-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title" id="editor-card-title">Add new FAQ</h2>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad">
+                      <%
+                        var FAQ_CATEGORIES = [
+                          { id: 'getting-started', label: 'Getting Started' },
+                          { id: 'wallet',          label: 'Wallet & Payments' },
+                          { id: 'data',            label: 'Data Bundles' },
+                          { id: 'courses',         label: 'Courses' },
+                          { id: 'account',         label: 'Account & Profile' },
+                          { id: 'rewards',         label: 'Reward Points' },
+                        ];
+                      %>
+
+              <div id="editing-banner" class="kp-note kp-note--warn" style="display:none;"></div>
+
+              <div class="kp-row kp-row--stack">
+                <div class="kp-row__main"><span class="kp-row__label">Question</span></div>
+                <input type="text" id="faq-question" class="kp-input" style="width:100%;" placeholder="Enter the FAQ question…">
+              </div>
+
+              <div class="kp-row">
+                <div class="kp-row__main"><span class="kp-row__label">Category</span></div>
+                <div class="kp-row__ctrl" style="width:220px;">
+                    <select id="faq-category" class="kp-select" style="width:100%;">
                       <option value="">— Select category —</option>
-                      <option value="getting-started">Getting Started</option>
-                      <option value="wallet">Wallet &amp; Payments</option>
-                      <option value="data">Data Bundles</option>
-                      <option value="courses">Courses</option>
-                      <option value="account">Account &amp; Profile</option>
-                      <option value="rewards">Reward Points</option>
+                      <% FAQ_CATEGORIES.forEach(function (c) { %>
+                      <option value="<%= c.id %>"><%= c.label %></option>
+                      <% }) %>
                     </select>
-                  </div>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>Answer <span class="text-danger">*</span></label>
+              <div class="kp-row kp-row--stack">
+                <div class="kp-row__main"><span class="kp-row__label">Answer</span></div>
 
                 <div id="quill-toolbar">
                   <span class="ql-formats">
@@ -105,40 +126,41 @@
                 </div>
               </div>
 
-              <div class="form-group d-flex align-items-center flex-wrap" style="gap:16px;">
-                <div class="custom-control custom-switch">
-                  <input type="checkbox" class="custom-control-input" id="faq-active" checked>
-                  <label class="custom-control-label" for="faq-active">Active (visible to users)</label>
-                </div>
-                <div class="ml-auto d-flex" style="gap:8px;">
-                  <button type="button" class="btn btn-light" id="cancel-edit-btn" style="display:none;" onclick="resetForm()">Cancel</button>
-                  <button type="button" class="btn btn-primary" id="save-btn" onclick="saveFaq()">
-                    <i class="fas fa-save mr-1"></i> Save FAQ
-                  </button>
+              <div class="kp-row">
+                <div class="kp-row__main"><span class="kp-row__label">Visible to users</span></div>
+                <div class="kp-row__ctrl">
+                  <label class="kp-toggle">
+                    <input type="checkbox" id="faq-active" checked>
+                    <span class="kp-toggle__track"></span>
+                  </label>
                 </div>
               </div>
-            </div>
-          </div>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button type="button" class="kp-btn kp-btn--primary" id="save-btn" onclick="saveFaq()">Save FAQ</button>
+                      <button type="button" class="kp-btn" id="cancel-edit-btn" style="display:none;" onclick="resetForm()">Cancel</button>
+                    </div>
+                  </div>
+                </div>
 
-          <!-- ── Existing FAQs card ──────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header">
-              <h4>Existing FAQs <span class="badge badge-secondary ml-2" id="faq-count"><%= faqs.length %></span></h4>
-              <div class="card-header-action">
-                <select class="form-control form-control-sm" id="category-filter" onchange="filterTable(this.value)" style="width:185px;">
-                  <option value="">All Categories</option>
-                  <option value="getting-started">Getting Started</option>
-                  <option value="wallet">Wallet &amp; Payments</option>
-                  <option value="data">Data Bundles</option>
-                  <option value="courses">Courses</option>
-                  <option value="account">Account &amp; Profile</option>
-                  <option value="rewards">Reward Points</option>
+                <!-- ══ List ══════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="list">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">All FAQs</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill" id="faq-count"><%= faqs.length %></span>
+                <select class="kp-select" id="category-filter" onchange="filterTable(this.value)" style="width:190px;height:32px;font-size:12.5px;">
+                  <option value="">All categories</option>
+                  <% FAQ_CATEGORIES.forEach(function (c) { %>
+                  <option value="<%= c.id %>"><%= c.label %></option>
+                  <% }) %>
                 </select>
-              </div>
+                            </div>
             </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0" id="faq-table">
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                <table class="kp-table" id="faq-table">
                   <thead>
                     <tr>
                       <th style="width:160px;">Category</th>
@@ -158,35 +180,36 @@
                     %>
                     <% faqs.forEach(function(faq) { %>
                     <tr data-id="<%= faq._id %>" data-category="<%= faq.category %>">
-                      <td><span class="badge badge-light" style="font-size:11px;"><%= catLabel(faq.category) %></span></td>
+                      <td><span class="kp-pill"><%= catLabel(faq.category) %></span></td>
                       <td style="font-size:13px;"><%= faq.question %></td>
                       <td>
                         <% if (faq.isActive) { %>
-                          <span class="badge badge-success">Active</span>
+                          <span class="kp-pill kp-pill--good">Active</span>
                         <% } else { %>
-                          <span class="badge badge-secondary">Hidden</span>
+                          <span class="kp-pill">Hidden</span>
                         <% } %>
                       </td>
                       <td>
-                        <button class="btn btn-sm btn-info mr-1" onclick="editFaq('<%= faq._id %>')" title="Edit">
-                          <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteFaq('<%= faq._id %>', this)" title="Delete">
-                          <i class="fas fa-trash"></i>
-                        </button>
+                        <button class="kp-btn kp-btn--sm" onclick="editFaq('<%= faq._id %>')" title="Edit">Edit</button>
+                        <button class="kp-btn kp-btn--sm kp-btn--danger" onclick="deleteFaq('<%= faq._id %>', this)" title="Delete">Delete</button>
                       </td>
                     </tr>
                     <% }) %>
                     <% } else { %>
                     <tr id="empty-row">
-                      <td colspan="4" class="text-center py-4 text-muted">No FAQs yet. Create one above.</td>
+                      <td colspan="4"><div class="kp-empty">No FAQs yet. Create one on the left.</div></td>
                     </tr>
                     <% } %>
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
 
         </div>
       </section>
@@ -198,6 +221,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
 <script>
 var ALL_FAQS = <%- JSON.stringify(faqs.map(function(f) {
   return { _id: String(f._id), question: f.question, answer: f.answer, category: f.category, isActive: f.isActive };
@@ -301,6 +325,8 @@ function editFaq(id) {
   banner.textContent = 'Editing: ' + faq.question;
   banner.style.display = 'block';
 
+  var editorTab = document.querySelector('.kp-drawer__item[data-target="editor"]');
+  if (editorTab) editorTab.click();
   document.getElementById('faq-editor-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 

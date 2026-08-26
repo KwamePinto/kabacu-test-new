@@ -20,9 +20,16 @@
 
           <div class="kp-panel">
 
+            <%
+              var _navSections = [
+                  { id: 'markets', label: 'Live Markets', icon: 'globe' },
+                  { id: 'add',     label: 'Add a Market', icon: 'plus-circle' },
+                  { id: 'issues',  label: 'Issues',       icon: 'alert-triangle', badge: issues }
+                ];
+            %>
             <div class="kp-panel__head">
-              <h1 class="kp-panel__title">Payments &amp; Wallets</h1>
-              <p class="kp-panel__sub">Which countries are live, and how users fund them</p>
+              <h1 class="kp-panel__title">Markets</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
             <div class="kp-panel__body">
@@ -30,11 +37,7 @@
               <%- include('partials/panelDrawer', {
                 panelKey: 'payments',
                 drawerLabel: 'Markets',
-                sections: [
-                  { id: 'markets', label: 'Live Markets', icon: 'globe' },
-                  { id: 'add',     label: 'Add a Market', icon: 'plus-circle' },
-                  { id: 'issues',  label: 'Issues',       icon: 'alert-triangle', badge: issues }
-                ]
+                sections: _navSections
               }) %>
 
               <div class="kp-panel__main">

@@ -21,9 +21,16 @@
 
           <div class="kp-panel">
 
+            <%
+              var _navSections = [
+                  { id: 'features',    label: 'Wallet Features', icon: 'toggle-left', badge: offCount },
+                  { id: 'provider',    label: 'Provider',        icon: 'server' },
+                  { id: 'maintenance', label: 'Maintenance',     icon: 'tool', badge: maintOn ? 1 : 0 }
+                ];
+            %>
             <div class="kp-panel__head">
-              <h1 class="kp-panel__title">Site Settings</h1>
-              <p class="kp-panel__sub">Features, provider credentials and maintenance</p>
+              <h1 class="kp-panel__title">Settings</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
             <div class="kp-panel__body">
@@ -31,11 +38,7 @@
               <%- include('partials/panelDrawer', {
                 panelKey: 'settings',
                 drawerLabel: 'Settings',
-                sections: [
-                  { id: 'features',    label: 'Wallet Features', icon: 'toggle-left', badge: offCount },
-                  { id: 'provider',    label: 'Provider',        icon: 'server' },
-                  { id: 'maintenance', label: 'Maintenance',     icon: 'tool', badge: maintOn ? 1 : 0 }
-                ]
+                sections: _navSections
               }) %>
 
               <div class="kp-panel__main">

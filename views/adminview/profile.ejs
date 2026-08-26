@@ -21,9 +21,15 @@
 
           <div class="kp-panel">
 
+            <%
+              var _navSections = [
+                  { id: 'profile',  label: 'Profile',  icon: 'user' },
+                  { id: 'security', label: 'Security', icon: 'shield', badge: twoFaOn ? 0 : 1 }
+                ];
+            %>
             <div class="kp-panel__head">
-              <h1 class="kp-panel__title">My Account</h1>
-              <p class="kp-panel__sub">Your details and how you sign in</p>
+              <h1 class="kp-panel__title">Account</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
             <% if (firstLogin) { %>
@@ -45,10 +51,7 @@
               <%- include('partials/panelDrawer', {
                 panelKey: 'adminprofile',
                 drawerLabel: 'Account',
-                sections: [
-                  { id: 'profile',  label: 'Profile',  icon: 'user' },
-                  { id: 'security', label: 'Security', icon: 'shield', badge: twoFaOn ? 0 : 1 }
-                ]
+                sections: _navSections
               }) %>
 
               <div class="kp-panel__main">

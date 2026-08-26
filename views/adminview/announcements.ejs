@@ -16,9 +16,17 @@
 
           <div class="kp-panel">
 
+            <%
+              var _navSections = [
+                  { id: 'editor',  label: 'New / Edit', icon: 'edit-3' },
+                  { id: 'banners', label: 'Banners',    icon: 'image',    badge: liveOf(banners) },
+                  { id: 'strips',  label: 'Strips',     icon: 'minus',    badge: liveOf(strips) },
+                  { id: 'popups',  label: 'Popups',     icon: 'square',   badge: liveOf(popups) }
+                ];
+            %>
             <div class="kp-panel__head">
               <h1 class="kp-panel__title">Announcements</h1>
-              <p class="kp-panel__sub">Hero banners, header strips and sign-in popups</p>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
             <div class="kp-panel__body">
@@ -26,12 +34,7 @@
               <%- include('partials/panelDrawer', {
                 panelKey: 'announcements',
                 drawerLabel: 'Announcements',
-                sections: [
-                  { id: 'editor',  label: 'New / Edit', icon: 'edit-3' },
-                  { id: 'banners', label: 'Banners',    icon: 'image',    badge: liveOf(banners) },
-                  { id: 'strips',  label: 'Strips',     icon: 'minus',    badge: liveOf(strips) },
-                  { id: 'popups',  label: 'Popups',     icon: 'square',   badge: liveOf(popups) }
-                ]
+                sections: _navSections
               }) %>
 
               <div class="kp-panel__main">
