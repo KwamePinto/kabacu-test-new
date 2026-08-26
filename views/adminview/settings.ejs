@@ -1,459 +1,322 @@
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    <div class="navbar-bg"></div>
 
-  <div class="loader"></div>
-  <div id="app">
-    <div class="main-wrapper main-wrapper-1">
-      <div class="navbar-bg"></div>
-      <%- include('../partials/headerAdmin.ejs')%>
-      <%- include('../partials/sideMenuAdmin.ejs')%>
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
 
-      <div class="main-content">
-        <section class="section">
+    <div class="main-content">
+      <section class="section">
+        <div class="section-body">
 
-          <div class="section-header">
-            <h1>Site Settings</h1>
-            <div class="section-header-breadcrumb">
-              <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-              <div class="breadcrumb-item">Settings</div>
+          <%
+            /* Anything switched off, or maintenance being on, is worth counting
+               into a badge so an admin sees it without opening every section. */
+            var offCount = (settings.rpTransferEnabled ? 0 : 1)
+                         + (settings.bttTopupEnabled   ? 0 : 1)
+                         + (settings.usdtTopupEnabled  ? 0 : 1);
+            var maintOn = settings.maintenanceModeEnabled || settings.maintenanceBannerEnabled;
+          %>
+
+          <div class="kp-panel">
+
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Site Settings</h1>
+              <p class="kp-panel__sub">Features, provider credentials and maintenance</p>
             </div>
-          </div>
 
-          <div class="section-body" style="min-height:60vh;">
-            <div class="row">
-              <div class="col-12 col-lg-8 mx-auto">
+            <div class="kp-panel__body">
 
-                <% if (typeof query !== 'undefined' && query.saved == '1') { %>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                  Settings saved successfully.
-                  <button type="button" class="close" data-dismiss="alert">&times;</button>
-                </div>
-                <% } %>
-                <% if (typeof query !== 'undefined' && query.error == '1') { %>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                  An error occurred. Please try again.
-                  <button type="button" class="close" data-dismiss="alert">&times;</button>
-                </div>
-                <% } %>
+              <%- include('partials/panelDrawer', {
+                panelKey: 'settings',
+                drawerLabel: 'Settings',
+                sections: [
+                  { id: 'features',    label: 'Wallet Features', icon: 'toggle-left', badge: offCount },
+                  { id: 'provider',    label: 'Provider',        icon: 'server' },
+                  { id: 'maintenance', label: 'Maintenance',     icon: 'tool', badge: maintOn ? 1 : 0 }
+                ]
+              }) %>
 
+              <div class="kp-panel__main">
                 <form method="post" action="/admin/settings" id="settingsForm">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-                  <div class="card">
-                    <div class="card-header" style="border-bottom:1px solid #f0f0f0;">
-                      <h4 class="mb-0">Site Settings</h4>
+                  <!-- ══ Wallet features ═══════════════════════════════════ -->
+                  <div class="kp-section" data-section="features">
+
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">RP transfer to BitToken</h2>
+                        <div class="kp-card__aside">
+                          <span class="kp-pill <%= settings.rpTransferEnabled ? 'kp-pill--good' : '' %>" id="badge-rp">
+                            <%= settings.rpTransferEnabled ? 'Enabled' : 'Disabled' %>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Allow transfers</span>
+                            <p class="kp-row__hint">Off shows users a notice instead of the option.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <label class="kp-toggle">
+                              <input type="checkbox" name="rpTransferEnabled" value="true"
+                                     id="rpTransferToggle" data-badge="badge-rp"
+                                     <%= settings.rpTransferEnabled ? 'checked' : '' %>>
+                              <span class="kp-toggle__track"></span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="kp-row kp-row--stack">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Notice when off</span>
+                            <p class="kp-row__hint"><span id="charCount"><%= settings.rpTransferSuspendedMessage.length %></span> / 500</p>
+                          </div>
+                          <textarea name="rpTransferSuspendedMessage" id="rpTransferSuspendedMessage"
+                                    class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
+                                    placeholder="e.g. RP transfer is suspended for now."><%= settings.rpTransferSuspendedMessage %></textarea>
+                        </div>
+                      </div>
                     </div>
-                    <div class="card-body p-0">
 
-                      <!-- ── BitToken RP Transfer ──────────────────────────────── -->
-                      <div class="settings-group" id="group-bittoken">
-                        <button type="button" class="settings-group__header">
-                          <div class="settings-group__title">
-                            <span class="settings-group__label">BitToken RP Transfer</span>
-                            <span class="settings-group__sub">Manage Reward Point transfer to BitToken</span>
-                          </div>
-                          <div class="settings-group__meta">
-                            <span class="settings-badge <%= settings.rpTransferEnabled ? 'settings-badge--on' : 'settings-badge--off' %>" id="badge-rp">
-                              <%= settings.rpTransferEnabled ? 'Enabled' : 'Disabled' %>
-                            </span>
-                            <svg class="settings-group__chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                          </div>
-                        </button>
-                        <div class="settings-group__body">
-                          <div class="settings-group__inner">
-
-                            <div class="settings-row">
-                              <div class="settings-row__text">
-                                <span class="settings-row__label">Allow RP Transfer to BitToken</span>
-                                <span class="settings-row__desc">When disabled, users will see a notice instead of the transfer option.</span>
-                              </div>
-                              <label class="custom-switch mb-0">
-                                <input type="checkbox" id="rpTransferToggle" class="custom-switch-input" <%= settings.rpTransferEnabled ? 'checked' : '' %>>
-                                <span class="custom-switch-indicator"></span>
-                              </label>
-                              <input type="hidden" name="rpTransferEnabled" id="rpTransferEnabledInput" value="<%= settings.rpTransferEnabled ? 'true' : 'false' %>">
-                            </div>
-
-                            <div class="settings-field">
-                              <label class="settings-field__label" for="rpTransferSuspendedMessage">Suspension Notice Message</label>
-                              <p class="settings-field__desc">Shown to users when RP transfer is disabled.</p>
-                              <textarea name="rpTransferSuspendedMessage" id="rpTransferSuspendedMessage"
-                                class="form-control" rows="3" maxlength="500"
-                                placeholder="e.g. RP transfer has been suspended for the time being."
-                              ><%= settings.rpTransferSuspendedMessage %></textarea>
-                              <small class="text-muted"><span id="charCount"><%= settings.rpTransferSuspendedMessage.length %></span> / 500</small>
-                            </div>
-
-                          </div>
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">BTT top-up</h2>
+                        <div class="kp-card__aside">
+                          <span class="kp-pill <%= settings.bttTopupEnabled ? 'kp-pill--good' : '' %>" id="badge-btt">
+                            <%= settings.bttTopupEnabled ? 'Enabled' : 'Disabled' %>
+                          </span>
                         </div>
                       </div>
-
-                      <div class="settings-divider"></div>
-
-                      <!-- ── BTT Topup ─────────────────────────────────────────── -->
-                      <div class="settings-group" id="group-btt">
-                        <button type="button" class="settings-group__header">
-                          <div class="settings-group__title">
-                            <span class="settings-group__label">BTT Topup</span>
-                            <span class="settings-group__sub">Allow users to top up their BTT balance from BitToken</span>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Allow BTT top-ups</span>
+                            <p class="kp-row__hint">Funding the BTT balance from BitToken.</p>
                           </div>
-                          <div class="settings-group__meta">
-                            <span class="settings-badge <%= settings.bttTopupEnabled ? 'settings-badge--on' : 'settings-badge--off' %>" id="badge-btt">
-                              <%= settings.bttTopupEnabled ? 'Enabled' : 'Disabled' %>
-                            </span>
-                            <svg class="settings-group__chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                          </div>
-                        </button>
-                        <div class="settings-group__body">
-                          <div class="settings-group__inner">
-
-                            <div class="settings-row">
-                              <div class="settings-row__text">
-                                <span class="settings-row__label">Allow BTT Topup from BitToken</span>
-                                <span class="settings-row__desc">When disabled, users will not be able to transfer BTT from their BitToken account.</span>
-                              </div>
-                              <label class="custom-switch mb-0">
-                                <input type="checkbox" id="bttTopupToggle" class="custom-switch-input" <%= settings.bttTopupEnabled ? 'checked' : '' %>>
-                                <span class="custom-switch-indicator"></span>
-                              </label>
-                              <input type="hidden" name="bttTopupEnabled" id="bttTopupEnabledInput" value="<%= settings.bttTopupEnabled ? 'true' : 'false' %>">
-                            </div>
-
-                            <div class="settings-field">
-                              <label class="settings-field__label" for="bttTopupSuspendedMessage">Suspension Notice Message</label>
-                              <p class="settings-field__desc">Shown to users when BTT topup is disabled.</p>
-                              <textarea name="bttTopupSuspendedMessage" id="bttTopupSuspendedMessage"
-                                class="form-control" rows="3" maxlength="500"
-                                placeholder="e.g. BTT top-up has been temporarily suspended."
-                              ><%= settings.bttTopupSuspendedMessage %></textarea>
-                              <small class="text-muted"><span id="bttMsgCount"><%= settings.bttTopupSuspendedMessage.length %></span> / 500</small>
-                            </div>
-
+                          <div class="kp-row__ctrl">
+                            <label class="kp-toggle">
+                              <input type="checkbox" name="bttTopupEnabled" value="true"
+                                     id="bttTopupToggle" data-badge="badge-btt"
+                                     <%= settings.bttTopupEnabled ? 'checked' : '' %>>
+                              <span class="kp-toggle__track"></span>
+                            </label>
                           </div>
                         </div>
-                      </div>
-
-                      <div class="settings-divider"></div>
-
-                      <!-- ── USDT Topup ──────────────────────────────────────────── -->
-                      <div class="settings-group" id="group-usdt">
-                        <button type="button" class="settings-group__header">
-                          <div class="settings-group__title">
-                            <span class="settings-group__label">USDT Topup</span>
-                            <span class="settings-group__sub">Allow users to top up USDT from BitToken and convert it to Naira</span>
+                        <div class="kp-row kp-row--stack">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Notice when off</span>
+                            <p class="kp-row__hint"><span id="bttMsgCount"><%= settings.bttTopupSuspendedMessage.length %></span> / 500</p>
                           </div>
-                          <div class="settings-group__meta">
-                            <span class="settings-badge <%= settings.usdtTopupEnabled ? 'settings-badge--on' : 'settings-badge--off' %>" id="badge-usdt">
-                              <%= settings.usdtTopupEnabled ? 'Enabled' : 'Disabled' %>
-                            </span>
-                            <svg class="settings-group__chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                          </div>
-                        </button>
-                        <div class="settings-group__body">
-                          <div class="settings-group__inner">
-
-                            <div class="settings-row">
-                              <div class="settings-row__text">
-                                <span class="settings-row__label">Allow USDT Topup &amp; Conversion</span>
-                                <span class="settings-row__desc">When disabled, users will not be able to transfer USDT from BitToken or convert USDT to Naira.</span>
-                              </div>
-                              <label class="custom-switch mb-0">
-                                <input type="checkbox" id="usdtTopupToggle" class="custom-switch-input" <%= settings.usdtTopupEnabled ? 'checked' : '' %>>
-                                <span class="custom-switch-indicator"></span>
-                              </label>
-                              <input type="hidden" name="usdtTopupEnabled" id="usdtTopupEnabledInput" value="<%= settings.usdtTopupEnabled ? 'true' : 'false' %>">
-                            </div>
-
-                            <div class="settings-field">
-                              <label class="settings-field__label" for="usdtTopupSuspendedMessage">Suspension Notice Message</label>
-                              <p class="settings-field__desc">Shown to users when USDT topup is disabled.</p>
-                              <textarea name="usdtTopupSuspendedMessage" id="usdtTopupSuspendedMessage"
-                                class="form-control" rows="3" maxlength="500"
-                                placeholder="e.g. USDT top-up has been temporarily suspended."
-                              ><%= settings.usdtTopupSuspendedMessage %></textarea>
-                              <small class="text-muted"><span id="usdtMsgCount"><%= settings.usdtTopupSuspendedMessage.length %></span> / 500</small>
-                            </div>
-
-                          </div>
+                          <textarea name="bttTopupSuspendedMessage" id="bttTopupSuspendedMessage"
+                                    class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
+                                    placeholder="e.g. BTT top-up is unavailable right now."><%= settings.bttTopupSuspendedMessage %></textarea>
                         </div>
                       </div>
-
-                      <div class="settings-divider"></div>
-
-                      <!-- ── OurDataStore ADEX ID ──────────────────────────────── -->
-                      <div class="settings-group" id="group-adex">
-                        <button type="button" class="settings-group__header">
-                          <div class="settings-group__title">
-                            <span class="settings-group__label">OurDataStore ADEX ID</span>
-                            <span class="settings-group__sub">Override the account ID used to fetch data purchase history</span>
-                          </div>
-                          <div class="settings-group__meta">
-                            <span class="settings-badge settings-badge--off" id="badge-adex">
-                              <%= settings.ourdatastoreAdexId ? 'Set' : 'Not set' %>
-                            </span>
-                            <svg class="settings-group__chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                          </div>
-                        </button>
-                        <div class="settings-group__body">
-                          <div class="settings-group__inner">
-
-                            <div class="settings-field">
-                              <label class="settings-field__label" for="ourdatastoreAdexId">ADEX ID (Account ID)</label>
-                              <p class="settings-field__desc">
-                                If the OurDataStore history panel shows a 403 error, the ADEX ID has changed.
-                                To find it: log in to <strong>app.ourdatastore.com</strong>, open DevTools
-                                (F12) → Network tab → reload the page → look for a request to
-                                <code>/api/account/my-account/</code> — the long alphanumeric string at the
-                                end of that URL is the new ADEX ID. Paste it here and save.
-                                Once a successful history response comes through, the ID is saved automatically.
-                              </p>
-                              <input type="text" name="ourdatastoreAdexId" id="ourdatastoreAdexId"
-                                class="form-control" style="max-width:320px; font-family:monospace;"
-                                placeholder="e.g. 6873376118897B6"
-                                value="<%= settings.ourdatastoreAdexId || '' %>">
-                            </div>
-
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="settings-divider"></div>
-
-                      <!-- ── Maintenance ───────────────────────────────────────── -->
-                      <div class="settings-group" id="group-maintenance">
-                        <button type="button" class="settings-group__header">
-                          <div class="settings-group__title">
-                            <span class="settings-group__label">Maintenance</span>
-                            <span class="settings-group__sub">Control site availability and scheduled downtime</span>
-                          </div>
-                          <div class="settings-group__meta">
-                            <span class="settings-badge <%= settings.maintenanceModeEnabled ? 'settings-badge--warn' : 'settings-badge--on' %>" id="badge-maint">
-                              <%= settings.maintenanceModeEnabled ? 'Active' : 'Off' %>
-                            </span>
-                            <svg class="settings-group__chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                          </div>
-                        </button>
-                        <div class="settings-group__body">
-                          <div class="settings-group__inner">
-
-                            <p class="settings-subsection-label">Maintenance Mode</p>
-
-                            <div class="settings-row">
-                              <div class="settings-row__text">
-                                <span class="settings-row__label">Enable Maintenance Mode</span>
-                                <span class="settings-row__desc">All public pages will display the maintenance screen. The admin panel stays accessible.</span>
-                              </div>
-                              <label class="custom-switch mb-0">
-                                <input type="checkbox" id="maintModeToggle" class="custom-switch-input" <%= settings.maintenanceModeEnabled ? 'checked' : '' %>>
-                                <span class="custom-switch-indicator"></span>
-                              </label>
-                              <input type="hidden" name="maintenanceModeEnabled" id="maintModeEnabledInput" value="<%= settings.maintenanceModeEnabled ? 'true' : 'false' %>">
-                            </div>
-
-                            <div class="settings-field">
-                              <label class="settings-field__label" for="maintenanceMessage">Maintenance Page Message</label>
-                              <p class="settings-field__desc">Displayed on the maintenance screen shown to users.</p>
-                              <textarea name="maintenanceMessage" id="maintenanceMessage"
-                                class="form-control" rows="3" maxlength="600"
-                                placeholder="e.g. We're performing scheduled maintenance. We'll be back shortly."
-                              ><%= settings.maintenanceMessage %></textarea>
-                              <small class="text-muted"><span id="maintMsgCount"><%= settings.maintenanceMessage.length %></span> / 600</small>
-                            </div>
-
-                            <div class="settings-sub-divider"></div>
-
-                            <p class="settings-subsection-label">Schedule Maintenance</p>
-
-                            <div class="settings-row">
-                              <div class="settings-row__text">
-                                <span class="settings-row__label">Show Countdown Banner</span>
-                                <span class="settings-row__desc">Displays a countdown banner at the top of every public page until the scheduled time.</span>
-                              </div>
-                              <label class="custom-switch mb-0">
-                                <input type="checkbox" id="maintBannerToggle" class="custom-switch-input" <%= settings.maintenanceBannerEnabled ? 'checked' : '' %>>
-                                <span class="custom-switch-indicator"></span>
-                              </label>
-                              <input type="hidden" name="maintenanceBannerEnabled" id="maintBannerEnabledInput" value="<%= settings.maintenanceBannerEnabled ? 'true' : 'false' %>">
-                            </div>
-
-                            <div class="settings-field mb-0">
-                              <label class="settings-field__label" for="maintenanceBannerScheduledAt">Scheduled Maintenance Time</label>
-                              <p class="settings-field__desc">The countdown banner will run until this date and time.</p>
-                              <input type="datetime-local" name="maintenanceBannerScheduledAt"
-                                id="maintenanceBannerScheduledAt" class="form-control" style="max-width:280px;"
-                                value="<%= settings.maintenanceBannerScheduledAt ? new Date(settings.maintenanceBannerScheduledAt).toISOString().slice(0,16) : '' %>">
-                            </div>
-
-                          </div>
-                        </div>
-                      </div>
-
                     </div>
-                    <div class="card-footer text-right">
-                      <button type="button" class="btn btn-primary px-4" id="saveSettingsBtn">Save Settings</button>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">USDT top-up</h2>
+                        <div class="kp-card__aside">
+                          <span class="kp-pill <%= settings.usdtTopupEnabled ? 'kp-pill--good' : '' %>" id="badge-usdt">
+                            <%= settings.usdtTopupEnabled ? 'Enabled' : 'Disabled' %>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Allow USDT top-ups</span>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <label class="kp-toggle">
+                              <input type="checkbox" name="usdtTopupEnabled" value="true"
+                                     id="usdtTopupToggle" data-badge="badge-usdt"
+                                     <%= settings.usdtTopupEnabled ? 'checked' : '' %>>
+                              <span class="kp-toggle__track"></span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="kp-row kp-row--stack">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Notice when off</span>
+                            <p class="kp-row__hint"><span id="usdtMsgCount"><%= settings.usdtTopupSuspendedMessage.length %></span> / 500</p>
+                          </div>
+                          <textarea name="usdtTopupSuspendedMessage" id="usdtTopupSuspendedMessage"
+                                    class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
+                                    placeholder="e.g. USDT top-up is unavailable right now."><%= settings.usdtTopupSuspendedMessage %></textarea>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__foot">
+                        <button type="button" class="kp-btn kp-btn--primary" id="saveSettingsBtn">Save settings</button>
+                        <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ══ Provider ══════════════════════════════════════════ -->
+                  <div class="kp-section" data-section="provider">
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">OurDataStore</h2></div>
+                      <div class="kp-card__body kp-card__body--pad">
+                        <p class="kp-note">
+                          The ADEX ID identifies our account with the data provider. Find it by
+                          logging in to <strong>app.ourdatastore.com</strong>, opening DevTools and
+                          reading the account id from a request.
+                        </p>
+                        <div class="kp-field">
+                          <label class="kp-field__label" for="ourdatastoreAdexId">ADEX ID</label>
+                          <input type="text" name="ourdatastoreAdexId" id="ourdatastoreAdexId"
+                                 class="kp-input kp-input--code" style="max-width:280px;"
+                                 value="<%= settings.ourdatastoreAdexId || '' %>"
+                                 placeholder="e.g. 12345">
+                        </div>
+                      </div>
+                      <div class="kp-card__foot">
+                        <button type="button" class="kp-btn kp-btn--primary" onclick="document.getElementById('saveSettingsBtn').click()">Save settings</button>
+                        <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ══ Maintenance ═══════════════════════════════════════ -->
+                  <div class="kp-section" data-section="maintenance">
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">Maintenance mode</h2>
+                        <div class="kp-card__aside">
+                          <span class="kp-pill <%= settings.maintenanceModeEnabled ? 'kp-pill--warn' : 'kp-pill--good' %>" id="badge-maint">
+                            <%= settings.maintenanceModeEnabled ? 'Active' : 'Off' %>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Take the site offline</span>
+                            <p class="kp-row__hint">Every visitor sees the maintenance page.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <label class="kp-toggle">
+                              <input type="checkbox" name="maintenanceModeEnabled" value="true"
+                                     id="maintModeToggle" data-badge="badge-maint"
+                                     data-on="Active" data-off="Off"
+                                     data-on-class="kp-pill--warn" data-off-class="kp-pill--good"
+                                     <%= settings.maintenanceModeEnabled ? 'checked' : '' %>>
+                              <span class="kp-toggle__track"></span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="kp-row kp-row--stack">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Maintenance page message</span>
+                            <p class="kp-row__hint"><span id="maintMsgCount"><%= settings.maintenanceMessage.length %></span> / 600</p>
+                          </div>
+                          <textarea name="maintenanceMessage" id="maintenanceMessage"
+                                    class="kp-input" rows="3" maxlength="600" style="width:100%;min-height:80px;"
+                                    placeholder="e.g. We are carrying out scheduled maintenance."><%= settings.maintenanceMessage %></textarea>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Scheduled maintenance banner</h2></div>
+                      <div class="kp-card__body">
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Show countdown banner</span>
+                            <p class="kp-row__hint">Warns users before the site goes offline.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <label class="kp-toggle">
+                              <input type="checkbox" name="maintenanceBannerEnabled" value="true"
+                                     id="maintBannerToggle"
+                                     <%= settings.maintenanceBannerEnabled ? 'checked' : '' %>>
+                              <span class="kp-toggle__track"></span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Scheduled time</span>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <input type="datetime-local" name="maintenanceBannerScheduledAt"
+                                   id="maintenanceBannerScheduledAt" class="kp-input" style="min-width:220px;"
+                                   value="<%= settings.maintenanceBannerScheduledAt ? new Date(settings.maintenanceBannerScheduledAt).toISOString().slice(0,16) : '' %>">
+                          </div>
+                        </div>
+                      </div>
+                      <div class="kp-card__foot">
+                        <button type="button" class="kp-btn kp-btn--primary" onclick="document.getElementById('saveSettingsBtn').click()">Save settings</button>
+                        <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
+                      </div>
                     </div>
                   </div>
 
                 </form>
-              </div>
-            </div>
-          </div>
-        </section>
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
 
-        <div class="settingSidebar">
-          <a href="javascript:void(0)" class="settingPanelToggle"><i class="fa fa-spin fa-cog"></i></a>
-          <div class="settingSidebar-body ps-container ps-theme-default">
-            <div class="fade show active">
-              <div class="setting-panel-header">Setting Panel</div>
-              <div class="p-15 border-bottom">
-                <h6 class="font-medium m-b-10">Select Layout</h6>
-                <div class="selectgroup layout-color w-50">
-                  <label class="selectgroup-item">
-                    <input type="radio" name="value" value="1" class="selectgroup-input-radio select-layout" checked>
-                    <span class="selectgroup-button">Light</span>
-                  </label>
-                  <label class="selectgroup-item">
-                    <input type="radio" name="value" value="2" class="selectgroup-input-radio select-layout">
-                    <span class="selectgroup-button">Dark</span>
-                  </label>
-                </div>
-              </div>
-              <div class="mt-4 mb-4 p-3 align-center rt-sidebar-last-ele">
-                <a href="#" class="btn btn-icon icon-left btn-primary btn-restore-theme">
-                  <i class="fas fa-undo"></i> Restore Default
-                </a>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
-
-      <footer class="main-footer">
-        <div class="footer-left">&copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.</div>
-        <div class="footer-right"></div>
-      </footer>
+      </section>
     </div>
+
+    <%- include('../partials/footerAdmin.ejs') %>
   </div>
+</div>
 
-<style>
-.settings-group__header {
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 18px 24px; background: none; border: none;
-  cursor: pointer; text-align: left; transition: background .15s;
-}
-.settings-group__header:hover { background: #f9fafb; }
-
-.settings-group__title { display: flex; flex-direction: column; gap: 2px; }
-.settings-group__label { font-size: 14px; font-weight: 700; color: #111827; }
-.settings-group__sub   { font-size: 12px; color: #9ca3af; }
-
-.settings-group__meta  { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.settings-group__chevron {
-  width: 18px; height: 18px; color: #9ca3af; flex-shrink: 0;
-  transition: transform .25s cubic-bezier(.4,0,.2,1);
-}
-.settings-group.is-open .settings-group__chevron { transform: rotate(180deg); }
-
-.settings-badge {
-  display: inline-block; font-size: 11px; font-weight: 700;
-  padding: 3px 10px; border-radius: 20px; letter-spacing: .3px;
-}
-.settings-badge--on   { background: #dcfce7; color: #16a34a; }
-.settings-badge--off  { background: #f3f4f6; color: #6b7280; }
-.settings-badge--warn { background: #fef3c7; color: #d97706; }
-
-.settings-group__body {
-  overflow: hidden; max-height: 0;
-  transition: max-height .3s cubic-bezier(.4,0,.2,1);
-}
-.settings-group.is-open .settings-group__body { max-height: 900px; }
-.settings-group__inner { padding: 4px 24px 24px; border-top: 1px solid #f3f4f6; }
-
-.settings-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; padding: 16px 0; border-bottom: 1px solid #f9fafb;
-}
-.settings-row__text { flex: 1; min-width: 0; }
-.settings-row__label { display: block; font-size: 13px; font-weight: 600; color: #374151; }
-.settings-row__desc  { display: block; font-size: 12px; color: #9ca3af; margin-top: 2px; line-height: 1.5; }
-
-.settings-field       { padding-top: 16px; }
-.settings-field__label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; display: block; }
-.settings-field__desc  { font-size: 12px; color: #9ca3af; margin-bottom: 8px; }
-
-.settings-divider     { height: 1px; background: #f3f4f6; }
-.settings-sub-divider { height: 1px; background: #f3f4f6; margin: 20px 0 16px; }
-
-.settings-subsection-label {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .8px; color: #9ca3af; margin: 16px 0 4px;
-}
-</style>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
 <script>
-// ── Accordion ────────────────────────────────────────────────────────────────
-document.querySelectorAll('.settings-group__header').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    var group  = this.closest('.settings-group');
-    var isOpen = group.classList.contains('is-open');
-    document.querySelectorAll('.settings-group').forEach(function (g) { g.classList.remove('is-open'); });
-    if (!isOpen) group.classList.add('is-open');
-  });
-});
+/* Toggles carry their own `name` and value="true", so an unchecked box simply
+   submits nothing. The server reads `req.body.x === 'true'`, which makes a
+   missing field false — exactly right. That replaced the hidden-input mirroring
+   the old form needed, so there is one source of truth per setting. */
 
-// ── Toggle sync ──────────────────────────────────────────────────────────────
-function syncToggle(cbId, hidId, badgeId, labels) {
-  var cb = document.getElementById(cbId), hid = document.getElementById(hidId);
-  var bdg = badgeId ? document.getElementById(badgeId) : null;
-  if (!cb || !hid) return;
+// Keep the pill in the card header in step with its toggle.
+document.querySelectorAll('.kp-toggle input[data-badge]').forEach(function (cb) {
   cb.addEventListener('change', function () {
-    hid.value = this.checked ? 'true' : 'false';
-    if (bdg && labels) {
-      bdg.textContent = this.checked ? labels[0] : labels[1];
-      bdg.className   = 'settings-badge ' + (this.checked ? labels[2] : labels[3]);
-    }
+    var badge = document.getElementById(this.dataset.badge);
+    if (!badge) return;
+    var on = this.checked;
+    badge.textContent = on ? (this.dataset.on || 'Enabled') : (this.dataset.off || 'Disabled');
+    var onCls  = this.dataset.onClass  || 'kp-pill--good';
+    var offCls = this.dataset.offClass || '';
+    badge.className = 'kp-pill ' + (on ? onCls : offCls);
   });
-}
-syncToggle('rpTransferToggle',  'rpTransferEnabledInput', 'badge-rp',    ['Enabled', 'Disabled', 'settings-badge--on', 'settings-badge--off']);
-syncToggle('bttTopupToggle',    'bttTopupEnabledInput',   'badge-btt',   ['Enabled', 'Disabled', 'settings-badge--on', 'settings-badge--off']);
-syncToggle('usdtTopupToggle',   'usdtTopupEnabledInput',  'badge-usdt',  ['Enabled', 'Disabled', 'settings-badge--on', 'settings-badge--off']);
-syncToggle('maintModeToggle',   'maintModeEnabledInput',  'badge-maint', ['Active',  'Off',      'settings-badge--warn', 'settings-badge--on']);
-syncToggle('maintBannerToggle', 'maintBannerEnabledInput', null, null);
-
-// ── Character counters ───────────────────────────────────────────────────────
-document.getElementById('rpTransferSuspendedMessage').addEventListener('input', function () {
-  document.getElementById('charCount').textContent = this.value.length;
-});
-document.getElementById('bttTopupSuspendedMessage').addEventListener('input', function () {
-  document.getElementById('bttMsgCount').textContent = this.value.length;
-});
-document.getElementById('usdtTopupSuspendedMessage').addEventListener('input', function () {
-  document.getElementById('usdtMsgCount').textContent = this.value.length;
-});
-document.getElementById('maintenanceMessage').addEventListener('input', function () {
-  document.getElementById('maintMsgCount').textContent = this.value.length;
 });
 
-// ── Auto-open group from URL hash ────────────────────────────────────────────
-(function () {
-  var hash = window.location.hash;
-  if (hash) {
-    var target = document.querySelector(hash);
-    if (target && target.classList.contains('settings-group')) {
-      target.classList.add('is-open');
-      setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
-    }
-  }
-})();
+// Character counters
+[
+  ['rpTransferSuspendedMessage', 'charCount'],
+  ['bttTopupSuspendedMessage',   'bttMsgCount'],
+  ['usdtTopupSuspendedMessage',  'usdtMsgCount'],
+  ['maintenanceMessage',         'maintMsgCount'],
+].forEach(function (pair) {
+  var field = document.getElementById(pair[0]);
+  var out   = document.getElementById(pair[1]);
+  if (!field || !out) return;
+  field.addEventListener('input', function () { out.textContent = this.value.length; });
+});
 
-// ── Save confirmation ────────────────────────────────────────────────────────
+// Save, with a confirmation because these apply to the live site at once.
 document.getElementById('saveSettingsBtn').addEventListener('click', function () {
   Swal.fire({
-    title: 'Save Settings?',
-    text: 'Changes will apply to the live site immediately.',
+    title: 'Save settings?',
+    text: 'Changes apply to the live site immediately.',
     icon: 'question',
     showCancelButton: true,
-    confirmButtonText: 'Yes, Save',
-    confirmButtonColor: '#47c363',
+    confirmButtonText: 'Save',
+    confirmButtonColor: '#15a844',
     cancelButtonText: 'Cancel',
   }).then(function (result) {
     if (result.isConfirmed) document.getElementById('settingsForm').submit();

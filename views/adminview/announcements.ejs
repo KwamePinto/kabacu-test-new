@@ -1,294 +1,296 @@
-<style>
-  .ann-thumb      { width: 64px; height: 40px; object-fit: cover; border-radius: 4px; background: #f2f2f2; }
-  .ann-swatch     { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; border: 1px solid rgba(0,0,0,.15); }
-  .editing-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 16px; margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #856404; }
-  .type-help      { font-size: 12px; color: #6c757d; margin-top: 4px; }
-  .ann-preview    { border: 1px dashed #d3d6e0; border-radius: 6px; padding: 14px; background: #fafbff; }
-  .field-group[hidden] { display: none !important; }
-</style>
-
 <div class="loader"></div>
 <div id="app">
   <div class="main-wrapper main-wrapper-1">
     <div class="navbar-bg"></div>
+
     <%- include('../partials/headerAdmin.ejs') %>
     <%- include('../partials/sideMenuAdmin.ejs') %>
 
     <div class="main-content">
       <section class="section">
-        <div class="section-header">
-          <h1>Announcements</h1>
-          <div class="section-header-breadcrumb">
-            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-            <div class="breadcrumb-item">Announcements</div>
-          </div>
-        </div>
-
         <div class="section-body">
 
-          <!-- ── Editor ──────────────────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header"><h4 id="editor-title">Add New Announcement</h4></div>
-            <div class="card-body">
+          <%
+            var liveOf = function (list) { return list.filter(function (a) { return a.isActive; }).length; };
+          %>
 
-              <div id="editing-banner" class="editing-banner" style="display:none;"></div>
+          <div class="kp-panel">
 
-              <div class="row">
-                <div class="col-12 col-md-4">
-                  <div class="form-group">
-                    <label>Type <span class="text-danger">*</span></label>
-                    <select id="f-type" class="form-control" onchange="onTypeChange()">
-                      <option value="banner">Banner — hero carousel slide</option>
-                      <option value="strip">Strip — thin bar under the header</option>
-                      <option value="popup">Popup — card shown after sign in</option>
-                    </select>
-                    <div class="type-help" id="type-help">Appears as a slide in the home page hero carousel.</div>
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Announcements</h1>
+              <p class="kp-panel__sub">Hero banners, header strips and sign-in popups</p>
+            </div>
+
+            <div class="kp-panel__body">
+
+              <%- include('partials/panelDrawer', {
+                panelKey: 'announcements',
+                drawerLabel: 'Announcements',
+                sections: [
+                  { id: 'editor',  label: 'New / Edit', icon: 'edit-3' },
+                  { id: 'banners', label: 'Banners',    icon: 'image',    badge: liveOf(banners) },
+                  { id: 'strips',  label: 'Strips',     icon: 'minus',    badge: liveOf(strips) },
+                  { id: 'popups',  label: 'Popups',     icon: 'square',   badge: liveOf(popups) }
+                ]
+              }) %>
+
+              <div class="kp-panel__main">
+
+                <!-- ══ Editor ════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="editor">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title" id="editor-title">Add new announcement</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill kp-pill--warn" id="editing-banner" style="display:none;"></span>
+                      </div>
+                    </div>
+
+                    <div class="kp-card__body">
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Type</span>
+                          <p class="kp-row__hint" id="type-help"></p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <select id="f-type" class="kp-select" onchange="onTypeChange()" style="min-width:150px;">
+                            <option value="banner">Banner</option>
+                            <option value="strip">Strip</option>
+                            <option value="popup">Popup</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Strip: one line of text plus an optional countdown -->
+                      <div id="grp-strip" hidden>
+                        <div class="kp-row kp-row--stack">
+                          <div class="kp-row__main"><span class="kp-row__label">Strip text</span></div>
+                          <input type="text" id="f-text" class="kp-input" style="width:100%;"
+                                 placeholder="This is a test strip and it will be here for {countdown}">
+                          <p class="kp-row__hint" style="margin:0;">
+                            Use <code>{countdown}</code> where the timer should appear.
+                          </p>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Countdown ends</span>
+                            <p class="kp-row__hint">Leave blank for no timer.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <input type="datetime-local" id="f-countdown" class="kp-input" style="min-width:220px;">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Colours</span></div>
+                          <div class="kp-row__ctrl">
+                            <input type="color" id="f-bg" class="kp-input" value="#15a844" style="width:52px;padding:3px;">
+                            <input type="color" id="f-fg" class="kp-input" value="#ffffff" style="width:52px;padding:3px;">
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Banner and popup: title, text, image, call to action -->
+                      <div id="grp-rich">
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Title</span></div>
+                          <div class="kp-row__ctrl">
+                            <input type="text" id="f-title" class="kp-input" style="min-width:260px;" placeholder="Data that goes further">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Eyebrow</span>
+                            <p class="kp-row__hint">Small label above the title.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <input type="text" id="f-eyebrow" class="kp-input" style="min-width:180px;" placeholder="New">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main"><span class="kp-row__label">Subtitle</span></div>
+                          <div class="kp-row__ctrl">
+                            <input type="text" id="f-subtitle" class="kp-input" style="min-width:260px;">
+                          </div>
+                        </div>
+                        <div class="kp-row" id="grp-caption">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Caption</span>
+                            <p class="kp-row__hint">Desktop only.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <input type="text" id="f-caption" class="kp-input" style="min-width:260px;">
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Button label</span>
+                          <p class="kp-row__hint">Leave blank for no button.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="text" id="f-ctalabel" class="kp-input" placeholder="Buy data">
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Button link</span></div>
+                        <div class="kp-row__ctrl">
+                          <input type="text" id="f-ctalink" class="kp-input" style="min-width:220px;" placeholder="/category/data-category">
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Image</span>
+                          <p class="kp-row__hint">Upload a file, or give a path below.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="file" id="f-image" accept="image/*" class="kp-input" style="padding:6px 10px;height:auto;">
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Image path</span></div>
+                        <div class="kp-row__ctrl">
+                          <input type="text" id="f-imageurl" class="kp-input" style="min-width:240px;" placeholder="/assets/images/new.PNG">
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Order</span>
+                          <p class="kp-row__hint">Lower shows first.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="f-order" class="kp-input kp-input--num" min="0" step="1" placeholder="0">
+                        </div>
+                      </div>
+                      <div class="kp-row">
+                        <div class="kp-row__main"><span class="kp-row__label">Status</span></div>
+                        <div class="kp-row__ctrl">
+                          <select id="f-active" class="kp-select">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="kp-card__foot">
+                      <button class="kp-btn kp-btn--primary" id="save-btn" onclick="saveAnnouncement()">Create announcement</button>
+                      <button class="kp-btn" id="cancel-btn" onclick="resetForm()" style="display:none;">Cancel edit</button>
+                    </div>
                   </div>
                 </div>
-                <div class="col-6 col-md-4">
-                  <div class="form-group">
-                    <label>Order</label>
-                    <input type="number" id="f-order" class="form-control" placeholder="Auto" min="0">
-                  </div>
-                </div>
-                <div class="col-6 col-md-4">
-                  <div class="form-group">
-                    <label>Status</label>
-                    <select id="f-active" class="form-control">
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Strip fields -->
-              <div class="field-group" id="grp-strip" hidden>
-                <div class="row">
-                  <div class="col-12">
-                    <div class="form-group">
-                      <label>Strip text <span class="text-danger">*</span></label>
-                      <input type="text" id="f-text" class="form-control"
-                             placeholder="e.g. Flash sale ends in {countdown}">
-                      <div class="type-help">
-                        Put <code>{countdown}</code> anywhere in the text and it becomes a live
-                        timer counting down to the date below.
+                <!-- ══ Lists ═════════════════════════════════════════════ -->
+                <%
+                  var lists = [
+                    { key: 'banners', title: 'Hero banners', rows: banners,
+                      note: 'Slides in the home page hero carousel.' },
+                    { key: 'strips',  title: 'Header strips', rows: strips,
+                      note: 'A thin bar under the header. Supports a countdown.' },
+                    { key: 'popups',  title: 'Sign-in popups', rows: popups,
+                      note: 'Shown once each time a user signs in.' }
+                  ];
+                %>
+                <% lists.forEach(function (L) { %>
+                <div class="kp-section" data-section="<%= L.key %>">
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title"><%= L.title %></h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill kp-pill--good"><%= liveOf(L.rows) %> active</span>
+                        <span class="kp-pill"><%= L.rows.length %> total</span>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad" style="padding-bottom:0;">
+                      <p class="kp-note"><%= L.note %></p>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <% if (L.key === 'strips') { %>
+                              <th>Text</th><th>Countdown</th>
+                              <% } else { %>
+                              <th style="width:70px;">Image</th><th>Title</th><th>Button</th>
+                              <% } %>
+                              <th class="kp-table__num">Order</th>
+                              <th>Status</th>
+                              <th class="kp-table__act">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if (!L.rows.length) { %>
+                            <tr><td colspan="6"><div class="kp-empty">No <%= L.key %> yet.</div></td></tr>
+                            <% } %>
+                            <% L.rows.forEach(function (a) { %>
+                            <tr data-id="<%= a._id %>">
+                              <% if (L.key === 'strips') { %>
+                              <td>
+                                <span class="kp-strong"><%= (a.text || '').slice(0, 80) %></span>
+                                <div class="kp-inline" style="margin-top:5px;">
+                                  <span class="kp-pill" style="background:<%= a.background %>;color:<%= a.textColor %>;">colours</span>
+                                </div>
+                              </td>
+                              <td>
+                                <% if (a.countdownEndsAt) { %>
+                                <span class="kp-mute" style="font-size:12.5px;"><%= new Date(a.countdownEndsAt).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) %></span>
+                                <% } else { %><span class="kp-mute">—</span><% } %>
+                              </td>
+                              <% } else { %>
+                              <td>
+                                <img src="<%= a.image || '/assets/images/new.PNG' %>" alt=""
+                                     style="width:52px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #f0f1f3;">
+                              </td>
+                              <td>
+                                <span class="kp-strong"><%= a.title %></span>
+                                <% if (a.subtitle) { %><br><span class="kp-mute" style="font-size:12.5px;"><%= a.subtitle.slice(0, 70) %></span><% } %>
+                              </td>
+                              <td><span class="kp-mute" style="font-size:12.5px;"><%= a.ctaLabel || '—' %></span></td>
+                              <% } %>
+                              <td class="kp-table__num"><%= a.order %></td>
+                              <td>
+                                <span class="kp-pill <%= a.isActive ? 'kp-pill--good' : '' %>"><%= a.isActive ? 'Active' : 'Off' %></span>
+                              </td>
+                              <td class="kp-table__act">
+                                <button class="kp-btn kp-btn--sm" onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
+                                <button class="kp-btn kp-btn--sm" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
+                                <button class="kp-btn kp-btn--sm kp-btn--danger" onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
+                              </td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
-                  <div class="col-12 col-md-4">
-                    <div class="form-group">
-                      <label>Countdown ends at</label>
-                      <input type="datetime-local" id="f-countdown" class="form-control">
-                      <div class="type-help">Leave empty for a strip with no timer.</div>
-                    </div>
-                  </div>
-                  <div class="col-6 col-md-4">
-                    <div class="form-group">
-                      <label>Background colour</label>
-                      <input type="color" id="f-bg" class="form-control" value="#15a844" style="height:38px;">
-                    </div>
-                  </div>
-                  <div class="col-6 col-md-4">
-                    <div class="form-group">
-                      <label>Text colour</label>
-                      <input type="color" id="f-fg" class="form-control" value="#ffffff" style="height:38px;">
-                    </div>
-                  </div>
                 </div>
-              </div>
+                <% }) %>
 
-              <!-- Banner + popup fields -->
-              <div class="field-group" id="grp-rich">
-                <div class="row">
-                  <div class="col-12 col-md-4">
-                    <div class="form-group">
-                      <label>Eyebrow</label>
-                      <input type="text" id="f-eyebrow" class="form-control" placeholder="Small label above the title">
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-8">
-                    <div class="form-group">
-                      <label>Title <span class="text-danger">*</span></label>
-                      <input type="text" id="f-title" class="form-control" placeholder="Main heading">
-                    </div>
-                  </div>
-                  <div class="col-12">
-                    <div class="form-group">
-                      <label>Subtitle / body</label>
-                      <input type="text" id="f-subtitle" class="form-control" placeholder="Supporting line">
-                    </div>
-                  </div>
-                  <div class="col-12 field-group" id="grp-caption">
-                    <div class="form-group">
-                      <label>Desktop caption</label>
-                      <input type="text" id="f-caption" class="form-control" placeholder="Longer line shown on desktop only">
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <div class="form-group">
-                      <label>Button label</label>
-                      <input type="text" id="f-ctalabel" class="form-control" placeholder="e.g. Shop Now">
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <div class="form-group">
-                      <label>Button link</label>
-                      <input type="text" id="f-ctalink" class="form-control" placeholder="/category/data-category">
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <div class="form-group">
-                      <label>Image — upload</label>
-                      <input type="file" id="f-image" class="form-control" accept="image/*">
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <div class="form-group">
-                      <label>…or image path</label>
-                      <input type="text" id="f-imageurl" class="form-control" placeholder="/assets/images/new.PNG">
-                      <div class="type-help">Used when no file is uploaded.</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-3">
-                <button class="btn btn-primary" id="save-btn" onclick="saveAnnouncement()">Create Announcement</button>
-                <button class="btn btn-secondary" id="cancel-btn" onclick="resetForm()" style="display:none;">Cancel</button>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- ── Lists ───────────────────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header"><h4>Banners — hero carousel (<%= banners.length %>)</h4></div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                  <thead>
-                    <tr><th>Image</th><th>Title</th><th>Button</th><th>Order</th><th>Status</th><th class="text-right">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    <% if (!banners.length) { %>
-                    <tr><td colspan="6" class="text-center text-muted py-4">No banners yet.</td></tr>
-                    <% } %>
-                    <% banners.forEach(function(a) { %>
-                    <tr data-id="<%= a._id %>">
-                      <td><img class="ann-thumb" src="<%= a.image || '/assets/images/new.PNG' %>" alt=""></td>
-                      <td>
-                        <strong><%= a.title %></strong>
-                        <% if (a.eyebrow) { %><br><small class="text-muted"><%= a.eyebrow %></small><% } %>
-                      </td>
-                      <td><small><%= a.ctaLabel || '—' %></small></td>
-                      <td><%= a.order %></td>
-                      <td>
-                        <span class="badge badge-<%= a.isActive ? 'success' : 'secondary' %>"><%= a.isActive ? 'Active' : 'Inactive' %></span>
-                      </td>
-                      <td class="text-right">
-                        <button class="btn btn-sm btn-info"    onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
-                        <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
-                        <button class="btn btn-sm btn-danger"  onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
-                      </td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h4>Strips — under the header (<%= strips.length %>)</h4></div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                  <thead>
-                    <tr><th>Text</th><th>Countdown ends</th><th>Colours</th><th>Order</th><th>Status</th><th class="text-right">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    <% if (!strips.length) { %>
-                    <tr><td colspan="6" class="text-center text-muted py-4">No strips yet.</td></tr>
-                    <% } %>
-                    <% strips.forEach(function(a) { %>
-                    <tr data-id="<%= a._id %>">
-                      <td><%= a.text %></td>
-                      <td>
-                        <% if (a.countdownEndsAt) { %>
-                          <small><%= new Date(a.countdownEndsAt).toLocaleString() %></small>
-                          <% if (new Date(a.countdownEndsAt) <= new Date()) { %>
-                          <br><span class="badge badge-danger">Expired</span>
-                          <% } %>
-                        <% } else { %><small class="text-muted">—</small><% } %>
-                      </td>
-                      <td>
-                        <span class="ann-swatch" style="background:<%= a.background %>"></span>
-                        <span class="ann-swatch" style="background:<%= a.textColor %>"></span>
-                      </td>
-                      <td><%= a.order %></td>
-                      <td><span class="badge badge-<%= a.isActive ? 'success' : 'secondary' %>"><%= a.isActive ? 'Active' : 'Inactive' %></span></td>
-                      <td class="text-right">
-                        <button class="btn btn-sm btn-info"    onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
-                        <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
-                        <button class="btn btn-sm btn-danger"  onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
-                      </td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h4>Popups — shown after sign in (<%= popups.length %>)</h4></div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                  <thead>
-                    <tr><th>Image</th><th>Title</th><th>Button</th><th>Order</th><th>Status</th><th class="text-right">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    <% if (!popups.length) { %>
-                    <tr><td colspan="6" class="text-center text-muted py-4">No popups yet.</td></tr>
-                    <% } %>
-                    <% popups.forEach(function(a) { %>
-                    <tr data-id="<%= a._id %>">
-                      <td><img class="ann-thumb" src="<%= a.image || '/assets/images/new.PNG' %>" alt=""></td>
-                      <td>
-                        <strong><%= a.title %></strong>
-                        <% if (a.subtitle) { %><br><small class="text-muted"><%= a.subtitle.slice(0, 70) %></small><% } %>
-                      </td>
-                      <td><small><%= a.ctaLabel || '—' %></small></td>
-                      <td><%= a.order %></td>
-                      <td><span class="badge badge-<%= a.isActive ? 'success' : 'secondary' %>"><%= a.isActive ? 'Active' : 'Inactive' %></span></td>
-                      <td class="text-right">
-                        <button class="btn btn-sm btn-info"    onclick='editAnnouncement(<%- JSON.stringify(a) %>)'>Edit</button>
-                        <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('<%= a._id %>')"><%= a.isActive ? 'Disable' : 'Enable' %></button>
-                        <button class="btn btn-sm btn-danger"  onclick="deleteAnnouncement('<%= a._id %>')">Delete</button>
-                      </td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
 
         </div>
       </section>
     </div>
+
+    <%- include('../partials/footerAdmin.ejs') %>
   </div>
 </div>
 
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
 <script>
 var CSRF = '<%= csrfToken %>';
 var editingId = null;
 
 var TYPE_HELP = {
-  banner: 'Appears as a slide in the home page hero carousel.',
-  strip:  'A thin bar directly under the header, above the categories. Supports a countdown.',
+  banner: 'A slide in the home page hero carousel.',
+  strip:  'A thin bar under the header. Supports a countdown.',
   popup:  'A card shown once each time a user signs in.',
 };
 
@@ -314,6 +316,15 @@ function toLocalInput(iso) {
          'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
+/* Bring the editor into view. The lists live in their own drawer sections, so
+   clicking Edit has to switch section as well as fill the form — otherwise the
+   form is populated somewhere the admin cannot see. */
+function openEditorSection() {
+  var btn = document.querySelector('.kp-drawer__item[data-target="editor"]');
+  if (btn) btn.click();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function resetForm() {
   editingId = null;
   ['f-title','f-eyebrow','f-subtitle','f-caption','f-text','f-ctalabel','f-ctalink','f-imageurl','f-order','f-countdown']
@@ -323,8 +334,8 @@ function resetForm() {
   setVal('f-fg', '#ffffff');
   setVal('f-active', 'true');
   document.getElementById('f-type').disabled = false;
-  document.getElementById('editor-title').textContent = 'Add New Announcement';
-  document.getElementById('save-btn').textContent = 'Create Announcement';
+  document.getElementById('editor-title').textContent = 'Add new announcement';
+  document.getElementById('save-btn').textContent = 'Create announcement';
   document.getElementById('cancel-btn').style.display = 'none';
   document.getElementById('editing-banner').style.display = 'none';
   onTypeChange();
@@ -333,7 +344,7 @@ function resetForm() {
 function editAnnouncement(a) {
   editingId = a._id;
   setVal('f-type', a.type);
-  // Type is fixed after creation — a strip can't become a banner
+  // Type is fixed after creation — a strip cannot become a banner
   document.getElementById('f-type').disabled = true;
   onTypeChange();
 
@@ -351,23 +362,24 @@ function editAnnouncement(a) {
   setVal('f-active', a.isActive ? 'true' : 'false');
   setVal('f-countdown', toLocalInput(a.countdownEndsAt));
 
-  document.getElementById('editor-title').textContent = 'Edit Announcement';
-  document.getElementById('save-btn').textContent = 'Save Changes';
+  document.getElementById('editor-title').textContent = 'Edit announcement';
+  document.getElementById('save-btn').textContent = 'Save changes';
   document.getElementById('cancel-btn').style.display = '';
   var banner = document.getElementById('editing-banner');
   banner.textContent = 'Editing: ' + (a.title || a.text || a.type);
   banner.style.display = '';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  openEditorSection();
 }
 
 async function saveAnnouncement() {
   var type = val('f-type');
 
   if (type === 'strip' && !val('f-text').trim()) {
-    return Swal.fire({ icon: 'warning', text: 'Please enter the strip text.', confirmButtonColor: '#6777ef' });
+    return Swal.fire({ icon: 'warning', text: 'Enter the strip text.', confirmButtonColor: '#15a844' });
   }
   if (type !== 'strip' && !val('f-title').trim()) {
-    return Swal.fire({ icon: 'warning', text: 'Please enter a title.', confirmButtonColor: '#6777ef' });
+    return Swal.fire({ icon: 'warning', text: 'Enter a title.', confirmButtonColor: '#15a844' });
   }
 
   // FormData so the optional file upload rides along with the text fields
@@ -393,6 +405,11 @@ async function saveAnnouncement() {
   var url = editingId ? '/admin/announcements/' + editingId + '/update'
                       : '/admin/announcements/create';
 
+  var btn = document.getElementById('save-btn');
+  var label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
   try {
     var res  = await fetch(url, { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: fd });
     var data = await res.json();
@@ -400,12 +417,15 @@ async function saveAnnouncement() {
     if (data.success) {
       Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1600, showConfirmButton: false });
       setTimeout(function() { location.reload(); }, 900);
-    } else {
-      Swal.fire({ icon: 'error', text: data.message || 'Failed to save.', confirmButtonColor: '#6777ef' });
+      return;
     }
+    Swal.fire({ icon: 'error', text: data.message || 'Failed to save.', confirmButtonColor: '#15a844' });
   } catch (e) {
-    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+    Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#15a844' });
   }
+
+  btn.disabled = false;
+  btn.textContent = label;
 }
 
 async function toggleAnnouncement(id) {
@@ -415,9 +435,9 @@ async function toggleAnnouncement(id) {
     });
     var data = await res.json();
     if (data.success) location.reload();
-    else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+    else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
   } catch (e) {
-    Swal.fire({ icon: 'error', text: 'Server error.', confirmButtonColor: '#6777ef' });
+    Swal.fire({ icon: 'error', text: 'Server error.', confirmButtonColor: '#15a844' });
   }
 }
 
@@ -426,7 +446,7 @@ async function deleteAnnouncement(id) {
     icon: 'warning', title: 'Delete this announcement?',
     text: 'This cannot be undone.',
     showCancelButton: true, confirmButtonText: 'Delete',
-    confirmButtonColor: '#dc3545',
+    confirmButtonColor: '#d1453b',
   });
   if (!confirmed.isConfirmed) return;
 
@@ -436,9 +456,9 @@ async function deleteAnnouncement(id) {
     });
     var data = await res.json();
     if (data.success) location.reload();
-    else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#6777ef' });
+    else Swal.fire({ icon: 'error', text: data.message, confirmButtonColor: '#15a844' });
   } catch (e) {
-    Swal.fire({ icon: 'error', text: 'Server error.', confirmButtonColor: '#6777ef' });
+    Swal.fire({ icon: 'error', text: 'Server error.', confirmButtonColor: '#15a844' });
   }
 }
 
