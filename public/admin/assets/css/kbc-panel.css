@@ -796,12 +796,6 @@
   font-weight: 600;
 }
 
-/* ── Stat tiles the dashboard uses ───────────────────────────────────────── */
-
-.main-content .card-statistic-1,
-.main-content .card-statistic-2 { box-shadow: none; }
-.main-content .card-statistic-1 .card-icon { box-shadow: none; border-radius: var(--kp-r-sm); }
-
 /* Keep DataTables' own controls legible against the new table styling. */
 .main-content .dataTables_wrapper .dataTables_filter input,
 .main-content .dataTables_wrapper .dataTables_length select {
@@ -910,45 +904,42 @@
 /* ── Stat cards ──────────────────────────────────────────────────────────────
    Layout, centred:
 
-              [icon] Label
-                 Value
+       [icon]   Label
+                Value
 
-   Flex rather than grid, and the reason is specific. A grid needs `auto` tracks
-   to size the icon and label to their content, but the value spans both tracks
-   — and a spanning item contributes to the intrinsic size of every track it
-   covers. A long figure like ₦166,595.00 would therefore widen both columns and
-   push the icon and label apart from each other. Flex lines size independently,
-   so forcing the value onto its own line leaves the icon and label sitting
-   snugly together regardless of how wide the value gets.
+   Built as ordinary nested flexbox with no `display: contents` anywhere. The
+   previous version relied on `display: contents` to dissolve `.card-wrap` so
+   the label and value could join the same flex line as the icon — correct on
+   paper, but it rendered as the old float layout in practice (icon pinned
+   left, value pinned right, label pushed outside the card), which is a known
+   failure mode for `display: contents` combined with flex-wrap across
+   browsers. Removed rather than chased: the DOM already gives `.card-wrap` a
+   real box around the label and value, so there is no need to make it
+   disappear at all.
 
-   .card-wrap has no styles of its own in the theme, so `display: contents`
-   safely promotes the label and value into this flex container; without it they
-   would be one item and could not split across two lines.
+   `.card` is a flex row of two items — the icon, and `.card-wrap` sized to its
+   content. `.card-wrap` is itself a flex column stacking the label above the
+   value. Centring the row centres the pair as a unit; centring the column
+   centres the label and value within it. Every piece is a plain block-level
+   flex item, which is the least ambiguous layout flexbox can produce.
 
    Padding is reset because the compat layer gives every .card-header and
    .card-body generous padding plus a divider — right for a normal card, wrong
-   for three lines inside a tile. */
+   for a compact tile. */
 
 .main-content .card-statistic-1,
 .main-content .card-statistic-2 {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;   /* centres icon + label on their line */
+  flex-direction: row;
   align-items: center;
-  align-content: center;     /* centres both lines when the card is stretched
-                                to match a taller sibling in the same row */
-  gap: 3px 9px;
-  padding: 17px 19px;
-  text-align: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 20px;
 }
 
-.main-content .card-statistic-1 .card-wrap,
-.main-content .card-statistic-2 .card-wrap {
-  display: contents;
-}
-
-/* Line 1 — the icon. Colour comes from the bg-* rules below; the filled circle
-   the theme drew behind it is gone. */
+/* The icon. Colour comes from the bg-* rules below; the filled circle the
+   theme drew behind it is gone. Every box-model property the theme set on the
+   80px/30px variants is zeroed so none of them can reassert float or size. */
 .main-content .card-statistic-1 .card-icon,
 .main-content .card-statistic-2 .card-icon {
   float: none;
@@ -961,13 +952,21 @@
   box-shadow: none;
   line-height: 1;
   font-size: 19px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
 }
 
-/* Line 1 — the label, beside the icon. */
+/* The label-and-value column, beside the icon. */
+.main-content .card-statistic-1 .card-wrap,
+.main-content .card-statistic-2 .card-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
 .main-content .card-statistic-1 .card-header,
 .main-content .card-statistic-2 .card-header {
   padding: 0;
@@ -976,9 +975,8 @@
   background: transparent;
   min-height: 0;
   height: auto;
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
+  width: 100%;
+  text-align: center;
 }
 .main-content .card-statistic-1 .card-header h4,
 .main-content .card-statistic-2 .card-header h4 {
@@ -990,16 +988,14 @@
   line-height: 1.3;
 }
 
-/* Line 2 — the value. flex-basis:100% is what forces the wrap, giving it the
-   whole width of the tile to centre within. */
 .main-content .card-statistic-1 .card-body,
 .main-content .card-statistic-2 .card-body {
-  flex: 0 0 100%;
-  padding: 0;
+  padding: 2px 0 0;
   font-size: 20px;
   font-weight: 700;
   line-height: 1.25;
   color: var(--kp-text);
+  width: 100%;
   text-align: center;
   font-variant-numeric: tabular-nums;
   word-break: break-word;
