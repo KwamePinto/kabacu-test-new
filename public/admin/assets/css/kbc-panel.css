@@ -1039,3 +1039,76 @@
   color: inherit !important;
   font-size: inherit !important;
 }
+
+/* ── Self-contained preview overlay ──────────────────────────────────────
+   Used by Announcements' "Preview" button. Deliberately not a Bootstrap
+   `.modal` — see the comment beside its markup for why. */
+.kp-preview-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.kp-preview-overlay.is-open { display: flex; }
+
+.kp-preview-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 22, 26, .55);
+}
+
+.kp-preview-overlay__box {
+  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+  animation: kp-preview-in .16s ease;
+}
+@keyframes kp-preview-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+
+.kp-preview-overlay__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.kp-preview-overlay__close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #8b919c;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.kp-preview-overlay__close:hover { color: #1a1d21; }
+
+.kp-preview-overlay__body {
+  flex: 1;
+  overflow-y: auto;
+  background: #eef0f3;
+  padding: 36px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 280px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kp-preview-overlay__box { animation: none; }
+}

@@ -306,6 +306,14 @@
   position: relative;
 }
 
+/* For content that needs more room than a confirmation dialog — the reserved
+   code pool's grid, in particular. */
+.modal-box--wide {
+  max-width: 480px;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(-10px) scale(.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }

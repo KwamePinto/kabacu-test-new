@@ -505,8 +505,8 @@
 .reward-stat-card__header svg { width: 14px; height: 14px; }
 
 .reward-stat-card--rp   .reward-stat-card__header svg { color: var(--orange); }
+.reward-stat-card--btt  .reward-stat-card__header svg { color: #1e40af; }
 .reward-stat-card--usdt .reward-stat-card__header svg { color: var(--primary); }
-.reward-stat-card--data .reward-stat-card__header svg { color: #1e40af; }
 
 .reward-stat-card__total {
   font-size: 20px;
@@ -677,6 +677,12 @@
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
+
+/* Inside the code-picker modal it is the first thing in the box, not a
+   continuation below the choice buttons, so the divider above it would be a
+   rule with nothing to divide. */
+.modal-box .code-panel { margin-top: 0; padding-top: 0; border-top: none; }
+.modal-box .code-panel .modal-title { margin-bottom: 14px; }
 
 /* ── The reserved pool ──────────────────────────────────────────────────── */
 .code-pool {

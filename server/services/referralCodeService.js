@@ -295,6 +295,7 @@ function pricingFrom(settings) {
     autoApprove: !!p.autoApprove,
     special: {
       price:                  sp.price || 0,
+      currency:               sp.currency || 'BTT',
       rewardBonusPercent:     sp.rewardBonusPercent || 0,
       commissionBonusPercent: sp.commissionBonusPercent || 0,
     },
@@ -308,9 +309,26 @@ function pricingFrom(settings) {
   };
 }
 
+/**
+ * What a pool code costs right now, and what it costs it in.
+ *
+ * A code's own price and currency travel together — a code priced in USDT
+ * cannot fall back to a BTT default for its number while keeping the
+ * settings' currency, or the two would describe different amounts entirely.
+ * So the pair comes from the code row if it has set a real price, and from
+ * settings only when it has not.
+ */
 function specialPriceFor(specialDoc, settings) {
-  const fallback = pricingFrom(settings).special.price;
-  return specialDoc && specialDoc.price > 0 ? specialDoc.price : fallback;
+  const fallback = pricingFrom(settings).special;
+  if (specialDoc && specialDoc.price > 0) {
+    return { price: specialDoc.price, currency: specialDoc.currency || fallback.currency };
+  }
+  return { price: fallback.price, currency: fallback.currency };
+}
+
+/** Flat wallet balance for a currency that is not market-scoped (BTT, USDT). */
+function flatBalance(wallet, currency) {
+  return Number((wallet && wallet.balances && wallet.balances[currency]) || 0);
 }
 
 /**
@@ -368,6 +386,7 @@ async function requestCode(userId, { type, code, specialId } = {}) {
 
   let wanted;
   let price;
+  let currency = null; // set only for 'special' — 'custom' stays market-priced
   let bonuses;
   let specialDoc = null;
 
@@ -378,7 +397,7 @@ async function requestCode(userId, { type, code, specialId } = {}) {
     if (specialDoc.permittedUser) return { success: false, message: 'That code has already been taken.' };
 
     wanted = specialDoc.code;
-    price = specialPriceFor(specialDoc, settings);
+    ({ price, currency } = specialPriceFor(specialDoc, settings));
     bonuses = {
       reward:     pricing.special.rewardBonusPercent,
       commission: pricing.special.commissionBonusPercent,
@@ -405,11 +424,15 @@ async function requestCode(userId, { type, code, specialId } = {}) {
   // Advisory affordability check. Approval re-checks atomically.
   if (price > 0) {
     const wallet = await Wallet.findOne({ user: userId }).lean();
-    const balance = walletUtil.getBalance(wallet, market);
+    // A special code is priced in BTT/USDT — a flat balance, not a market one —
+    // so it reads a different field than a custom code, which stays priced in
+    // whatever the requester's market wallet holds.
+    const balance = currency ? flatBalance(wallet, currency) : walletUtil.getBalance(wallet, market);
+    const unit = currency ? ` ${currency}` : '';
     if (balance < price) {
       return {
         success: false,
-        message: `This code costs ${price.toLocaleString()}. Your wallet has ${balance.toLocaleString()} — top up first.`,
+        message: `This code costs ${price.toLocaleString()}${unit}. Your wallet has ${balance.toLocaleString()}${unit} — top up first.`,
       };
     }
   }
@@ -422,6 +445,7 @@ async function requestCode(userId, { type, code, specialId } = {}) {
       code: wanted,
       specialCode: specialDoc ? specialDoc._id : null,
       price,
+      currency,
       rewardBonusPercent:     bonuses.reward,
       commissionBonusPercent: bonuses.commission,
       walletCountry: market,
@@ -449,6 +473,7 @@ async function requestCode(userId, { type, code, specialId } = {}) {
       ? `Request for ${wanted} sent for review. Nothing has been charged yet — your wallet is debited only once it is approved.`
       : `Request for ${wanted} sent for review.`,
     code: wanted,
+    currency,
   };
 }
 
@@ -500,9 +525,17 @@ async function approveRequest(requestId, { reviewer = 'admin', auto = false } = 
     );
     if (!claimed) return { success: false, message: 'That request is already being processed.' };
 
-    // Conditional debit: the balance test and the decrement are one operation,
-    // so a wallet can never be driven negative by a concurrent purchase.
-    const path = walletUtil.balancePath(market);
+    /* Conditional debit: the balance test and the decrement are one operation,
+       so a wallet can never be driven negative by a concurrent purchase.
+
+       A special-code request carries its own currency and is charged against
+       that flat balance (BTT/USDT) directly — it is not a market purchase, so
+       it does not go through walletUtil's country-wallet routing. A custom
+       code has no currency recorded and keeps charging the requester's market
+       wallet, exactly as before. */
+    const path = request.currency ? `balances.${request.currency}` : walletUtil.balancePath(market);
+    const readBalance = (doc) => (request.currency ? flatBalance(doc, request.currency) : walletUtil.getBalance(doc, market));
+
     const before = await Wallet.findOneAndUpdate(
       { user: request.user, [path]: { $gte: request.price } },
       { $inc: { [path]: -request.price } },
@@ -513,14 +546,15 @@ async function approveRequest(requestId, { reviewer = 'admin', auto = false } = 
       // Release the claim so the request can be approved once they top up.
       await ReferralCodeRequest.updateOne({ _id: request._id }, { $set: { charged: false } });
       const wallet = await Wallet.findOne({ user: request.user }).lean();
-      const balance = walletUtil.getBalance(wallet, market);
+      const balance = readBalance(wallet);
+      const unit = request.currency ? ` ${request.currency}` : '';
       return {
         success: false,
-        message: `Not enough in their wallet: ${balance.toLocaleString()} against a price of ${request.price.toLocaleString()}. The request is still pending.`,
+        message: `Not enough in their wallet: ${balance.toLocaleString()}${unit} against a price of ${request.price.toLocaleString()}${unit}. The request is still pending.`,
       };
     }
 
-    request.balanceBefore = walletUtil.getBalance(before, market);
+    request.balanceBefore = readBalance(before);
     request.balanceAfter = request.balanceBefore - request.price;
   }
 
@@ -609,7 +643,7 @@ async function cancelRequest(requestId, userId) {
  * bad entry: an admin pasting fifty codes from a spreadsheet wants the
  * forty-nine good ones created and to be told which one was wrong.
  */
-async function bulkCreateSpecialCodes(raw, { price = 0, note = '', createdBy = 'admin' } = {}) {
+async function bulkCreateSpecialCodes(raw, { price = 0, currency = 'BTT', note = '', createdBy = 'admin' } = {}) {
   // Split on commas, and tolerate newlines and semicolons too — pasting a
   // column out of a spreadsheet yields newlines, and refusing that would be
   // pedantic when the intent is obvious.
@@ -646,7 +680,7 @@ async function bulkCreateSpecialCodes(raw, { price = 0, note = '', createdBy = '
     }
 
     try {
-      const doc = await SpecialCode.create({ code, price, note, createdBy });
+      const doc = await SpecialCode.create({ code, price, currency: price > 0 ? currency : null, note, createdBy });
       created.push(doc.code);
     } catch (err) {
       if (err && err.code === 11000) {

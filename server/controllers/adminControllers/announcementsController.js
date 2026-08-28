@@ -1,6 +1,7 @@
 const Announcement = require('../../models/AnnouncementModel');
 const { authenticateAdminUser } = require('../../config/authMiddleware');
 const { clearCache } = require('../../middleware/announcementsMiddleware');
+const { PUBLIC_PAGES, isAllowedLink } = require('../../data/publicPages');
 
 /**
  * The five hero slides that shipped hard-coded in the home page. They are
@@ -141,6 +142,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
       banners: all.filter(a => a.type === 'banner'),
       strips:  all.filter(a => a.type === 'strip'),
       popups:  all.filter(a => a.type === 'popup'),
+      publicPages: PUBLIC_PAGES,
       csrfToken: res.locals.csrfToken,
     });
   } catch (err) {
@@ -148,6 +150,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     res.render('adminview/announcements', {
       layout: 'layouts/adminLayout',
       banners: [], strips: [], popups: [],
+      publicPages: PUBLIC_PAGES,
       csrfToken: res.locals.csrfToken,
     });
   }
@@ -165,6 +168,14 @@ exports.create = [authenticateAdminUser, async (req, res) => {
     }
     if (data.type !== 'strip' && !data.title) {
       return res.json({ success: false, message: 'A title is required.' });
+    }
+    /* The dropdown only ever offers a page from the list, so a link outside it
+       means the request did not come through that form — a hand-crafted POST,
+       or a stale client. Either way it is refused rather than silently saved,
+       which is what makes the dropdown a real restriction and not just a
+       suggestion. */
+    if (!isAllowedLink(data.ctaLink)) {
+      return res.json({ success: false, message: 'Choose the button link from the list of pages.' });
     }
 
     if (!data.order) {
@@ -187,6 +198,10 @@ exports.update = [authenticateAdminUser, async (req, res) => {
 
     const data = fieldsFrom(req, existing.image);
     data.type = existing.type; // type is fixed once created
+
+    if (!isAllowedLink(data.ctaLink)) {
+      return res.json({ success: false, message: 'Choose the button link from the list of pages.' });
+    }
 
     const doc = await Announcement.findByIdAndUpdate(req.params.id, data, {
       new: true, runValidators: true,

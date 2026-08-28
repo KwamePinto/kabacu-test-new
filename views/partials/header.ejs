@@ -38,18 +38,24 @@
         <div class="notif-bell-wrap" style="position:relative;display:inline-block;">
           <button id="notifBellBtn" class="app-header__icon-btn" aria-label="Notifications" style="position:relative;">
             <i data-lucide="bell"></i>
-            <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;background:#ef4444;border-radius:50%;border:1px solid #fff;"></span>
+            <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;background:#ef4444;border-radius:50%;border:1px solid var(--surface);"></span>
           </button>
-          <div id="notifPanel" style="display:none;position:fixed;width:320px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:99999;overflow:hidden;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f0f0f0;">
-              <strong style="font-size:14px;">Notifications</strong>
-              <button id="notifMarkRead" style="background:none;border:none;font-size:12px;color:#6b7280;cursor:pointer;padding:0;">Mark all read</button>
+          <!-- var(--surface)/var(--text) etc rather than literal colours: this
+               panel sits above every page, and a hardcoded white background
+               with inherited (theme-token) text meant "Notifications" rendered
+               near-white on near-white in dark mode — invisible. Every colour
+               here now comes from the same tokens the rest of the page uses,
+               so the panel inverts along with everything around it. -->
+          <div id="notifPanel" style="display:none;position:fixed;width:320px;background:var(--surface);color:var(--text);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:99999;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+              <strong style="font-size:14px;color:var(--text);">Notifications</strong>
+              <button id="notifMarkRead" style="background:none;border:none;font-size:12px;color:var(--text-sub);cursor:pointer;padding:0;">Mark all read</button>
             </div>
             <div id="notifList" style="max-height:340px;overflow-y:auto;">
-              <div style="padding:24px 16px;text-align:center;color:#9ca3af;font-size:13px;">Loading…</div>
+              <div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:13px;">Loading…</div>
             </div>
-            <div style="padding:10px 16px;border-top:1px solid #f0f0f0;text-align:center;">
-              <a href="#" id="notifClaimRP" style="font-size:12px;color:#6b7280;">Claim Reward Points</a>
+            <div style="padding:10px 16px;border-top:1px solid var(--border);text-align:center;">
+              <a href="#" id="notifClaimRP" style="font-size:12px;color:var(--text-sub);">Claim Reward Points</a>
             </div>
           </div>
         </div>
@@ -57,14 +63,15 @@
         <a href="/user-profile" class="app-header__icon-btn desktop-only" aria-label="My Account" title="My Account">
           <i data-lucide="user-circle-2"></i>
         </a>
-        <button type="button" id="countryTriggerBtn" class="app-header__icon-btn app-header__flag-btn js-country-trigger desktop-only" aria-label="Select country" title="Select your country">
+        <!-- Shown on mobile too, matching the signed-out branch below —
+             switching country/market is not desktop-only functionality. -->
+        <button type="button" id="countryTriggerBtn" class="app-header__icon-btn app-header__flag-btn js-country-trigger" aria-label="Select country" title="Select your country">
           <span class="js-country-flag">🇳🇬</span>
         </button>
         <p class="desktop-only app-header__balance" title="<%= typeof activeCurrency !== 'undefined' && activeCurrency.name ? activeCurrency.name + ' wallet' : 'Wallet' %>"><%= (typeof activeCurrency !== 'undefined' && activeCurrency.symbol) || '₦' %><%= (typeof marketBalance === 'function' ? marketBalance(wallet) : ((wallet && wallet.balances && wallet.balances.NAIRA) || 0)).toFixed(2) %></p>
 
         <% } else { %>
-        <!-- Signed out: pick a market to browse. Signed-in users don't get this
-             — they are locked to the country on their profile. -->
+        <!-- Signed out: pick a market to browse before creating an account. -->
         <button type="button" class="app-header__icon-btn app-header__flag-btn js-country-trigger"
                 aria-label="Choose country" title="Choose your country">
           <span class="js-country-flag">🇳🇬</span>
@@ -133,24 +140,24 @@
         badge.style.display = unread > 0 ? 'block' : 'none';
 
         if (!items.length) {
-          list.innerHTML = '<div style="padding:24px 16px;text-align:center;color:#9ca3af;font-size:13px;">No notifications yet</div>';
+          list.innerHTML = '<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:13px;">No notifications yet</div>';
           return;
         }
 
         list.innerHTML = items.map(function(n) {
           var color = TYPE_COLOR[n.type] || '#6b7280';
           var href  = n.link ? ('href="' + n.link + '"') : 'href="#"';
-          return '<a ' + href + ' style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;text-decoration:none;border-bottom:1px solid #f9f9f9;' + (!n.read ? 'background:#fafaf8;' : '') + '">' +
+          return '<a ' + href + ' style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;text-decoration:none;border-bottom:1px solid var(--border);' + (!n.read ? 'background:var(--input-bg);' : '') + '">' +
             '<span style="width:8px;height:8px;border-radius:50%;background:' + color + ';flex-shrink:0;margin-top:5px;"></span>' +
             '<span style="flex:1;">' +
-              '<span style="display:block;font-size:13px;color:#111827;">' + n.text + '</span>' +
-              '<span style="display:block;font-size:11px;color:#9ca3af;margin-top:2px;">' + timeAgo(n.createdAt) + '</span>' +
+              '<span style="display:block;font-size:13px;color:var(--text);">' + n.text + '</span>' +
+              '<span style="display:block;font-size:11px;color:var(--muted);margin-top:2px;">' + timeAgo(n.createdAt) + '</span>' +
             '</span>' +
           '</a>';
         }).join('');
       })
       .catch(function() {
-        list.innerHTML = '<div style="padding:24px 16px;text-align:center;color:#9ca3af;font-size:13px;">Could not load notifications</div>';
+        list.innerHTML = '<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:13px;">Could not load notifications</div>';
       });
   }
 

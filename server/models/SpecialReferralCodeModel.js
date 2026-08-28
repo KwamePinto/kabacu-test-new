@@ -31,6 +31,11 @@ const specialReferralCodeSchema = new mongoose.Schema({
   // What the code sells for. 0 means free / promotional.
   price: { type: Number, default: 0, min: 0 },
 
+  // What it is priced in. Null when price is 0 — a free code has no currency
+  // to speak of — and required in practice whenever price is set, which the
+  // admin form enforces.
+  currency: { type: String, enum: ['BTT', 'USDT', null], default: null },
+
   // Free-text so an admin can record who it is being held for, or why.
   note: { type: String, trim: true, default: '' },
 

@@ -1,6 +1,5 @@
 const ReferralSettings = require('../../models/ReferralSettingsModel');
 const Referral         = require('../../models/ReferralModel');
-const Product          = require('../../models/ProductsModal');
 const SpecialCode = require('../../models/SpecialReferralCodeModel');
 const User = require('../../models/UserModel');
 const referralService = require('../../services/referralService');
@@ -14,10 +13,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
   try {
     const settings = await ReferralSettings.getSettings();
 
-    // The data reward has to name a real package, so the admin picks one from
-    // the live product table rather than typing a number.
-    const [dataProducts, referrals, counts] = await Promise.all([
-      Product.find({ category: 'DATA' }).sort({ createdAt: -1 }).lean(),
+    const [referrals, counts] = await Promise.all([
       Referral.find()
         .sort({ createdAt: -1 })
         .limit(100)
@@ -58,7 +54,6 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     res.render('adminview/referrals', {
       layout: 'layouts/adminLayout',
       settings,
-      dataProducts,
       referrals,
       stats,
       specialCodes,
@@ -71,8 +66,8 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     console.error('[referrals viewPanel]', err);
     res.render('adminview/referrals', {
       layout: 'layouts/adminLayout',
-      settings: { rewardType: 'rewardpoint', amount: 0, isActive: true, minPurchaseAmount: 0, maxRewardsPerReferrer: 0, dataProduct: null },
-      dataProducts: [], referrals: [], specialCodes: [],
+      settings: { rewardType: 'rewardpoint', amount: 0, isActive: true, minPurchaseAmount: 0, maxRewardsPerReferrer: 0 },
+      referrals: [], specialCodes: [],
       stats: { pending: 0, qualified: 0, rewarded: 0, void: 0 },
       codeRequests: [],
       requestStats: { pending: 0, approved: 0, rejected: 0, cancelled: 0 },
@@ -84,9 +79,9 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
 
 exports.saveSettings = [authenticateAdminUser, async (req, res) => {
   try {
-    const { rewardType, amount, dataProduct, minPurchaseAmount, maxRewardsPerReferrer, isActive } = req.body;
+    const { rewardType, amount, minPurchaseAmount, maxRewardsPerReferrer, isActive } = req.body;
 
-    if (!['money', 'data', 'rewardpoint'].includes(rewardType)) {
+    if (!['rewardpoint', 'BTT', 'USDT'].includes(rewardType)) {
       return res.json({ success: false, message: 'Pick a valid reward type.' });
     }
 
@@ -129,24 +124,11 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
       maxPerReferredUser: rcCap,
     };
 
-    if (rewardType === 'data') {
-      if (!dataProduct) {
-        return res.json({ success: false, message: 'Choose the data package to award.' });
-      }
-      const exists = await Product.exists({ _id: dataProduct, category: 'DATA' });
-      if (!exists) {
-        return res.json({ success: false, message: 'That data package no longer exists.' });
-      }
-      update.dataProduct = dataProduct;
-      update.amount = 0;
-    } else {
-      const amt = Number(amount);
-      if (!(amt > 0)) {
-        return res.json({ success: false, message: 'Enter a reward amount greater than zero.' });
-      }
-      update.amount = amt;
-      update.dataProduct = null;
+    const amt = Number(amount);
+    if (!(amt > 0)) {
+      return res.json({ success: false, message: 'Enter a reward amount greater than zero.' });
     }
+    update.amount = amt;
 
     // ── Paid codes: special and custom, priced and bonused separately ────
     const pcActive = req.body.paidCodesActive === true || req.body.paidCodesActive === 'true';
@@ -154,9 +136,10 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
 
     const pct = (v) => Math.max(0, Math.min(500, Number(v) || 0));
 
-    const spPrice   = Math.max(0, Number(req.body.specialPrice) || 0);
-    const spReward  = pct(req.body.specialRewardBonus);
-    const spComm    = pct(req.body.specialCommissionBonus);
+    const spPrice    = Math.max(0, Number(req.body.specialPrice) || 0);
+    const spCurrency = ['BTT', 'USDT'].includes(req.body.specialCurrency) ? req.body.specialCurrency : 'BTT';
+    const spReward   = pct(req.body.specialRewardBonus);
+    const spComm     = pct(req.body.specialCommissionBonus);
     const cuPrice   = Math.max(0, Number(req.body.customPrice) || 0);
     const cuReward  = pct(req.body.customRewardBonus);
     const cuComm    = pct(req.body.customCommissionBonus);
@@ -181,6 +164,7 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
       autoApprove: pcAuto,
       special: {
         price: spPrice,
+        currency: spCurrency,
         rewardBonusPercent: spReward,
         commissionBonusPercent: spComm,
       },
@@ -213,9 +197,10 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
 
 exports.createSpecialCode = [authenticateAdminUser, async (req, res) => {
   try {
-    const code  = String(req.body.code || '').trim().toUpperCase();
-    const price = Math.max(0, Number(req.body.price) || 0);
-    const note  = String(req.body.note || '').trim();
+    const code     = String(req.body.code || '').trim().toUpperCase();
+    const price    = Math.max(0, Number(req.body.price) || 0);
+    const currency = ['BTT', 'USDT'].includes(req.body.currency) ? req.body.currency : 'BTT';
+    const note     = String(req.body.note || '').trim();
 
     if (!code) return res.json({ success: false, message: 'Enter a code.' });
     if (/\s/.test(code)) {
@@ -231,7 +216,7 @@ exports.createSpecialCode = [authenticateAdminUser, async (req, res) => {
     }
 
     const doc = await SpecialCode.create({
-      code, price, note,
+      code, price, currency: price > 0 ? currency : null, note,
       createdBy: (req.user && req.user.username) || 'admin',
     });
 
@@ -242,6 +227,57 @@ exports.createSpecialCode = [authenticateAdminUser, async (req, res) => {
     });
   } catch (err) {
     console.error('[referrals createSpecialCode]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];
+
+/**
+ * Edit a pool code's own creation details — code, price, currency, note.
+ *
+ * Restricted to codes nobody holds yet. Once a code has been sold, its price
+ * and currency are frozen on the request/ReferralCode row that was actually
+ * charged (see approveRequest) — editing the pool row afterward would not
+ * touch what that buyer paid, so it would only be misleading. Renaming the
+ * code text on a sold row would be worse: the user's account would still say
+ * the old code, and the two would silently disagree.
+ */
+exports.editSpecialCode = [authenticateAdminUser, async (req, res) => {
+  try {
+    const special = await SpecialCode.findById(req.params.id);
+    if (!special) return res.json({ success: false, message: 'Code not found.' });
+    if (special.permittedUser) {
+      return res.json({ success: false, message: 'This code has already been sold — take it back first if it needs to change.' });
+    }
+
+    const code  = String(req.body.code || '').trim().toUpperCase();
+    const price = Math.max(0, Number(req.body.price) || 0);
+    const currency = ['BTT', 'USDT'].includes(req.body.currency) ? req.body.currency : 'BTT';
+    const note  = String(req.body.note || '').trim();
+
+    if (!code) return res.json({ success: false, message: 'Enter a code.' });
+    if (/\s/.test(code)) {
+      return res.json({ success: false, message: 'A code cannot contain spaces.' });
+    }
+
+    if (code !== special.code) {
+      // Same clash checks createSpecialCode runs, excluding this row itself.
+      if (await SpecialCode.exists({ code, _id: { $ne: special._id } })) {
+        return res.json({ success: false, message: 'That code is already reserved.' });
+      }
+      if (await User.exists({ referralCode: code })) {
+        return res.json({ success: false, message: 'That code is already in use by a user.' });
+      }
+    }
+
+    special.code = code;
+    special.price = price;
+    special.currency = price > 0 ? currency : null;
+    special.note = note;
+    await special.save();
+
+    res.json({ success: true, message: code + ' updated.', specialCode: special });
+  } catch (err) {
+    console.error('[referrals editSpecialCode]', err);
     res.json({ success: false, message: 'Server error. Please try again.' });
   }
 }];
@@ -383,10 +419,12 @@ exports.deleteSpecialCode = [authenticateAdminUser, async (req, res) => {
 exports.bulkCreateSpecialCodes = [authenticateAdminUser, async (req, res) => {
   try {
     const price = Math.max(0, Number(req.body.price) || 0);
+    const currency = ['BTT', 'USDT'].includes(req.body.currency) ? req.body.currency : 'BTT';
     const note = String(req.body.note || '').trim();
 
     const result = await referralCodeService.bulkCreateSpecialCodes(req.body.codes, {
       price,
+      currency,
       note,
       createdBy: (req.user && req.user.username) || 'admin',
     });

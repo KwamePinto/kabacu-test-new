@@ -79,7 +79,7 @@
         We check every code before it goes live.
         <% if (pReq.price > 0) { %>
           <strong>Nothing has been charged yet</strong> — the
-          <%= pReq.price.toLocaleString() %> is taken only once it is approved.
+          <%= pReq.price.toLocaleString() %><%= pReq.currency ? ' ' + pReq.currency : '' %> is taken only once it is approved.
         <% } %>
         <%
           var _pb = [];
@@ -132,7 +132,7 @@
           <span class="code-choice__icon"><i data-lucide="sparkles"></i></span>
           <span class="code-choice__name">Pick a reserved code</span>
           <span class="code-choice__meta">
-            <% if (cp.special.price > 0) { %>from <%= cp.special.price.toLocaleString() %><% } else { %>Free<% } %>
+            <% if (cp.special.price > 0) { %>from <%= cp.special.price.toLocaleString() %> <%= cp.special.currency %><% } else { %>Free<% } %>
             <% if (cp.special.rewardBonusPercent > 0) { %> · +<%= cp.special.rewardBonusPercent %>% rewards<% } %>
             <% if (cp.special.commissionBonusPercent > 0) { %> · +<%= cp.special.commissionBonusPercent %>% commission<% } %>
           </span>
@@ -151,35 +151,48 @@
         </button>
       </div>
 
-      <!-- Reserved pool, loaded on demand -->
-      <div class="code-panel" id="specialPanel" hidden>
-        <p class="referral-card__label">Reserved codes</p>
-        <div id="specialList" class="code-pool">
-          <p class="code-pool__loading">Loading…</p>
-        </div>
-      </div>
-
-      <!-- Custom entry -->
-      <div class="code-panel" id="customPanel" hidden>
-        <p class="referral-card__label">Your own code</p>
-        <div class="referral-apply-row">
-          <input type="text" id="customCodeInput" class="referral-apply-input"
-                 placeholder="e.g. <%= (user && user.username ? user.username.toUpperCase().replace(/[^A-Z0-9]/g, '') : 'YOURNAME').slice(0, 10) %>"
-                 maxlength="<%= cp.custom.maxLength %>"
-                 style="text-transform:uppercase;letter-spacing:.08em;font-family:monospace;">
-          <button type="button" class="btn btn--primary" id="customRequestBtn" disabled>Request</button>
-        </div>
-        <p class="code-check" id="customCheck"></p>
-        <p class="referral-card__hint">
-          <%= cp.custom.minLength %>–<%= cp.custom.maxLength %> characters, letters and numbers only.
-          <% if (cp.custom.price > 0) { %>
-            Costs <strong><%= cp.custom.price.toLocaleString() %></strong>, charged only after approval.
-          <% } %>
-          Every code is checked by a person before it goes live.
-        </p>
-      </div>
     </div>
     <% } %>
+
+    <!-- Code picker — a popup rather than panels growing the page, so picking
+         a code does not shove the rest of the page down while browsing the
+         reserved pool. Reuses the site's existing modal-overlay component
+         (see checkout.ejs) rather than inventing a second one. -->
+    <div class="modal-overlay" id="codePickerModal" role="dialog" aria-modal="true" aria-label="Choose a referral code">
+      <div class="modal-box modal-box--wide">
+        <button type="button" class="modal-close" id="codePickerClose" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+
+        <!-- Reserved pool -->
+        <div class="code-panel" id="specialPanel" hidden>
+          <h3 class="modal-title" id="specialPanelTitle">Reserved codes</h3>
+          <div id="specialList" class="code-pool">
+            <p class="code-pool__loading">Loading…</p>
+          </div>
+        </div>
+
+        <!-- Custom entry -->
+        <div class="code-panel" id="customPanel" hidden>
+          <h3 class="modal-title" id="customPanelTitle">Your own code</h3>
+          <div class="referral-apply-row">
+            <input type="text" id="customCodeInput" class="referral-apply-input"
+                   placeholder="e.g. <%= (user && user.username ? user.username.toUpperCase().replace(/[^A-Z0-9]/g, '') : 'YOURNAME').slice(0, 10) %>"
+                   maxlength="<%= cp.custom.maxLength %>"
+                   style="text-transform:uppercase;letter-spacing:.08em;font-family:monospace;">
+            <button type="button" class="btn btn--primary" id="customRequestBtn" disabled>Request</button>
+          </div>
+          <p class="code-check" id="customCheck"></p>
+          <p class="referral-card__hint">
+            <%= cp.custom.minLength %>–<%= cp.custom.maxLength %> characters, letters and numbers only.
+            <% if (cp.custom.price > 0) { %>
+              Costs <strong><%= cp.custom.price.toLocaleString() %></strong>, charged only after approval.
+            <% } %>
+            Every code is checked by a person before it goes live.
+          </p>
+        </div>
+      </div>
+    </div>
 
     <!-- ── Codes you have held ──────────────────────────────────── -->
     <% if (past.length) { %>
@@ -262,6 +275,22 @@
           </div>
         </div>
 
+        <div class="reward-stat-card reward-stat-card--btt">
+          <div class="reward-stat-card__header">
+            <i data-lucide="hexagon"></i>
+            <span>BTT</span>
+          </div>
+          <div class="reward-stat-card__total"><%= rewardStats.btt.total %> BTT</div>
+          <div class="reward-stat-card__row">
+            <span>Claimed</span>
+            <span class="reward-stat-card__claimed"><%= rewardStats.btt.claimed %> BTT</span>
+          </div>
+          <div class="reward-stat-card__row">
+            <span>Unclaimed</span>
+            <span class="reward-stat-card__unclaimed"><%= rewardStats.btt.unclaimed %> BTT</span>
+          </div>
+        </div>
+
         <div class="reward-stat-card reward-stat-card--usdt">
           <div class="reward-stat-card__header">
             <i data-lucide="dollar-sign"></i>
@@ -277,22 +306,6 @@
             <span class="reward-stat-card__unclaimed">$<%= rewardStats.usdt.unclaimed %></span>
           </div>
         </div>
-
-        <div class="reward-stat-card reward-stat-card--data">
-          <div class="reward-stat-card__header">
-            <i data-lucide="wifi"></i>
-            <span>Data Bundles</span>
-          </div>
-          <div class="reward-stat-card__total"><%= rewardStats.data.total %> bundles</div>
-          <div class="reward-stat-card__row">
-            <span>Claimed</span>
-            <span class="reward-stat-card__claimed"><%= rewardStats.data.claimed %> bundles</span>
-          </div>
-          <div class="reward-stat-card__row">
-            <span>Unclaimed</span>
-            <span class="reward-stat-card__unclaimed"><%= rewardStats.data.unclaimed %> bundles</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -302,7 +315,7 @@
          the real figure once paid, otherwise what that referral would be
          worth on today's settings if the person completes a purchase.
          REWARD_PLACEHOLDERS is only used by the empty-state preview below. */
-      var REWARD_PLACEHOLDERS = ['1GB Data', '$2 USDT', '+500 RP'];
+      var REWARD_PLACEHOLDERS = ['5 BTT', '$2 USDT', '+500 RP'];
     %>
     <div class="acct-section">
       <h3 class="acct-section__title">Your Referrals</h3>
@@ -500,30 +513,43 @@
   var choices = document.querySelectorAll('.code-choice');
   var specialPanel = document.getElementById('specialPanel');
   var customPanel = document.getElementById('customPanel');
+  var codePickerModal = document.getElementById('codePickerModal');
   var poolLoaded = false;
+
+  function closeCodePicker() {
+    if (codePickerModal) codePickerModal.classList.remove('open');
+    choices.forEach(function (b) { b.classList.remove('is-active'); });
+  }
 
   choices.forEach(function (btn) {
     btn.addEventListener('click', function () {
       var which = btn.dataset.choice;
-      var alreadyOpen = btn.classList.contains('is-active');
 
       choices.forEach(function (b) { b.classList.remove('is-active'); });
-      if (specialPanel) specialPanel.hidden = true;
-      if (customPanel) customPanel.hidden = true;
-
-      // Tapping the open one again closes it.
-      if (alreadyOpen) return;
-
       btn.classList.add('is-active');
+      if (specialPanel) specialPanel.hidden = (which !== 'special');
+      if (customPanel) customPanel.hidden = (which !== 'custom');
+
+      if (codePickerModal) codePickerModal.classList.add('open');
+
       if (which === 'special') {
-        specialPanel.hidden = false;
         if (!poolLoaded) loadPool();
       } else {
-        customPanel.hidden = false;
         var input = document.getElementById('customCodeInput');
-        if (input) input.focus();
+        if (input) setTimeout(function () { input.focus(); }, 50);
       }
     });
+  });
+
+  var codePickerClose = document.getElementById('codePickerClose');
+  if (codePickerClose) codePickerClose.addEventListener('click', closeCodePicker);
+  if (codePickerModal) {
+    codePickerModal.addEventListener('click', function (e) {
+      if (e.target === codePickerModal) closeCodePicker();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && codePickerModal && codePickerModal.classList.contains('open')) closeCodePicker();
   });
 
   /* ── The reserved pool ────────────────────────────────────────────────── */
@@ -545,10 +571,13 @@
         }
 
         list.innerHTML = data.codes.map(function (c) {
+          var priceLabel = c.price > 0
+            ? Number(c.price).toLocaleString() + ' ' + (c.currency || 'BTT')
+            : 'Free';
           return '<button type="button" class="code-pool__item" data-id="' + c.id + '" data-code="' + c.code + '">' +
             '<code class="code-pool__code">' + c.code + '</code>' +
             '<span class="code-pool__price">' +
-              (c.price > 0 ? Number(c.price).toLocaleString() : 'Free') +
+              priceLabel +
               (data.rewardBonusPercent > 0 ? ' · +' + data.rewardBonusPercent + '% rewards' : '') +
               (data.commissionBonusPercent > 0 ? ' · +' + data.commissionBonusPercent + '% comm.' : '') +
             '</span>' +

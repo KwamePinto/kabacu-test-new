@@ -63,7 +63,15 @@
                   <div class="card-header">
                     <h4>RP Balance</h4>
                   </div>
-                  <div class="card-body"><%= user.rpBalance || 0 %> RP</div>
+                  <!-- Reads walletBalances.RP, matching the Wallet/BTT/USDT cards
+                       beside it and the "Wallet — RP" row in the table below.
+                       It previously read user.rpBalance — reward points earned
+                       but not yet claimed into the wallet — which is a different,
+                       unrelated number that only coincidentally shares the "RP"
+                       label. That made this one card disagree with everything
+                       else on the page showing the same user at the same
+                       moment. -->
+                  <div class="card-body"><%= Number(walletBalances.RP || 0).toLocaleString() %> RP</div>
                 </div>
               </div>
             </div>
@@ -308,8 +316,10 @@
                            rewrite history. Unpaid rows show what they would be worth. */
                         function rewardLabel(r) {
                           if (r.status === 'rewarded') {
-                            if (r.rewardType === 'rewardpoint') return (r.rewardAmount || 0) + ' RP';
-                            if (r.rewardType === 'money')       return naira(r.rewardAmount);
+                            if (r.rewardType === 'rewardpoint')                    return (r.rewardAmount || 0) + ' RP';
+                            if (r.rewardType === 'BTT' || r.rewardType === 'USDT') return (r.rewardAmount || 0).toLocaleString() + ' ' + r.rewardType;
+                            // Historic rows only — these two are no longer awarded.
+                            if (r.rewardType === 'money')                          return naira(r.rewardAmount);
                             if (r.rewardType === 'data') {
                               var d = r.rewardProduct && r.rewardProduct.dataDetails;
                               return d ? (d.plan_type || 'Data bundle') : 'Data bundle';
@@ -318,9 +328,9 @@
                           }
                           if (r.status === 'void') return 'Not eligible';
                           if (!rSet || !rSet.isActive) return 'Programme paused';
-                          if (rSet.rewardType === 'rewardpoint') return 'Would pay ' + (rSet.amount || 0) + ' RP';
-                          if (rSet.rewardType === 'money')       return 'Would pay ' + naira(rSet.amount);
-                          return 'Would pay a data bundle';
+                          if (rSet.rewardType === 'rewardpoint')                     return 'Would pay ' + (rSet.amount || 0) + ' RP';
+                          if (rSet.rewardType === 'BTT' || rSet.rewardType === 'USDT') return 'Would pay ' + (rSet.amount || 0).toLocaleString() + ' ' + rSet.rewardType;
+                          return 'Programme paused';
                         }
 
                         var statusBadge = {
@@ -583,10 +593,11 @@
                                  var typeLabel = 'Payment';
                                  var typeBadge = 'badge-primary';
                                  var typeTeal  = false;
-                                 if (stmt._entryType === 'deduction')                                { typeLabel = 'Deduction'; typeBadge = 'badge-danger'; }
+                                 if (stmt._entryType === 'deduction')                                { typeLabel = 'Deduction';  typeBadge = 'badge-danger'; }
                                  else if (stmt._entryType === 'refund' || stmt._entryType === 'system-refund') { typeLabel = 'Refund';    typeTeal  = true; }
-                                 else if (stmt._entryType === 'credit')                              { typeLabel = 'Credit';    typeBadge = 'badge-success'; }
-                                 else if (stmt._entryType === 'topup')                               { typeLabel = 'Top-up';    typeBadge = 'badge-success'; }
+                                 else if (stmt._entryType === 'credit')                              { typeLabel = 'Credit';     typeBadge = 'badge-success'; }
+                                 else if (stmt._entryType === 'topup')                               { typeLabel = 'Top-up';     typeBadge = 'badge-success'; }
+                                 else if (stmt._entryType === 'conversion')                           { typeLabel = 'Conversion'; typeBadge = 'badge-info'; }
 
                                  var isCredit = (stmt._entryType === 'topup' || stmt._entryType === 'refund' || stmt._entryType === 'credit' || stmt._entryType === 'system-refund');
                                  var isDebit  = (stmt._entryType === 'deduction' || (stmt._entryType === 'payment' && stmt.status === 'success'));
@@ -699,8 +710,8 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  var TYPE_LABELS = { 'payment':'Payment', 'topup':'Top-up', 'deduction':'Admin Deduction', 'refund':'Admin Refund', 'credit':'Admin Credit', 'system-refund':'System Refund' };
-  var TYPE_COLORS = { 'payment':'#3d72bd', 'topup':'#28a745', 'deduction':'#dc3545', 'refund':'#17a2b8', 'credit':'#28a745', 'system-refund':'#17a2b8' };
+  var TYPE_LABELS = { 'payment':'Payment', 'topup':'Top-up', 'deduction':'Admin Deduction', 'refund':'Admin Refund', 'credit':'Admin Credit', 'system-refund':'System Refund', 'conversion':'Conversion' };
+  var TYPE_COLORS = { 'payment':'#3d72bd', 'topup':'#28a745', 'deduction':'#dc3545', 'refund':'#17a2b8', 'credit':'#28a745', 'system-refund':'#17a2b8', 'conversion':'#6f42c1' };
 
   document.getElementById('table-statements').addEventListener('click', function(e) {
     var btn = e.target.closest('.stmt-details-btn');

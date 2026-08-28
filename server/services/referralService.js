@@ -6,7 +6,6 @@ const ReferralSettings = require('../models/ReferralSettingsModel');
 const ReferralCode = require('../models/ReferralCodeModel');
 const referralCodeService = require('./referralCodeService');
 const Wallet           = require('../models/WalletModal');
-const Product          = require('../models/ProductsModal');
 const SpecialCode      = require('../models/SpecialReferralCodeModel');
 
 /**
@@ -159,18 +158,20 @@ async function grantReward(referral, settings) {
 
   const bonusNote = bonusPercent > 0 ? ` (includes ${bonusPercent}% code bonus)` : '';
 
-  if (settings.rewardType === 'money') {
+  if (settings.rewardType === 'BTT' || settings.rewardType === 'USDT') {
     if (!(settings.amount > 0)) return null;
     const payout = withBonus(settings.amount);
+    // A flat wallet field, not a country-market one — BTT and USDT are the
+    // same balance in every market, so this never goes through walletUtil.
     await Wallet.updateOne(
       { user: referral.referrer },
-      { $inc: { 'balances.NAIRA': payout } },
+      { $inc: { [`balances.${settings.rewardType}`]: payout } },
     );
     return {
-      type: 'money',
+      type: settings.rewardType,
       amount: payout,
       bonusPercent,
-      note: `₦${payout} credited to wallet${bonusNote}`,
+      note: `${payout} ${settings.rewardType} credited to wallet${bonusNote}`,
     };
   }
 
@@ -183,29 +184,6 @@ async function grantReward(referral, settings) {
       amount: payout,
       bonusPercent,
       note: `${payout} RP awarded${bonusNote}`,
-    };
-  }
-
-  if (settings.rewardType === 'data') {
-    if (!settings.dataProduct) return null;
-    const product = await Product.findById(settings.dataProduct).lean();
-    if (!product) return null;
-
-    // Granting an actual bundle means sending it to a phone number, which the
-    // referrer has to choose. Recording it as owed keeps the payout auditable
-    // and lets it be fulfilled without silently doing nothing.
-    const label = product.dataDetails
-      ? `${product.dataDetails.plan_type} · ${product.dataDetails.network}`
-      : 'data bundle';
-    /* No bonus on a data reward: the payout is one named bundle, and there is
-       no meaningful way to pay 25% more of a fixed package. A programme that
-       wants paid codes to be worth more should reward money or RP. */
-    return {
-      type: 'data',
-      amount: 0,
-      bonusPercent: 0,
-      product: product._id,
-      note: `Data reward owed: ${label}`,
     };
   }
 

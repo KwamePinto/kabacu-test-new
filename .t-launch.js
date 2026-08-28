@@ -24,7 +24,7 @@ function ok(name, cond, extra) {
   const Announcement = require('./server/models/AnnouncementModel');
   const Faq = require('./server/models/FaqModel');
   const BugReport = require('./server/models/BugReportModel');
-  const SupportSettings = require('./server/models/SupportSettingsModel');
+  const Developer = require('./server/models/DeveloperModel');
   const ReferralSettings = require('./server/models/ReferralSettingsModel');
 
   /* ── 1. Launch content ──────────────────────────────────────────────── */
@@ -218,29 +218,27 @@ function ok(name, cond, extra) {
   ok('junior admin cannot delete a manual entry', res.statusCode === 403);
   ok('the entry still exists', !!(await Faq.findById(target._id).lean()));
 
-  // A junior admin cannot change the dev contact.
+  // A junior admin cannot add a developer.
   res = fakeRes();
-  await handler(supportCtrl.updateDevInfo)(
+  await handler(supportCtrl.addDeveloper)(
     { user: { id: 'j1', role: 'junior_admin', username: 'junior' },
-      body: { devName: 'Nope', devEmail: 'nope@example.com' } },
+      body: { name: 'Should Fail', email: 'nope@example.com' } },
     res,
   );
-  ok('junior admin cannot change the developer contact', res.statusCode === 403);
-
-  const settings = await SupportSettings.getSettings();
-  ok('the default contact is Victor Pinto',
-     settings.devName === 'Victor Pinto' && settings.devEmail === 'vkpinto1234@gmail.com',
-     settings.devName + ' <' + settings.devEmail + '>');
+  ok('junior admin cannot add a developer', res.statusCode === 403);
 
   // A bad email is rejected even for a super admin — reports would go nowhere.
   res = fakeRes();
-  await handler(supportCtrl.updateDevInfo)(
+  await handler(supportCtrl.addDeveloper)(
     { user: { id: 's1', role: 'super_admin', username: 'super' },
-      body: { devName: 'Victor Pinto', devEmail: 'not-an-email' } },
+      body: { name: 'Victor Pinto', email: 'not-an-email' } },
     res,
   );
   ok('an invalid developer email is rejected',
      res.body && res.body.success === false, JSON.stringify(res.body));
+
+  await Developer.deleteMany({ email: /^zzlaunch/ });
+  const developer = await Developer.create({ name: 'ZZ Launch Dev', email: 'zzlaunch@example.com' });
 
   /* ── 5. Report visibility by role ───────────────────────────────────── */
   console.log('\n── report scoping ──');
@@ -274,7 +272,8 @@ function ok(name, cond, extra) {
     const isSuper = role === 'super_admin';
     try {
       const out = ejs.render(supportTpl, {
-        settings,
+        developers: [developer],
+        activeDevelopers: [developer],
         reports: superScope,
         isSuperAdmin: isSuper,
         myId: String(aliceId),
@@ -283,12 +282,12 @@ function ok(name, cond, extra) {
         }, { filename: 'views/adminview/support.ejs' });
 
       ok('renders for ' + role, out.length > 2000);
-      // The edit form and the reporter column are both super-admin only.
-      ok(role + ': edit form ' + (isSuper ? 'present' : 'absent'),
+      // The "Add a developer" form and the reporter column are both super-admin only.
+      ok(role + ': add-developer form ' + (isSuper ? 'present' : 'absent'),
          out.includes('id="dev-email"') === isSuper);
       ok(role + ': reporter column ' + (isSuper ? 'present' : 'absent'),
          out.includes('>Reported by<') === isSuper);
-      ok(role + ': the contact is readable either way', out.includes('vkpinto1234@gmail.com'));
+      ok(role + ': the developer roster is readable either way', out.includes('ZZ Launch Dev'));
     } catch (e) {
       ok('renders for ' + role, false, e.message);
     }
@@ -334,6 +333,7 @@ function ok(name, cond, extra) {
   }
 
   await BugReport.deleteMany({ title: /^ZZTEST/ });
+  await Developer.deleteMany({ email: /^zzlaunch/ });
   console.log('\n  ' + pass + ' passed, ' + fail + ' failed');
   await mongoose.disconnect();
   process.exit(fail ? 1 : 0);

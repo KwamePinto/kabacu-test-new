@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   SES: { sesClient, SendEmailCommand },
 });
 
-module.exports = async function sendEmail({ to, subject, html, text }) {
+module.exports = async function sendEmail({ to, subject, html, text, attachments }) {
   try {
     const info = await transporter.sendMail({
       from:    '"Kabacu" <verified@kabacu.com>',
@@ -22,6 +22,10 @@ module.exports = async function sendEmail({ to, subject, html, text }) {
       subject,
       text,
       html,
+      // SESv2's SendEmailCommand always sends through Content.Raw when
+      // nodemailer builds the message, so an attachment here needs no special
+      // handling on the AWS side — it is standard MIME either way.
+      attachments,
     });
 
     console.log("Email sent:", info.messageId);

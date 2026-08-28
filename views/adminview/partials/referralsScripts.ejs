@@ -1,6 +1,5 @@
 <script>
 var CSRF = '<%= csrfToken %>';
-var selectedPackageId = <%- settings.dataProduct ? JSON.stringify(String(settings.dataProduct)) : 'null' %>;
 
 /* On/off settings are toggles now rather than selects, so read `checked` and
    send the same 'true'/'false' strings the server already parses. One helper so
@@ -12,13 +11,11 @@ function onOff(id) {
 
 function onRewardTypeChange() {
   var type = document.getElementById('f-rewardtype').value;
-  document.getElementById('grp-amount').hidden = (type === 'data');
-  document.getElementById('grp-data').hidden   = (type !== 'data');
 
   var help = document.getElementById('amount-help');
-  if (type === 'money')       help.textContent = 'Naira credited to the referrer wallet.';
+  if (type === 'BTT')         help.textContent = 'BTT credited to the referrer wallet.';
+  if (type === 'USDT')        help.textContent = 'USDT credited to the referrer wallet.';
   if (type === 'rewardpoint') help.textContent = 'Points added to the referrer RP balance.';
-  if (type === 'data')        help.textContent = 'Pick the exact bundle below.';
 }
 
 function onSignupBonusTypeChange() {
@@ -33,24 +30,12 @@ function onCommissionTypeChange() {
     t === 'cashback' ? 'Percent of the purchase value.' : 'Percent of the points earned.';
 }
 
-function selectPackage(row) {
-  document.querySelectorAll('.rf-pkg-row').forEach(function (r) { r.classList.remove('selected'); });
-  row.classList.add('selected');
-  var radio = row.querySelector('input[type=radio]');
-  if (radio) radio.checked = true;
-
-  selectedPackageId = row.dataset.id;
-  document.getElementById('chosen-wrap').style.display = '';
-  document.getElementById('chosen-label').textContent = row.dataset.label;
-}
-
 async function saveSettings() {
   var type = document.getElementById('f-rewardtype').value;
 
   var payload = {
     rewardType: type,
     amount: document.getElementById('f-amount').value,
-    dataProduct: selectedPackageId,
     minPurchaseAmount: document.getElementById('f-minpurchase').value,
     maxRewardsPerReferrer: document.getElementById('f-maxrewards').value,
     isActive: onOff('f-active'),
@@ -67,6 +52,7 @@ async function saveSettings() {
     paidCodesActive:        onOff('pc-active'),
     paidCodesAutoApprove:   onOff('pc-auto'),
     specialPrice:           document.getElementById('pc-sp-price').value,
+    specialCurrency:        document.getElementById('pc-sp-currency').value,
     specialRewardBonus:     document.getElementById('pc-sp-reward').value,
     specialCommissionBonus: document.getElementById('pc-sp-comm').value,
     customPrice:            document.getElementById('pc-cu-price').value,
@@ -169,6 +155,7 @@ async function bulkCreateSpecialCodes() {
     var data = await scPost('/admin/referrals/special/bulk', {
       codes: raw,
       price: document.getElementById('sc-price').value,
+      currency: document.getElementById('sc-currency').value,
       note: document.getElementById('sc-note').value,
     });
 
@@ -340,20 +327,47 @@ async function rejectCodeRequest(id, code) {
 
 /* ── Pool actions ───────────────────────────────────────────────────────── */
 
-async function assignSpecialCode(id, code) {
+/**
+ * Edit a pool code's own creation details — code, price, currency, note.
+ *
+ * Only ever called for an unassigned code (see the template: this is the
+ * button shown in place of a "Take back" for anything nobody holds yet), so
+ * there is no user to accidentally hand a stale code to.
+ */
+async function editSpecialCode(id, code, price, currency, note) {
   var ask = await Swal.fire({
-    title: 'Assign ' + code,
-    input: 'text',
-    inputLabel: 'User email or username',
-    inputPlaceholder: 'someone@example.com',
+    title: 'Edit ' + code,
+    html:
+      '<div style="text-align:left;font-size:13px;">' +
+        '<label style="font-weight:600;display:block;margin:8px 0 4px;">Code</label>' +
+        '<input id="swal-sc-code" class="swal2-input" style="margin:0;" value="' + code + '">' +
+        '<label style="font-weight:600;display:block;margin:12px 0 4px;">Price</label>' +
+        '<input id="swal-sc-price" type="number" min="0" step="any" class="swal2-input" style="margin:0;" value="' + price + '">' +
+        '<label style="font-weight:600;display:block;margin:12px 0 4px;">Currency</label>' +
+        '<select id="swal-sc-currency" class="swal2-select" style="margin:0;width:100%;">' +
+          '<option value="BTT"' + (currency === 'USDT' ? '' : ' selected') + '>BTT</option>' +
+          '<option value="USDT"' + (currency === 'USDT' ? ' selected' : '') + '>USDT</option>' +
+        '</select>' +
+        '<label style="font-weight:600;display:block;margin:12px 0 4px;">Note</label>' +
+        '<input id="swal-sc-note" class="swal2-input" style="margin:0;" value="' + (note || '') + '">' +
+      '</div>',
     showCancelButton: true,
-    confirmButtonText: 'Assign',
+    confirmButtonText: 'Save',
     confirmButtonColor: '#15a844',
-    inputValidator: function (v) { if (!v || !v.trim()) return 'Enter an email or username.'; },
+    preConfirm: function () {
+      var newCode = document.getElementById('swal-sc-code').value.trim();
+      if (!newCode) { Swal.showValidationMessage('Enter a code.'); return false; }
+      return {
+        code: newCode,
+        price: document.getElementById('swal-sc-price').value,
+        currency: document.getElementById('swal-sc-currency').value,
+        note: document.getElementById('swal-sc-note').value.trim(),
+      };
+    },
   });
   if (!ask.isConfirmed) return;
 
-  var data = await scPost('/admin/referrals/special/' + id + '/assign', { user: ask.value });
+  var data = await scPost('/admin/referrals/special/' + id + '/edit', ask.value);
   if (data.success) {
     await Swal.fire({ icon: 'success', text: data.message, confirmButtonColor: '#15a844' });
     location.reload();

@@ -105,7 +105,12 @@
   transition: background .18s;
 }
 
-.input-wrapper--pw:focus-within { background: #e8e8e8; }
+/* var(--input-focus), not a literal #e8e8e8: the plain .form-input:focus rule
+   elsewhere already uses the token, which inverts to a lighter dark shade in
+   dark mode. This rule was hardcoded to a light-mode-only grey, so focusing
+   the password field in dark mode turned its background bright light grey
+   while the text inside stayed var(--text) (near-white) — unreadable. */
+.input-wrapper--pw:focus-within { background: var(--input-focus); }
 
 /* Input inside the flex row — transparent so wrapper bg shows */
 .input-wrapper--pw .form-input {

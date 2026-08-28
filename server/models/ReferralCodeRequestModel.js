@@ -56,6 +56,15 @@ const referralCodeRequestSchema = new mongoose.Schema({
    * not current settings.
    */
   price: { type: Number, default: 0, min: 0 },
+
+  /* What `price` is denominated in. Set for 'special' requests (BTT or USDT,
+     debited from the matching flat wallet balance) and left null for 'custom'
+     requests, which stay priced in the requester's market wallet the same way
+     products are. Frozen here for the same reason price is: an admin changing
+     the settings' currency later must not change what a pending request owes
+     or where it gets charged from. */
+  currency: { type: String, enum: ['BTT', 'USDT', null], default: null },
+
   rewardBonusPercent:     { type: Number, default: 0, min: 0 },
   commissionBonusPercent: { type: Number, default: 0, min: 0 },
 

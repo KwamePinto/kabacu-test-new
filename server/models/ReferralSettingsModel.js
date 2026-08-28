@@ -11,18 +11,18 @@ const mongoose = require('mongoose');
 const referralSettingsSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 
+  // BTT and USDT are real, spendable wallet currencies — crediting one is a
+  // genuine payout rather than the store-scoped Naira or a package grant, and
+  // it works the same for a referrer in any market.
   rewardType: {
     type: String,
-    enum: ['money', 'data', 'rewardpoint'],
+    enum: ['rewardpoint', 'BTT', 'USDT'],
     default: 'rewardpoint',
   },
 
-  // Used by money (credited to the referrer's NAIRA wallet) and
-  // rewardpoint (added to rpBalance). Ignored when rewardType is 'data'.
+  // Used by every reward type: rewardpoint credits rpBalance, BTT/USDT credit
+  // the matching wallet balance.
   amount: { type: Number, default: 0, min: 0 },
-
-  // Required when rewardType is 'data' — the exact package to grant.
-  dataProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
 
   // A referred user's first purchase must be at least this much to qualify.
   // 0 means any purchase qualifies.
@@ -114,6 +114,12 @@ const referralSettingsSchema = new mongoose.Schema({
        * memorable code for more than the rest.
        */
       price: { type: Number, default: 0, min: 0 },
+
+      // What a special code is actually bought with. Deducted from that flat
+      // wallet balance directly — BTT and USDT are not per-country like Naira,
+      // so this never touches the country-market wallet machinery.
+      currency: { type: String, enum: ['BTT', 'USDT'], default: 'BTT' },
+
       rewardBonusPercent:     { type: Number, default: 0, min: 0, max: 500 },
       commissionBonusPercent: { type: Number, default: 0, min: 0, max: 500 },
     },

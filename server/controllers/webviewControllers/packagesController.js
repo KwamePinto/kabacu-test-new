@@ -1902,24 +1902,28 @@ exports.referralsPage = async (req, res) => {
     // Outstanding ones are *projected* from today's settings, because what they
     // will eventually be worth isn't decided until they qualify.
     //
-    // The three cards map onto the three reward types the system supports:
-    //   rewardpoint -> RP,  money -> the currency card,  data -> bundle count.
-    // A data reward has no amount — it grants a package — so it is counted in
-    // bundles rather than summed.
+    /* The three cards map onto the three reward types the system supports.
+       'money' and 'data' are read here too, purely for HISTORIC rows: the
+       reward type used to include both, and a referral rewarded under the old
+       system keeps that value forever (see the note on ReferralModel.rewardType).
+       There is no live path that produces either any more, so they fold into
+       the closest card that still exists rather than getting one of their own —
+       money is closest to a spendable-currency reward (usdt card), and a data
+       grant has no ongoing home now that packages are not on offer, so it is
+       simply not counted (it was never a summable amount anyway). */
     const rewardStats = {
       rp:   { total: 0, claimed: 0, unclaimed: 0 },
+      btt:  { total: 0, claimed: 0, unclaimed: 0 },
       usdt: { total: 0, claimed: 0, unclaimed: 0 },
-      data: { total: 0, claimed: 0, unclaimed: 0 },
     };
 
-    const CARD_FOR_TYPE = { rewardpoint: 'rp', money: 'usdt', data: 'data' };
+    const CARD_FOR_TYPE = { rewardpoint: 'rp', BTT: 'btt', USDT: 'usdt', money: 'usdt' };
 
     myReferrals.forEach(r => {
       if (r.status === 'rewarded') {
         const card = CARD_FOR_TYPE[r.rewardType];
         if (!card) return;
-        // data is a bundle grant, so one referral counts as one bundle
-        rewardStats[card].claimed += card === 'data' ? 1 : (r.rewardAmount || 0);
+        rewardStats[card].claimed += (r.rewardAmount || 0);
       }
     });
 
@@ -1928,11 +1932,7 @@ exports.referralsPage = async (req, res) => {
 
     if (outstanding > 0 && referralSettings.isActive) {
       const card = CARD_FOR_TYPE[referralSettings.rewardType];
-      if (card === 'data') {
-        rewardStats.data.unclaimed = referralSettings.dataProduct ? outstanding : 0;
-      } else if (card) {
-        rewardStats[card].unclaimed = outstanding * (referralSettings.amount || 0);
-      }
+      if (card) rewardStats[card].unclaimed = outstanding * (referralSettings.amount || 0);
     }
 
     Object.keys(rewardStats).forEach(k => {
@@ -1951,13 +1951,8 @@ exports.referralsPage = async (req, res) => {
     if (referralSettings.isActive) {
       if (referralSettings.rewardType === 'rewardpoint' && referralSettings.amount > 0) {
         projectedLabel = `+${referralSettings.amount} RP`;
-      } else if (referralSettings.rewardType === 'money' && referralSettings.amount > 0) {
-        projectedLabel = `₦${referralSettings.amount.toLocaleString()}`;
-      } else if (referralSettings.rewardType === 'data' && referralSettings.dataProduct) {
-        const p = await Product.findById(referralSettings.dataProduct).select('dataDetails').lean();
-        projectedLabel = p && p.dataDetails
-          ? `${p.dataDetails.plan_type || 'Data'}`
-          : 'Data bundle';
+      } else if ((referralSettings.rewardType === 'BTT' || referralSettings.rewardType === 'USDT') && referralSettings.amount > 0) {
+        projectedLabel = `${referralSettings.amount.toLocaleString()} ${referralSettings.rewardType}`;
       }
     } else {
       projectedLabel = 'Programme paused';
@@ -1965,8 +1960,10 @@ exports.referralsPage = async (req, res) => {
 
     function rewardLabelFor(r) {
       if (r.status === 'rewarded') {
-        if (r.rewardType === 'rewardpoint') return `+${r.rewardAmount || 0} RP`;
-        if (r.rewardType === 'money')       return `₦${(r.rewardAmount || 0).toLocaleString()}`;
+        if (r.rewardType === 'rewardpoint')                       return `+${r.rewardAmount || 0} RP`;
+        if (r.rewardType === 'BTT' || r.rewardType === 'USDT')    return `${(r.rewardAmount || 0).toLocaleString()} ${r.rewardType}`;
+        // Historic rows only — 'money' and 'data' are not awarded any more.
+        if (r.rewardType === 'money')                             return `₦${(r.rewardAmount || 0).toLocaleString()}`;
         if (r.rewardType === 'data') {
           const d = r.rewardProduct && r.rewardProduct.dataDetails;
           return d ? `${d.plan_type || 'Data'}` : 'Data bundle';
@@ -2240,7 +2237,7 @@ exports.conversionHistory = async (req, res) => {
 
 exports.faqPage = async (req, res) => {
   try {
-    const Faq = require('../models/FaqModel');
+    const Faq = require('../../models/FaqModel');
     const CATEGORY_ORDER = ['getting-started', 'wallet', 'data', 'courses', 'account', 'rewards'];
     /* `$ne: 'admin'` rather than `audience: 'user'` on purpose: every FAQ
        written before the audience field existed has no such field, and an
@@ -2448,12 +2445,10 @@ exports.availableSpecialCodes = async (req, res) => {
 
     const codes = pool
       .filter(c => !taken.has(c.code))
-      .map(c => ({
-        id: c._id,
-        code: c.code,
-        price: referralCodeService.specialPriceFor(c, settings),
-        note: c.note || '',
-      }));
+      .map(c => {
+        const { price, currency } = referralCodeService.specialPriceFor(c, settings);
+        return { id: c._id, code: c.code, price, currency, note: c.note || '' };
+      });
 
     res.json({
       success: true,

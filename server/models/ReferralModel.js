@@ -31,9 +31,15 @@ const referralSchema = new mongoose.Schema({
   qualifyingTransaction: { type: mongoose.Schema.Types.ObjectId, default: null },
   qualifiedAt: { type: Date, default: null },
 
-  // Snapshot of the reward settings at payout time, so later changes to the
-  // admin config never rewrite history.
-  rewardType:    { type: String, enum: ['money', 'data', 'rewardpoint', null], default: null },
+  /* Snapshot of the reward settings at payout time, so later changes to the
+     admin config never rewrite history.
+
+     'money' and 'data' stay in the enum though the admin panel no longer
+     offers either: rows written while those types were current still carry
+     them, and Mongoose only validates on save — a historic row that is never
+     rewritten does not need its old value to still be selectable, but it does
+     need to still be a legal value if that row is ever re-saved. */
+  rewardType:    { type: String, enum: ['money', 'data', 'rewardpoint', 'BTT', 'USDT', null], default: null },
   rewardAmount:  { type: Number, default: 0 },
   rewardProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
   rewardNote:    { type: String, default: '' },

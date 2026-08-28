@@ -136,9 +136,22 @@
                         </div>
                       </div>
                       <div class="kp-row">
-                        <div class="kp-row__main"><span class="kp-row__label">Button link</span></div>
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Button link</span>
+                          <p class="kp-row__hint">Type a page name to search, or pick from the list.</p>
+                        </div>
                         <div class="kp-row__ctrl">
-                          <input type="text" id="f-ctalink" class="kp-input" style="min-width:220px;" placeholder="/category/data-category">
+                          <!-- A closed list, not free text: a public-facing button must not be
+                               pointable at an admin route, an API endpoint, or a typo. The
+                               server rejects anything that is not one of these paths, so the
+                               datalist is the actual restriction, not just a convenience. -->
+                          <input type="text" id="f-ctalink" class="kp-input" style="min-width:260px;"
+                                 list="cta-link-options" placeholder="Search for a page…" autocomplete="off">
+                          <datalist id="cta-link-options">
+                            <% publicPages.forEach(function (pg) { %>
+                            <option value="<%= pg.path %>"><%= pg.label %></option>
+                            <% }) %>
+                          </datalist>
                         </div>
                       </div>
 
@@ -180,7 +193,31 @@
 
                     <div class="kp-card__foot">
                       <button class="kp-btn kp-btn--primary" id="save-btn" onclick="saveAnnouncement()">Create announcement</button>
+                      <button class="kp-btn" id="preview-btn" onclick="openPreview()">Preview</button>
                       <button class="kp-btn" id="cancel-btn" onclick="resetForm()" style="display:none;">Cancel edit</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ══ Preview ═══════════════════════════════════════════
+                     Shows the announcement as a user would actually see it —
+                     the same three layouts main.ejs renders on the live site
+                     (hero slide, header strip, sign-in popup) — built from
+                     whatever is currently in the form, including an unsaved
+                     image pick. -->
+                <!-- A self-built overlay rather than Bootstrap's `.modal()`: that
+                     plugin is not reliably available on this panel (the admin
+                     bootstrap.min.js is 404ing — a pre-existing issue, unrelated
+                     to this feature), so this stays correct either way. -->
+                <div class="kp-preview-overlay" id="previewModal">
+                  <div class="kp-preview-overlay__backdrop" onclick="closePreview()"></div>
+                  <div class="kp-preview-overlay__box">
+                    <div class="kp-preview-overlay__head">
+                      <h5 style="font-size:15px;font-weight:700;margin:0;color:#1a1d21;">How this looks to a user</h5>
+                      <button type="button" class="kp-preview-overlay__close" onclick="closePreview()" aria-label="Close">&times;</button>
+                    </div>
+                    <div class="kp-preview-overlay__body">
+                      <div id="previewStage"></div>
                     </div>
                   </div>
                 </div>
@@ -292,6 +329,10 @@
 var CSRF = '<%= csrfToken %>';
 var editingId = null;
 
+// Same list the server checks — lets a bad link be caught before the request
+// even goes out, rather than only after a round trip.
+var ALLOWED_LINKS = <%- JSON.stringify(publicPages.map(function (p) { return p.path; })) %>;
+
 var TYPE_HELP = {
   banner: 'A slide in the home page hero carousel.',
   strip:  'A thin bar under the header. Supports a countdown.',
@@ -385,6 +426,14 @@ async function saveAnnouncement() {
   if (type !== 'strip' && !val('f-title').trim()) {
     return Swal.fire({ icon: 'warning', text: 'Enter a title.', confirmButtonColor: '#15a844' });
   }
+  var linkVal = val('f-ctalink').trim();
+  if (linkVal && ALLOWED_LINKS.indexOf(linkVal) === -1) {
+    return Swal.fire({
+      icon: 'warning',
+      text: 'That is not one of the listed pages. Pick one from the dropdown as you type.',
+      confirmButtonColor: '#15a844',
+    });
+  }
 
   // FormData so the optional file upload rides along with the text fields
   var fd = new FormData();
@@ -467,4 +516,118 @@ async function deleteAnnouncement(id) {
 }
 
 onTypeChange();
+
+/* ── Preview ────────────────────────────────────────────────────────────────
+   Mirrors the three renderers in views/layouts/main.ejs closely enough to be
+   a faithful preview, without pulling in the public stylesheet — this is an
+   admin page, and importing the whole site theme here risks it bleeding into
+   the rest of the panel. Rebuilt from the live form values every time it is
+   shown, and again on every keystroke while it is open, so "preview" always
+   means the announcement as it is configured right now. */
+function escP(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// An uploaded-but-unsaved file previews from the browser's own copy of it;
+// otherwise fall back to the pasted path, exactly the precedence the server
+// uses once the form is actually submitted.
+function previewImageSrc() {
+  var file = document.getElementById('f-image').files[0];
+  if (file) return URL.createObjectURL(file);
+  var url = val('f-imageurl').trim();
+  return url || '';
+}
+
+function previewStrip() {
+  var text = val('f-text').trim() || 'Your strip text appears here';
+  text = text.replace('{countdown}', '02:15:33');
+  var bg = val('f-bg') || '#15a844';
+  var fg = val('f-fg') || '#ffffff';
+  return ''
+    + '<div style="width:380px;max-width:86vw;border-radius:10px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.16);">'
+    +   '<div style="background:#1a1a2e;color:#fff;padding:10px 14px;font-size:12px;font-weight:800;text-align:center;letter-spacing:.02em;">Kabacu</div>'
+    +   '<div style="background:' + bg + ';color:' + fg + ';padding:11px 16px;font-size:13px;font-weight:700;text-align:center;">' + escP(text) + '</div>'
+    +   '<div style="background:#fff;padding:44px 16px;text-align:center;color:#9aa0a6;font-size:12px;">— page content —</div>'
+    + '</div>';
+}
+
+function previewPopup() {
+  var img = previewImageSrc();
+  var eyebrow = val('f-eyebrow').trim();
+  var title = val('f-title').trim() || 'Announcement title';
+  var subtitle = val('f-subtitle').trim();
+  var ctaLabel = val('f-ctalabel').trim();
+  return ''
+    + '<div style="width:340px;max-width:88vw;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.28);">'
+    +   (img
+          ? '<div style="background:#f0f0f0;padding:22px 20px;text-align:center;"><img src="' + img + '" style="max-width:100%;max-height:120px;" alt=""></div>'
+          : '')
+    +   '<div style="padding:18px 20px 22px;text-align:center;">'
+    +     (eyebrow ? '<span style="display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#15a844;margin-bottom:6px;">' + escP(eyebrow) + '</span>' : '')
+    +     '<h3 style="font-size:17px;font-weight:800;margin:0 0 8px;color:#1a1a2e;">' + escP(title) + '</h3>'
+    +     (subtitle ? '<p style="font-size:13px;color:#666;line-height:1.6;margin:0;">' + escP(subtitle) + '</p>' : '')
+    +     (ctaLabel ? '<span style="display:inline-block;margin-top:16px;padding:10px 22px;border-radius:9999px;background:#15a844;color:#fff;font-size:13px;font-weight:700;">' + escP(ctaLabel) + '</span>' : '')
+    +   '</div>'
+    + '</div>';
+}
+
+function previewBanner() {
+  var img = previewImageSrc();
+  var eyebrow = val('f-eyebrow').trim();
+  var title = val('f-title').trim() || 'Announcement title';
+  var subtitle = val('f-subtitle').trim();
+  var ctaLabel = val('f-ctalabel').trim();
+  return ''
+    + '<div style="width:520px;max-width:92vw;aspect-ratio:16/8;border-radius:14px;overflow:hidden;position:relative;'
+    +   'background:#155e34' + (img ? ';background-image:linear-gradient(90deg,rgba(21,94,52,.88),rgba(21,94,52,.35)),url(' + img + ');background-size:cover;background-position:center' : '') + ';">'
+    +   '<div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 28px;color:#fff;max-width:70%;">'
+    +     (eyebrow ? '<span style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85;margin-bottom:6px;">' + escP(eyebrow) + '</span>' : '')
+    +     '<h3 style="font-size:19px;font-weight:800;margin:0 0 6px;line-height:1.25;">' + escP(title) + '</h3>'
+    +     (subtitle ? '<p style="font-size:13px;opacity:.9;margin:0 0 12px;">' + escP(subtitle) + '</p>' : '')
+    +     (ctaLabel ? '<span style="align-self:flex-start;padding:8px 18px;border-radius:9999px;background:#fff;color:#155e34;font-size:12.5px;font-weight:700;">' + escP(ctaLabel) + '</span>' : '')
+    +   '</div>'
+    + '</div>';
+}
+
+function renderPreview() {
+  var type = val('f-type');
+  var stage = document.getElementById('previewStage');
+  if (!stage) return;
+  stage.innerHTML = type === 'strip' ? previewStrip() : (type === 'popup' ? previewPopup() : previewBanner());
+}
+
+function openPreview() {
+  renderPreview();
+  document.getElementById('previewModal').classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+  document.getElementById('previewModal').classList.remove('is-open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && document.getElementById('previewModal').classList.contains('is-open')) closePreview();
+});
+
+/* Keeps the preview honest while it is open — the point of a live preview is
+   that it reflects the field the admin is actually typing into right now.
+   Delegated on the document rather than bound to each field individually: the
+   editor form is outside the modal, and listening there (rather than on the
+   modal body, which holds only the rendered output) is what actually catches
+   the edits. Guarded on the modal being visible so this does no work on every
+   other page interaction. */
+var PREVIEW_FIELD_IDS = [
+  'f-type', 'f-title', 'f-eyebrow', 'f-subtitle', 'f-text',
+  'f-ctalabel', 'f-imageurl', 'f-bg', 'f-fg',
+];
+document.addEventListener('input', function (e) {
+  if (!e.target || PREVIEW_FIELD_IDS.indexOf(e.target.id) === -1) return;
+  if (document.getElementById('previewModal').classList.contains('is-open')) renderPreview();
+});
+document.getElementById('f-image').addEventListener('change', function () {
+  if (document.getElementById('previewModal').classList.contains('is-open')) renderPreview();
+});
 </script>

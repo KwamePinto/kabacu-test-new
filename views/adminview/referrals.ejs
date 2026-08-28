@@ -180,8 +180,8 @@
                         <div class="kp-row__ctrl">
                           <select id="f-rewardtype" class="kp-select" onchange="onRewardTypeChange()">
                             <option value="rewardpoint" <%= settings.rewardType === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
-                            <option value="money"       <%= settings.rewardType === 'money'       ? 'selected' : '' %>>Money</option>
-                            <option value="data"        <%= settings.rewardType === 'data'        ? 'selected' : '' %>>Data bundle</option>
+                            <option value="BTT"         <%= settings.rewardType === 'BTT'          ? 'selected' : '' %>>BTT</option>
+                            <option value="USDT"        <%= settings.rewardType === 'USDT'         ? 'selected' : '' %>>USDT</option>
                           </select>
                         </div>
                       </div>
@@ -222,46 +222,6 @@
                     </div>
                   </div>
 
-                  <!-- Data reward needs a real package, so it gets its own card -->
-                  <div class="kp-card" id="grp-data" hidden>
-                    <div class="kp-card__head">
-                      <h2 class="kp-card__title">Package to award</h2>
-                      <div class="kp-card__aside">
-                        <span class="kp-pill" id="chosen-wrap" style="display:none;">
-                          <strong id="chosen-label">—</strong>
-                        </span>
-                      </div>
-                    </div>
-                    <div class="kp-card__body kp-card__body--flush">
-                      <div class="kp-tablewrap">
-                        <table class="kp-table">
-                          <thead>
-                            <tr><th style="width:44px;"></th><th>Plan</th><th>Network</th><th>Validity</th><th class="kp-table__num">Price</th></tr>
-                          </thead>
-                          <tbody>
-                            <% if (!dataProducts.length) { %>
-                            <tr><td colspan="5"><div class="kp-empty">No data packages exist yet.</div></td></tr>
-                            <% } %>
-                            <% dataProducts.forEach(function (p) {
-                                 var d = p.dataDetails || {};
-                                 var label = (d.plan_type || 'Plan') + ' · ' + (d.network || '');
-                                 var isSel = settings.dataProduct && String(settings.dataProduct) === String(p._id);
-                            %>
-                            <tr class="rf-pkg-row <%= isSel ? 'selected' : '' %>"
-                                data-id="<%= p._id %>" data-label="<%= label %>"
-                                onclick="selectPackage(this)" style="cursor:pointer;">
-                              <td><input type="radio" name="rf-pkg" value="<%= p._id %>" <%= isSel ? 'checked' : '' %>></td>
-                              <td><span class="kp-strong"><%= d.plan_type || '—' %></span></td>
-                              <td><%= d.network || '—' %></td>
-                              <td><%= d.validate_period || '—' %></td>
-                              <td class="kp-table__num">&#8358;<%= d.amount != null ? d.amount : '—' %></td>
-                            </tr>
-                            <% }) %>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <!-- ══ Signup bonus ══════════════════════════════════════ -->
@@ -415,6 +375,18 @@
                           <div class="kp-row__ctrl">
                             <input type="number" id="pc-sp-price" class="kp-input kp-input--num" min="0" step="any"
                                    value="<%= pcs.price || 0 %>">
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
+                            <span class="kp-row__label">Currency</span>
+                            <p class="kp-row__hint">What the price above is charged in.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <select id="pc-sp-currency" class="kp-select">
+                              <option value="BTT"  <%= pcs.currency !== 'USDT' ? 'selected' : '' %>>BTT</option>
+                              <option value="USDT" <%= pcs.currency === 'USDT' ? 'selected' : '' %>>USDT</option>
+                            </select>
                           </div>
                         </div>
                         <div class="kp-row">
@@ -602,6 +574,13 @@
                             <input type="number" id="sc-price" class="kp-input" min="0" step="any" placeholder="0">
                           </div>
                           <div class="kp-field">
+                            <label class="kp-field__label" for="sc-currency">Currency</label>
+                            <select id="sc-currency" class="kp-select">
+                              <option value="BTT">BTT</option>
+                              <option value="USDT">USDT</option>
+                            </select>
+                          </div>
+                          <div class="kp-field">
                             <label class="kp-field__label" for="sc-note">Note</label>
                             <input type="text" id="sc-note" class="kp-input" placeholder="e.g. Lagos launch batch">
                           </div>
@@ -629,18 +608,19 @@
                         <table class="kp-table">
                           <thead>
                             <tr>
-                              <th>Code</th><th class="kp-table__num">Price</th><th>Status</th>
+                              <th>Code</th><th class="kp-table__num">Price</th><th>Currency</th><th>Status</th>
                               <th>Held by</th><th>Note</th><th class="kp-table__act">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             <% if (!pool.length) { %>
-                            <tr><td colspan="6"><div class="kp-empty">No reserved codes yet.</div></td></tr>
+                            <tr><td colspan="7"><div class="kp-empty">No reserved codes yet.</div></td></tr>
                             <% } %>
                             <% pool.forEach(function (sc) { %>
                             <tr>
                               <td><span class="kp-code"><%= sc.code %></span></td>
                               <td class="kp-table__num"><%= (sc.price || 0).toLocaleString() %></td>
+                              <td><span class="kp-mute" style="font-size:12.5px;"><%= sc.price > 0 ? (sc.currency || 'BTT') : '—' %></span></td>
                               <td>
                                 <% if (!sc.isActive) { %>
                                 <span class="kp-pill">Disabled</span>
@@ -660,7 +640,8 @@
                                 <% if (sc.permittedUser) { %>
                                 <button class="kp-btn kp-btn--sm" onclick="unassignSpecialCode('<%= sc._id %>')">Take back</button>
                                 <% } else { %>
-                                <button class="kp-btn kp-btn--sm" onclick="assignSpecialCode('<%= sc._id %>', '<%= sc.code %>')">Assign</button>
+                                <button class="kp-btn kp-btn--sm"
+                                        onclick="editSpecialCode('<%= sc._id %>', '<%= sc.code %>', <%= sc.price || 0 %>, '<%= sc.currency || 'BTT' %>', '<%= (sc.note || '').replace(/'/g, '&#39;') %>')">Edit</button>
                                 <% } %>
                                 <button class="kp-btn kp-btn--sm" onclick="toggleSpecialCode('<%= sc._id %>')"><%= sc.isActive ? 'Disable' : 'Enable' %></button>
                                 <button class="kp-btn kp-btn--sm kp-btn--danger" onclick="deleteSpecialCode('<%= sc._id %>')">Delete</button>
