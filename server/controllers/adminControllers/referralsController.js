@@ -108,8 +108,9 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
     update.signupBonus = { isActive: sbActive, rewardType: sbType, amount: sbAmount };
 
     // ── Ongoing referral commission ─────────────────────────────────────
-    const rcType = ['cashback', 'rewardpoint'].includes(req.body.commissionType)
-      ? req.body.commissionType : 'cashback';
+    // Same three currencies as the reward and the signup bonus.
+    const rcType = ['rewardpoint', 'BTT', 'USDT'].includes(req.body.commissionType)
+      ? req.body.commissionType : 'rewardpoint';
     const rcActive = req.body.commissionActive === true || req.body.commissionActive === 'true';
     const rcPercent = Math.max(0, Math.min(100, Number(req.body.commissionPercent) || 0));
     const rcCap = Math.max(0, Number(req.body.commissionMaxPerReferredUser) || 0);

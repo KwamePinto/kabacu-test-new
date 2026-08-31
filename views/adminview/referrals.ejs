@@ -296,8 +296,9 @@
                         </div>
                         <div class="kp-row__ctrl">
                           <select id="rc-type" class="kp-select" onchange="onCommissionTypeChange()">
-                            <option value="cashback"    <%= rc.type === 'cashback'    ? 'selected' : '' %>>Cash back</option>
                             <option value="rewardpoint" <%= rc.type === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
+                            <option value="BTT"         <%= rc.type === 'BTT'          ? 'selected' : '' %>>BTT</option>
+                            <option value="USDT"        <%= rc.type === 'USDT'         ? 'selected' : '' %>>USDT</option>
                           </select>
                         </div>
                       </div>

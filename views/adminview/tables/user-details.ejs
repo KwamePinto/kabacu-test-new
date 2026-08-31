@@ -333,6 +333,16 @@
                           return 'Programme paused';
                         }
 
+                        // 'rewardpoint' reads as raw text next to a payout figure ("3x
+                        // rewardpoint"); BTT/USDT are already the right label as-is.
+                        // 'cashback' is historic only — no longer selectable, but old
+                        // rows still say it.
+                        function commissionTypeLabel(t) {
+                          if (t === 'rewardpoint') return 'RP';
+                          if (t === 'cashback') return 'cashback (naira)';
+                          return t || '';
+                        }
+
                         var statusBadge = {
                           rewarded:  'badge-success',
                           qualified: 'badge-info',
@@ -492,7 +502,7 @@
                       <div class="alert alert-light" style="border:1px solid #e4e6fc;font-size:13px;">
                         Ongoing commission: <strong><%= rStats.commissionCount %></strong> payout(s)
                         totalling <strong><%= rStats.commissionEarned %></strong>
-                        (naira or RP, depending on the setting at the time) from purchases made by
+                        (BTT, USDT or RP, depending on the setting at the time) from purchases made by
                         people they referred, after those referrals qualified.
                       </div>
                       <% } %>
@@ -550,7 +560,7 @@
                               <td class="text-right">
                                 <% if (r.commissionEarned) { %>
                                   <strong><%= r.commissionEarned %></strong><br>
-                                  <small class="text-muted"><%= r.commissionCount %>x <%= r.commissionType || '' %></small>
+                                  <small class="text-muted"><%= r.commissionCount %>x <%= commissionTypeLabel(r.commissionType) %></small>
                                 <% } else { %>
                                   <span class="text-muted">—</span>
                                 <% } %>

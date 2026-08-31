@@ -327,8 +327,14 @@ async function grantSignupBonus(userId) {
  * sale would understate revenue and distort profit reporting, so it is credited
  * separately to the referrer.
  *
- *   cashback    -> percent of the purchase value, into the referrer's wallet
+ *   BTT/USDT    -> percent of the purchase value, credited to that wallet
  *   rewardpoint -> percent of the RP the referred user earned, as RP
+ *
+ * 'cashback' (percent of purchase value, paid in Naira) cannot be chosen from
+ * the admin panel any more, but a settings document saved before this change
+ * keeps saying so until an admin resaves it — handled the same way as the
+ * signup bonus's legacy 'money' branch below, rather than silently
+ * reinterpreted as one of the new types.
  *
  * Bounded by maxPerReferredUser so a single referral cannot generate an
  * open-ended liability.
@@ -345,9 +351,9 @@ async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {
     const referral = await Referral.findOne({ referred: referredUserId, status: 'rewarded' });
     if (!referral) return null;
 
-    // Base differs by type: money is a share of the sale, RP a share of the
-    // points the referred user just earned.
-    const base = cfg.type === 'cashback' ? amount : rpEarned;
+    // Base differs by type: BTT/USDT/legacy-cashback are a share of the sale,
+    // RP a share of the points the referred user just earned.
+    const base = cfg.type === 'rewardpoint' ? rpEarned : amount;
     if (!(base > 0)) return null;
 
     let payout = (base * cfg.percent) / 100;
@@ -375,13 +381,20 @@ async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {
       if (payout > headroom) payout = headroom;   // partial final payout
     }
 
-    // Round money to kobo; RP to whole points.
-    payout = cfg.type === 'cashback'
-      ? Math.round(payout * 100) / 100
-      : Math.floor(payout);
+    // Round wallet currencies to 2dp; RP to whole points.
+    payout = cfg.type === 'rewardpoint'
+      ? Math.floor(payout)
+      : Math.round(payout * 100) / 100;
     if (!(payout > 0)) return null;
 
-    if (cfg.type === 'cashback') {
+    if (cfg.type === 'BTT' || cfg.type === 'USDT') {
+      await Wallet.updateOne(
+        { user: referral.referrer },
+        { $inc: { [`balances.${cfg.type}`]: payout } },
+        { upsert: true, setOnInsert: { user: referral.referrer } },
+      );
+    } else if (cfg.type === 'cashback') {
+      // Legacy — see the note above the function.
       await Wallet.updateOne(
         { user: referral.referrer },
         { $inc: { 'balances.NAIRA': payout } },
