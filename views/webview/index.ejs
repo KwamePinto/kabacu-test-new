@@ -566,11 +566,14 @@
     if (window.innerWidth < 768) return;
     var header = document.querySelector('.app-header');
     var hero = document.querySelector('.hero-section');
-    var main = document.querySelector('.page-main');
     if (!header || !hero) return;
 
-    /* Remove page-main top gap so hero sits under the fixed bar */
-    if (main) main.style.paddingTop = '0';
+    /* Pull the hero itself up under the fixed bar, rather than zeroing
+       .page-main's own top padding — that padding is what keeps an active
+       announcement strip (a sibling of the hero inside .page-main) clear of
+       the header too, so removing it dragged the strip up behind the header
+       along with the hero. See the CSS for the exact reasoning. */
+    hero.classList.add('hero-section--flush');
 
     function sync() {
       var bottom = hero.getBoundingClientRect().bottom;
@@ -590,9 +593,9 @@
     window.addEventListener('resize', function() {
       if (window.innerWidth < 768) {
         header.classList.remove('hero-transparent');
-        if (main) main.style.paddingTop = '';
+        hero.classList.remove('hero-section--flush');
       } else {
-        if (main) main.style.paddingTop = '0';
+        hero.classList.add('hero-section--flush');
         sync();
       }
     }, {

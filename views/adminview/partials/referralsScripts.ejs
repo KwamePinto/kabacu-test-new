@@ -20,8 +20,10 @@ function onRewardTypeChange() {
 
 function onSignupBonusTypeChange() {
   var t = document.getElementById('sb-type').value;
-  document.getElementById('sb-amount-help').textContent =
-    t === 'money' ? 'Naira per verified signup.' : 'Points per verified signup.';
+  var help = document.getElementById('sb-amount-help');
+  if (t === 'BTT')  help.textContent = 'BTT credited per verified signup.';
+  else if (t === 'USDT') help.textContent = 'USDT credited per verified signup.';
+  else help.textContent = 'Points per verified signup.';
 }
 
 function onCommissionTypeChange() {
@@ -98,10 +100,7 @@ async function saveSettings() {
   if (payload.commissionActive === 'true' && !(Number(payload.commissionPercent) > 0)) {
     return Swal.fire({ icon: 'warning', text: 'Set a commission percentage above zero, or switch it off.', confirmButtonColor: '#15a844' });
   }
-  if (type === 'data' && !selectedPackageId) {
-    return Swal.fire({ icon: 'warning', text: 'Choose the data package to award.', confirmButtonColor: '#15a844' });
-  }
-  if (type !== 'data' && !(Number(payload.amount) > 0)) {
+  if (!(Number(payload.amount) > 0)) {
     return Swal.fire({ icon: 'warning', text: 'Enter a reward amount greater than zero.', confirmButtonColor: '#15a844' });
   }
 

@@ -286,7 +286,21 @@ async function grantSignupBonus(userId) {
     );
     if (!claimed) return null;   // already paid, or no such user
 
-    if (bonus.rewardType === 'money') {
+    if (bonus.rewardType === 'BTT' || bonus.rewardType === 'USDT') {
+      // A flat wallet field, not a country-market one — same reasoning as the
+      // referral reward's own BTT/USDT branch.
+      await Wallet.updateOne(
+        { user: userId },
+        { $inc: { [`balances.${bonus.rewardType}`]: bonus.amount } },
+        { upsert: true, setOnInsert: { user: userId } },
+      );
+    } else if (bonus.rewardType === 'money') {
+      /* 'money' cannot be chosen from the admin panel any more — the schema
+         enum no longer offers it — but the settings document is a singleton
+         that is only rewritten when an admin actually saves the panel, so one
+         configured before this change keeps saying 'money' until they do.
+         Crediting Naira for it, rather than silently switching to RP, is what
+         that setting has always meant. */
       await Wallet.updateOne(
         { user: userId },
         { $inc: { 'balances.NAIRA': bonus.amount } },

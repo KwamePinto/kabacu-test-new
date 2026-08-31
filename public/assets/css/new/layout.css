@@ -344,6 +344,21 @@
   .page-main {
     padding-top: 82px; /* desktop: island top(14) + header(50) + gap */
   }
+
+  /* The home hero sits flush under the transparent floating header (see
+     index.ejs's hero-transparent script). It used to zero .page-main's own
+     padding-top to get there, but that padding is what keeps EVERYTHING in
+     .page-main clear of the fixed header — including an active announcement
+     strip, which shares .page-main as its container and got dragged up
+     behind the header along with the hero.
+
+     Pulling only the hero up by exactly that reserved amount has the same
+     visual result when there is no strip (hero still lands flush at the top)
+     but leaves the strip alone: the strip keeps the normal padding-top
+     clearance, and the hero is pulled up relative to wherever it actually
+     starts — right after the strip when one is active, flush to the top
+     when one is not. */
+  .hero-section--flush { margin-top: -82px; }
 }
 
 body.is-leaving .page-main {

@@ -252,19 +252,19 @@ exports.loginPost = async (req,res)=>{
 
 }
 
-exports.signup = async (req,res)=>{
-    countries.registerLocale(
-  require("i18n-iso-countries/langs/en.json")
-);
-
-const countryNames = countries.getNames("en");
-
 /**
  * Which wallet a brand-new account starts on.
  *
  * Narrower than resolveLoginCountry on purpose: that decides which *products*
  * they see and accepts a market with products but no wallet. This decides where
  * their *money* lives, so it accepts only a market with a live wallet.
+ *
+ * Declared at module scope, not inside exports.signup: signupPost is a
+ * separate function and needs to call this too. It used to be nested inside
+ * exports.signup (the GET handler that renders the form), which put it out of
+ * scope for signupPost entirely — every submission hit a ReferenceError here,
+ * caught by signupPost's own try/catch, which is why registration always
+ * failed with a generic "something went wrong" regardless of what was typed.
  */
 async function resolveSignupWalletCountry(countryValue) {
     try {
@@ -283,6 +283,12 @@ async function resolveSignupWalletCountry(countryValue) {
     }
 }
 
+exports.signup = async (req,res)=>{
+    countries.registerLocale(
+  require("i18n-iso-countries/langs/en.json")
+);
+
+const countryNames = countries.getNames("en");
 
     const a = Math.floor(Math.random() * 9) + 1;
     const b = Math.floor(Math.random() * 9) + 1;
@@ -296,7 +302,18 @@ async function resolveSignupWalletCountry(countryValue) {
     const y = op.y !== undefined ? op.y : b;
     req.session.signupMathCaptcha = op.answer;
 
-    res.render('webview/register', { countryNames, hideHeader: true, hideFooter: true, mathQuestion: `${x} ${op.sym} ${y}` })
+    /* A shared link (/user/signup?ref=CODE) pre-fills the field rather than
+       requiring it to be retyped — the query param is display-only, never
+       trusted: the real validation happens in signupPost against the code
+       table, exactly as if it had been typed by hand. Length-capped since it
+       only ever needs to hold a code, not an arbitrary query string. */
+    const prefillReferralCode = String(req.query.ref || '').trim().slice(0, 32);
+
+    res.render('webview/register', {
+        countryNames, hideHeader: true, hideFooter: true,
+        mathQuestion: `${x} ${op.sym} ${y}`,
+        prefillReferralCode,
+    })
 
 }
 
@@ -314,7 +331,8 @@ async (req, res) => {
             phone_number,
             minerId,
             password,
-            country
+            country,
+            referralCode
 
         } = req.body;
 
@@ -330,6 +348,12 @@ async (req, res) => {
 
         minerId =
             minerId?.trim();
+
+        // Optional — applyReferralCode does its own uppercasing/trimming, but
+        // an empty vs. missing field needs to be told apart before deciding
+        // whether to call it at all.
+        referralCode =
+            referralCode?.trim();
 
         password =
             password?.trim();
@@ -530,7 +554,7 @@ async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        await UserModel.create({
+        const newUser = await UserModel.create({
 
             username,
 
@@ -560,6 +584,31 @@ async (req, res) => {
         });
 
         req.session.pendingVerificationEmail = email;
+
+        // =====================================
+        // APPLY REFERRAL CODE (optional, non-fatal)
+        // =====================================
+        // Linking the referral now — rather than waiting for email
+        // verification — means the link exists the moment the account does,
+        // which matches applyReferralCode's own "an older account cannot be
+        // referred by a newer one" rule: this account is as new as it will
+        // ever be right here. The reward itself is still only paid out after
+        // the referred user's first purchase (see referralService.handlePurchase);
+        // this step only records who gets credit for it.
+        //
+        // A bad or missing code must never fail the signup that is otherwise
+        // complete — the account already exists at this point — so this is
+        // reported to the user (folded into the one flash message below)
+        // rather than allowed to throw.
+        let referralOutcome = null;
+        if (referralCode) {
+            try {
+                referralOutcome = await referralService.applyReferralCode(newUser._id, referralCode);
+            } catch (referralErr) {
+                console.error('SIGNUP REFERRAL ERROR:', referralErr.message || referralErr);
+                referralOutcome = { success: false, message: 'The referral code could not be applied.' };
+            }
+        }
 
         // =====================================
         // SEND OTP EMAIL (non-fatal)
@@ -652,10 +701,21 @@ async (req, res) => {
         // =====================================
         // SUCCESS
         // =====================================
+        // Folded into the one flash message rather than a second flash/Swal:
+        // the register page only ever shows successMsg[0]/errorMsg[0], so a
+        // separate 'error' flash here would compete with — or silently lose
+        // to — the OTP email failure flash above rather than both being seen.
+
+        let successMessage = 'Registration successful! Please enter the OTP code sent to your email.';
+        if (referralOutcome) {
+            successMessage += referralOutcome.success
+                ? ' Referral code applied.'
+                : ' Note: ' + referralOutcome.message;
+        }
 
         req.flash(
             'success',
-            'Registration successful! Please enter the OTP code sent to your email.'
+            successMessage
         );
 
         return res.redirect(
@@ -808,9 +868,15 @@ exports.verifyOTPPost = async (req, res) => {
     // addresses. Idempotent, and never blocks verification if it fails.
     const bonus = await referralService.grantSignupBonus(user._id);
     if (bonus) {
-      const label = bonus.type === 'money'
-        ? `₦${bonus.amount.toLocaleString()}`
-        : `${bonus.amount} RP`;
+      /* Explicit per type rather than an else-falls-to-RP ternary: that
+         ternary predates BTT/USDT and only ever distinguished 'money' from
+         everything else, so a BTT or USDT bonus would have been announced to
+         the user as "RP" — the right number, the wrong unit entirely. */
+      let label;
+      if (bonus.type === 'BTT' || bonus.type === 'USDT') label = `${bonus.amount} ${bonus.type}`;
+      else if (bonus.type === 'money') label = `₦${bonus.amount.toLocaleString()}`;
+      else label = `${bonus.amount} RP`;
+
       req.flash('success', `Email verified! Your ${label} signup bonus has been added. Please log in.`);
       return res.redirect('/user/login');
     }

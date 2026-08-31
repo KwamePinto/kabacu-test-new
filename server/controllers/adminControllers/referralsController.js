@@ -93,9 +93,10 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
     };
 
     // ── Signup bonus promotion ──────────────────────────────────────────
-    // Data is not offered: a bundle needs a destination phone number a
-    // brand-new account has not supplied.
-    const sbType = ['money', 'rewardpoint'].includes(req.body.signupBonusType)
+    // Same three currencies as the referral reward. Data is not offered: a
+    // bundle needs a destination phone number a brand-new account has not
+    // supplied.
+    const sbType = ['rewardpoint', 'BTT', 'USDT'].includes(req.body.signupBonusType)
       ? req.body.signupBonusType : 'rewardpoint';
     const sbActive = req.body.signupBonusActive === true || req.body.signupBonusActive === 'true';
     const sbAmount = Math.max(0, Number(req.body.signupBonusAmount) || 0);

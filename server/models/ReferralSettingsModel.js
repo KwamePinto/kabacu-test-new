@@ -41,9 +41,12 @@ const referralSettingsSchema = new mongoose.Schema({
   signupBonus: {
     isActive: { type: Boolean, default: false },
 
-    // Data is deliberately not offered here — granting a bundle needs a
-    // destination phone number, which a brand-new account has not given yet.
-    rewardType: { type: String, enum: ['money', 'rewardpoint'], default: 'rewardpoint' },
+    // Same three currencies as the referral reward: a real wallet credit
+    // (BTT/USDT) or reward points. Money and data are not offered — money
+    // was replaced by BTT/USDT everywhere else in the programme, and a data
+    // bundle needs a destination phone number a brand-new account has not
+    // given yet.
+    rewardType: { type: String, enum: ['rewardpoint', 'BTT', 'USDT'], default: 'rewardpoint' },
 
     amount: { type: Number, default: 0, min: 0 },
   },

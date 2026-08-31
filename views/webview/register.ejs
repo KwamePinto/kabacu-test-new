@@ -63,6 +63,17 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label">Referral code <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+        <div class="input-wrapper">
+          <i data-lucide="gift"></i>
+          <input type="text" name="referralCode" id="referralCode" class="form-input"
+                 placeholder="e.g. KB12345678" value="<%= typeof prefillReferralCode !== 'undefined' ? prefillReferralCode : '' %>"
+                 maxlength="32" autocapitalize="characters" autocomplete="off"
+                 style="text-transform:uppercase;letter-spacing:.05em;">
+        </div>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">Password</label>
         <div class="input-wrapper input-wrapper--pw">
           <i data-lucide="lock"></i>

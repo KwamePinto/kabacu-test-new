@@ -86,7 +86,9 @@ forgotPasswordTokenExpires: Date,
     // Set when the promotion paid out, so it can never be credited twice —
     // OTP verification can be retried, and a resend must not pay again.
     signupBonusPaidAt:  { type: Date, default: null },
-    signupBonusType:    { type: String, enum: ['money', 'rewardpoint', null], default: null },
+    /* 'money' stays legal for historic rows written before the signup bonus
+       moved to BTT/USDT — see the same note on ReferralModel.rewardType. */
+    signupBonusType:    { type: String, enum: ['money', 'rewardpoint', 'BTT', 'USDT', null], default: null },
     signupBonusAmount:  { type: Number, default: 0 },
 })
 
