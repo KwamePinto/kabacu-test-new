@@ -209,9 +209,17 @@ async function loginSession() {
   return cookieHeader;
 }
 
+// Single-flight: without this, N concurrent callers with no cached session
+// (e.g. fetchOdsPlans firing one call per network/type combo) each start
+// their own loginSession(), and each fresh login invalidates the others'
+// cookies server-side — the classic symptom being a burst of 403s right
+// after a cold start, even though a session obviously exists.
+let sessionPromise = null;
 async function getSession() {
   if (sessionCookies && (Date.now() - sessionTime < SESSION_TTL_MS)) return sessionCookies;
-  return loginSession();
+  if (sessionPromise) return sessionPromise;
+  sessionPromise = loginSession().finally(() => { sessionPromise = null; });
+  return sessionPromise;
 }
 
 async function getAccountInfo() {
@@ -277,12 +285,68 @@ async function fetchHistory({ page = 1, status = 'ALL', search = '', perPage = 2
     logger.warn('[OURDATASTORE] 403 on history — forcing fresh login to recover ADEX ID');
     sessionCookies = null;
     try {
-      await loginSession(); // updates ADEX ID in DB from the login response token field
+      await getSession(); // updates ADEX ID in DB from the login response token field (single-flight, shared with concurrent callers)
       return await attempt(); // retry with the new ID now in DB
     } catch (retryErr) {
       logger.error('[OURDATASTORE] ADEX ID auto-recovery failed: %s', retryErr.message);
       throw new Error('ADEX_ID_STALE');
     }
+  }
+}
+
+// Public — no auth required. Tells you which plan types exist per network
+// (network_sme/network_cg/network_g are 1/0 flags; 9mobile has none of the
+// three, only network_vtu for airtime).
+async function fetchNetworkList() {
+  const r = await axios.get('https://ourdatastore.com/api/website/app/network', {
+    headers: {
+      Accept:       'application/json',
+      Origin:       'https://app.ourdatastore.com',
+      Referer:      'https://app.ourdatastore.com/',
+      'User-Agent': 'Mozilla/5.0',
+    },
+  });
+  return r.data?.network || [];
+}
+
+// Dashboard-only endpoint (no public docs) for browsing the plan catalog by
+// network + plan type. Reverse-engineered from the OurDataStore dashboard's
+// own network requests; `networkType` values were only trusted here after
+// verifying the response matched a known-good capture byte-for-byte.
+//
+// Confirmed values: 'sme', 'gifting', 'cooperate gifting' (a space, not an
+// underscore — and matching OurDataStore's own "COOPERATE" misspelling, not
+// the correct "corporate"). Every grammatically-correct guess for the third
+// one ('cg', 'corporate_gifting', 'coorporate_gifting', ...) silently returns
+// an empty list rather than an error, so wrong values look like "no plans"
+// instead of failing loudly — verify any new value against a known-good
+// capture before trusting it, the same way these three were.
+async function fetchDataPlans({ network, networkType }) {
+  async function attempt() {
+    const cookies = await getSession();
+    const adexId  = await getAdexId();
+    const url     = `https://ourdatastore.com/api/get/data/plans/${adexId}/adex`;
+    const r = await axios.post(url, { network: String(network), network_type: networkType }, {
+      headers: {
+        Cookie:         cookies,
+        'Content-Type': 'application/json',
+        Accept:         'application/json',
+        Origin:         'https://app.ourdatastore.com',
+        Referer:        'https://app.ourdatastore.com/',
+        'User-Agent':   'Mozilla/5.0',
+      },
+    });
+    return r.data?.plan || [];
+  }
+
+  try {
+    return await attempt();
+  } catch (firstErr) {
+    if (firstErr.response?.status !== 403) throw firstErr;
+    logger.warn('[OURDATASTORE] 403 on data plans — forcing fresh login');
+    sessionCookies = null;
+    await getSession();
+    return await attempt();
   }
 }
 
@@ -324,7 +388,7 @@ async function fetchDataTransactions({ page = 1, status = 'ALL', search = '', pe
     logger.warn('[OURDATASTORE] 403 on datatrans — forcing fresh login');
     sessionCookies = null;
     try {
-      await loginSession();
+      await getSession();
       return await attempt();
     } catch (retryErr) {
       logger.error('[OURDATASTORE] datatrans ADEX recovery failed: %s', retryErr.message);
@@ -407,4 +471,4 @@ async function lookupByPhoneAndTime(phone, txDateUtc, { maxPages = 8, perPage = 
   return { found: false, unreachable: false };
 }
 
-module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, fetchDataTransactions, getTransactionStatus, lookupByPhoneAndTime };
+module.exports = { buyData, networkCode, userMessage, getAccountInfo, fetchHistory, fetchDataTransactions, getTransactionStatus, lookupByPhoneAndTime, fetchNetworkList, fetchDataPlans };

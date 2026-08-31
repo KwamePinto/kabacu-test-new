@@ -34,6 +34,24 @@
                           </tr>
                         </thead>
                         <tbody>
+                          <!-- Games — a feature toggle, not a product-tagging category, so it
+                               gets no name/edit/delete, just on/off. Pinned above the real
+                               categories so it doesn't get lost among them. -->
+                          <tr id="games-toggle-row" style="background:var(--kp-surface,rgba(0,0,0,.015));">
+                            <td>—</td>
+                            <td>
+                              <strong>GAMES</strong>
+                              <span class="badge badge-secondary ml-1">Feature</span>
+                            </td>
+                            <td style="font-size:12px;color:#6b7280;">Free browser games (GameMonetize)</td>
+                            <td class="text-right">
+                              <div class="custom-control custom-switch d-inline-block">
+                                <input type="checkbox" class="custom-control-input" id="games-toggle"
+                                  <%= gamesEnabled ? 'checked' : '' %>>
+                                <label class="custom-control-label" for="games-toggle"></label>
+                              </div>
+                            </td>
+                          </tr>
                           <% if (category.length === 0) { %>
                           <tr>
                             <td colspan="4" class="text-center text-muted">No categories found.</td>
@@ -133,6 +151,40 @@ var CSRF_TOKEN = '<%= csrfToken %>';
 <% if (typeof query !== 'undefined' && query.added == '1') { %>
 Swal.fire({ icon: 'success', title: 'Category Added!', text: 'New category created successfully.', timer: 2500, showConfirmButton: false });
 <% } %>
+
+var gamesToggle = document.getElementById('games-toggle');
+if (gamesToggle) {
+  gamesToggle.addEventListener('change', function() {
+    var checkbox = this;
+    var wasChecked = checkbox.checked;
+    checkbox.disabled = true;
+
+    fetch('/admin/category/toggle-games', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          checkbox.checked = data.gamesEnabled;
+          Swal.fire({
+            icon: 'success',
+            title: data.gamesEnabled ? 'Games enabled' : 'Games disabled',
+            timer: 1800,
+            showConfirmButton: false,
+          });
+        } else {
+          checkbox.checked = !wasChecked;
+          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Could not update Games.' });
+        }
+      })
+      .catch(function() {
+        checkbox.checked = !wasChecked;
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Network error. Please try again.' });
+      })
+      .finally(function() { checkbox.disabled = false; });
+  });
+}
 
 document.querySelectorAll('.cat-edit-btn').forEach(function(btn) {
   btn.addEventListener('click', function(e) {

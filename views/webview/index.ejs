@@ -41,6 +41,14 @@
         </div>
         <span class="mobile-cat__name">P2P</span>
       </a>
+      <% if (locals.gamesEnabled) { %>
+      <a href="/category/games-category" class="mobile-cat">
+        <div class="mobile-cat__circle">
+          <i data-lucide="gamepad-2"></i>
+        </div>
+        <span class="mobile-cat__name">Games</span>
+      </a>
+      <% } %>
       <!-- "More" circle — always at the end; links to the categories landing page -->
       <a href="/categories" class="mobile-cat mobile-cat--more">
         <div class="mobile-cat__circle mobile-cat__circle--more">
@@ -123,7 +131,7 @@
         <h2 class="cat-browse__title">Browse Categories</h2>
         <p class="cat-browse__subtitle">Everything you need, all in one place</p>
       </div>
-      <div class="cat-browse__grid">
+      <div class="cat-browse__grid<%= locals.gamesEnabled ? ' cat-browse__grid--with-games' : '' %>">
 
         <a href="/category/data-category" class="cat-browse__card">
           <div class="cat-browse__img-wrap">
@@ -173,6 +181,21 @@
             </div>
           </div>
         </a>
+
+        <% if (locals.gamesEnabled) { %>
+        <a href="/category/games-category" class="cat-browse__card">
+          <div class="cat-browse__img-wrap">
+            <picture>
+              <source srcset="/assets/images/cat-games.webp" type="image/webp">
+              <img src="/assets/images/cat-games.jpg" alt="Games" loading="lazy">
+            </picture>
+            <div class="cat-browse__hover-overlay">
+              <div class="cat-browse__hover-label">Games</div>
+              <div class="cat-browse__hover-desc">Free Browser Games</div>
+            </div>
+          </div>
+        </a>
+        <% } %>
 
       </div>
     </div>

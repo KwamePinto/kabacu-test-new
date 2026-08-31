@@ -123,6 +123,9 @@ app.use(require('./server/middleware/announcementsMiddleware'));
 // ── Viewer market (country) available to every view ──────────────────────────
 app.use(require('./server/middleware/countryMiddleware'));
 
+// ── Games feature toggle available to every view ──────────────────────────────
+app.use(require('./server/middleware/gamesMiddleware'));
+
 // ── Web routes ────────────────────────────────────────────────────────────────
 app.use('/', require('./server/routes/webviewRoutes/packagesRoute'));
 app.use('/user', require('./server/routes/webviewRoutes/userRoute'));
@@ -147,6 +150,8 @@ app.use('/admin/settings', require('./server/routes/adminRoutes/settingsRoute'))
 app.use('/admin/logs',          require('./server/routes/adminRoutes/logsRoute'));
 app.use('/admin/networks',      require('./server/routes/adminRoutes/networksRoute'));
 app.use('/admin/ourdatastore',    require('./server/routes/adminRoutes/ourdatastoreRoute'));
+app.use('/admin/gsubz',           require('./server/routes/adminRoutes/gsubzRoute'));
+app.use('/admin/provider-analytics', require('./server/routes/adminRoutes/providerAnalyticsRoute'));
 app.use('/admin/push-notifications', require('./server/routes/adminRoutes/notificationsRoute'));
 app.use('/admin/profit',             require('./server/routes/adminRoutes/profitRoute'));
 app.use('/admin/flagged-transactions', require('./server/routes/adminRoutes/damageControlRoute'));

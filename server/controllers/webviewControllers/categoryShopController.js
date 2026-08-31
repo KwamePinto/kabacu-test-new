@@ -387,6 +387,25 @@ exports.coursePurchase = async (req, res) => {
   }
 };
 
+const GAMEMONETIZE_FEED_URL = 'https://gamemonetize.com/feed.php?format=0&num=50&page=1';
+
+exports.gamesCategory = async (req, res) => {
+  if (!res.locals.gamesEnabled) return res.redirect('/');
+
+  let games = [];
+  let apiError = false;
+
+  try {
+    const response = await axios.get(GAMEMONETIZE_FEED_URL, { timeout: 10000 });
+    games = Array.isArray(response.data) ? response.data : [];
+  } catch (err) {
+    console.error('[gamesCategory]', err.message);
+    apiError = true;
+  }
+
+  res.render('webview/games-category', { games, apiError });
+};
+
 exports.p2pCategory = async (req,res)=>{
 try{
     

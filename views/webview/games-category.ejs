@@ -1,0 +1,230 @@
+<section class="category-page">
+  <div class="container">
+
+    <div class="page-hero">
+      <h1 class="page-hero__title">
+        <i data-lucide="gamepad-2"></i>
+        Games
+      </h1>
+      <p class="page-hero__sub">Free browser games — just click and play, no download needed</p>
+    </div>
+
+    <% if (apiError) { %>
+    <div class="coming-soon" style="max-width:520px;margin:60px auto;">
+      <i data-lucide="wifi-off"></i>
+      <h3>Could not load games</h3>
+      <p>Please check your connection and try again.</p>
+    </div>
+    <% } else if (!games || games.length === 0) { %>
+    <div class="coming-soon" style="max-width:520px;margin:60px auto;">
+      <i data-lucide="gamepad-2"></i>
+      <h3>No games available</h3>
+      <p>Check back soon — new games are added regularly.</p>
+    </div>
+    <% } else { %>
+
+    <div class="games-grid">
+      <% games.forEach(function(g) { %>
+      <button type="button" class="game-card" data-url="<%= g.url %>" data-title="<%= g.title %>">
+        <div class="game-card__thumb-wrap">
+          <img src="<%= g.thumb %>" alt="<%= g.title %>" class="game-card__thumb" loading="lazy">
+          <div class="game-card__play"><i data-lucide="play"></i></div>
+        </div>
+        <div class="game-card__body">
+          <div class="game-card__title"><%= g.title %></div>
+          <% if (g.category) { %><div class="game-card__category"><%= g.category %></div><% } %>
+        </div>
+      </button>
+      <% }) %>
+    </div>
+
+    <% } %>
+
+  </div>
+</section>
+
+<!-- ── Play modal ── -->
+<div id="gamePlayModal" class="game-play-modal" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="game-play-modal__bar">
+    <span id="gamePlayModalTitle" class="game-play-modal__title"></span>
+    <button type="button" id="gamePlayModalClose" class="game-play-modal__close" aria-label="Close">
+      <i data-lucide="x"></i>
+    </button>
+  </div>
+  <div class="game-play-modal__frame-wrap">
+    <iframe id="gamePlayModalFrame" class="game-play-modal__frame" allow="fullscreen; gamepad; autoplay" allowfullscreen></iframe>
+  </div>
+</div>
+
+<style>
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+@media (min-width: 768px) {
+  .games-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; }
+}
+
+.game-card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.12);
+}
+
+.game-card__thumb-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.game-card__thumb {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.game-card__play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0);
+  opacity: 0;
+  transition: opacity .18s ease, background .18s ease;
+}
+
+.game-card__play svg {
+  width: 34px; height: 34px;
+  color: #fff;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+}
+
+.game-card:hover .game-card__play {
+  opacity: 1;
+  background: rgba(0,0,0,.28);
+}
+
+.game-card__body { padding: 10px 12px 12px; }
+
+.game-card__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-card__category {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+/* ── Play modal ── */
+.game-play-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: #000;
+  flex-direction: column;
+}
+
+.game-play-modal.is-open { display: flex; }
+
+.game-play-modal__bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #111;
+  color: #fff;
+}
+
+.game-play-modal__title {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-play-modal__close {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.game-play-modal__close:hover { background: rgba(255,255,255,.22); }
+
+.game-play-modal__frame-wrap { flex: 1; min-height: 0; }
+
+.game-play-modal__frame {
+  width: 100%; height: 100%;
+  border: none;
+  display: block;
+}
+</style>
+
+<script>
+(function () {
+  var modal     = document.getElementById('gamePlayModal');
+  var frame     = document.getElementById('gamePlayModalFrame');
+  var titleEl   = document.getElementById('gamePlayModalTitle');
+  var closeBtn  = document.getElementById('gamePlayModalClose');
+  if (!modal || !frame) return;
+
+  function openGame(url, title) {
+    titleEl.textContent = title || '';
+    frame.src = url;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeGame() {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    frame.src = ''; // stop game audio/loop once closed, not just hidden
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.game-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      openGame(card.dataset.url, card.dataset.title);
+    });
+  });
+
+  closeBtn.addEventListener('click', closeGame);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.classList.contains('is-open')) closeGame();
+  });
+})();
+</script>

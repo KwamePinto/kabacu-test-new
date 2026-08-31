@@ -56,6 +56,13 @@ const siteSettingsSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+
+  // Games arcade (public page fed from GameMonetize) — nav link, category
+  // cards, and the page itself all hide when this is off.
+  gamesEnabled: {
+    type: Boolean,
+    default: true,
+  },
 }, { timestamps: true });
 
 // Singleton helper — always work with the one document

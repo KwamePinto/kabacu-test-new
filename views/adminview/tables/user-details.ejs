@@ -102,12 +102,18 @@
           <!-- Admin actions -->
           <div class="row mb-3">
             <div class="col-12">
-              <button id="deduct-wallet-btn" class="btn btn-danger btn-sm">
-                <i class="fas fa-minus-circle"></i> Deduct Wallet
-              </button>
-              <button id="refund-deduction-btn" class="btn btn-success btn-sm ml-2">
-                <i class="fas fa-undo-alt"></i> Refund Deduction
-              </button>
+              <!-- .col-12 is forced into flex-direction:column by the panel's
+                   compatibility layer (kbc-panel.css), which stretches direct
+                   children to full width. Wrapping the buttons in their own
+                   flex-row container keeps them at their natural size. -->
+              <div class="d-flex flex-wrap" style="gap: 10px;">
+                <button id="deduct-wallet-btn" class="btn btn-danger btn-sm">
+                  <i class="fas fa-minus-circle"></i> Deduct Wallet
+                </button>
+                <button id="refund-deduction-btn" class="btn btn-success btn-sm">
+                  <i class="fas fa-undo-alt"></i> Refund Deduction
+                </button>
+              </div>
             </div>
           </div>
 

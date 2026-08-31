@@ -62,6 +62,10 @@ const PAGES = [
   '/admin/transactions',
   '/admin/profit',
   '/admin/admins',
+  '/admin/ourdatastore',
+  '/admin/gsubz',
+  '/admin/provider-analytics',
+  '/admin/category/view-category',
 ];
 
 const EMAIL = 'zz-pages-test@example.com';

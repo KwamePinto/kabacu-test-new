@@ -18,6 +18,8 @@ router.post('/course/:id/buy', authenticateUser, getCategory.coursePurchase)
 
 router.get('/p2p-category',getCategory.p2pCategory)
 
+router.get('/games-category', getCategory.gamesCategory)
+
 
 
 

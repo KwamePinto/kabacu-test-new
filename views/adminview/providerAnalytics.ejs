@@ -1,0 +1,102 @@
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    <div class="navbar-bg"></div>
+
+    <%- include('../partials/headerAdmin.ejs') %>
+    <%- include('../partials/sideMenuAdmin.ejs') %>
+
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h1>Provider Analytics</h1>
+          <div class="section-header-breadcrumb">
+            <div class="breadcrumb-item active"><a href="/admin/main">Dashboard</a></div>
+            <div class="breadcrumb-item">Service Providers</div>
+            <div class="breadcrumb-item">Analytics</div>
+          </div>
+        </div>
+
+        <div class="section-body">
+
+          <% providers.filter(p => p.pending).forEach(function (p) { %>
+            <div class="alert alert-warning">
+              <strong><%= p.label %> pricing not available yet.</strong> <%= p.pendingReason %>
+            </div>
+          <% }); %>
+          <% providers.filter(p => !p.pending && p.note).forEach(function (p) { %>
+            <div class="alert alert-info">
+              <strong><%= p.label %>:</strong> <%= p.note %>
+            </div>
+          <% }); %>
+
+          <div class="card">
+            <div class="card-header">
+              <h4>Compare data plans</h4>
+            </div>
+            <div class="card-body">
+              <form method="GET" class="form-inline mb-3">
+                <input
+                  type="text"
+                  name="q"
+                  class="form-control mr-2"
+                  style="min-width:220px;"
+                  placeholder="e.g. 2GB or 30 days"
+                  value="<%= query %>"
+                  autocomplete="off"
+                >
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <% if (query) { %>
+                  <a href="/admin/provider-analytics" class="btn btn-light ml-2">Clear</a>
+                <% } %>
+                <span class="text-muted ml-2" style="font-size:12.5px;">
+                  Matches by size and duration, e.g. "2GB" or "30 days" — not by plan type.
+                </span>
+              </form>
+
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Provider</th>
+                      <th>Network</th>
+                      <th>Type</th>
+                      <th>Size</th>
+                      <th>Duration</th>
+                      <th>Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% if (!rows.length) { %>
+                      <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                          <% if (query) { %>
+                            No plans match "<%= query %>".
+                          <% } else { %>
+                            No plan data available yet — see the notice<%= providers.filter(p => p.pending).length > 1 ? 's' : '' %> above.
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% } else { %>
+                      <% rows.forEach(function (r) { %>
+                        <tr>
+                          <td><%= r.providerLabel %></td>
+                          <td><%= r.network %></td>
+                          <td><%= r.type %></td>
+                          <td><%= r.size %></td>
+                          <td><%= r.duration %></td>
+                          <td>₦<%= Number(r.price).toLocaleString() %></td>
+                        </tr>
+                      <% }); %>
+                    <% } %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
