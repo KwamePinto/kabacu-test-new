@@ -568,12 +568,18 @@
     var hero = document.querySelector('.hero-section');
     if (!header || !hero) return;
 
-    /* Pull the hero itself up under the fixed bar, rather than zeroing
-       .page-main's own top padding — that padding is what keeps an active
-       announcement strip (a sibling of the hero inside .page-main) clear of
-       the header too, so removing it dragged the strip up behind the header
-       along with the hero. See the CSS for the exact reasoning. */
-    hero.classList.add('hero-section--flush');
+    /* Pull the hero up flush under the fixed bar ONLY when nothing precedes
+       it. When an announcement strip is active, it renders right before the
+       hero inside .page-main — pulling the hero up by the header's full
+       clearance (82px) in that case does not just close the gap, it overlaps
+       backward past the strip's own box (a strip is ~35px tall). Since the
+       hero comes later in the DOM it then paints over the strip, hiding it
+       completely while it is still sitting there correctly in the HTML. With
+       no strip this class is exactly right — the hero lands flush at the
+       top, same as always; with one, the hero simply keeps its natural
+       position right after it instead. */
+    var hasActiveStrip = !!document.querySelector('.ann-strips .ann-strip');
+    if (!hasActiveStrip) hero.classList.add('hero-section--flush');
 
     function sync() {
       var bottom = hero.getBoundingClientRect().bottom;
@@ -595,7 +601,7 @@
         header.classList.remove('hero-transparent');
         hero.classList.remove('hero-section--flush');
       } else {
-        hero.classList.add('hero-section--flush');
+        if (!hasActiveStrip) hero.classList.add('hero-section--flush');
         sync();
       }
     }, {
