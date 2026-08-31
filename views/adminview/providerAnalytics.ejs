@@ -19,12 +19,12 @@
 
         <div class="section-body">
 
-          <% providers.filter(p => p.pending).forEach(function (p) { %>
+          <% selectedProviders.filter(p => p.pending).forEach(function (p) { %>
             <div class="alert alert-warning">
               <strong><%= p.label %> pricing not available yet.</strong> <%= p.pendingReason %>
             </div>
           <% }); %>
-          <% providers.filter(p => !p.pending && p.note).forEach(function (p) { %>
+          <% selectedProviders.filter(p => !p.pending && p.note).forEach(function (p) { %>
             <div class="alert alert-info">
               <strong><%= p.label %>:</strong> <%= p.note %>
             </div>
@@ -35,63 +35,98 @@
               <h4>Compare data plans</h4>
             </div>
             <div class="card-body">
-              <form method="GET" class="form-inline mb-3">
-                <input
-                  type="text"
-                  name="q"
-                  class="form-control mr-2"
-                  style="min-width:220px;"
-                  placeholder="e.g. 2GB or 30 days"
-                  value="<%= query %>"
-                  autocomplete="off"
-                >
-                <button type="submit" class="btn btn-primary">Filter</button>
-                <% if (query) { %>
-                  <a href="/admin/provider-analytics" class="btn btn-light ml-2">Clear</a>
-                <% } %>
-                <span class="text-muted ml-2" style="font-size:12.5px;">
-                  Matches by size and duration, e.g. "2GB" or "30 days" — not by plan type.
-                </span>
+              <form method="GET">
+                <input type="hidden" name="providersSubmitted" value="1">
+
+                <div class="form-group">
+                  <label class="d-block mb-1" style="font-size:12.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;">
+                    Providers to compare
+                  </label>
+                  <div class="d-flex flex-wrap" style="gap:16px;">
+                    <% allProviders.forEach(function (p) { %>
+                      <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="provider-<%= p.key %>"
+                          name="providers" value="<%= p.key %>"
+                          <%= selectedKeys.includes(p.key) ? 'checked' : '' %>>
+                        <label class="custom-control-label" for="provider-<%= p.key %>"><%= p.label %></label>
+                      </div>
+                    <% }) %>
+                  </div>
+                </div>
+
+                <div class="form-inline mt-2" style="gap:8px;">
+                  <input
+                    type="text"
+                    name="q"
+                    class="form-control mr-2"
+                    style="min-width:220px;"
+                    placeholder="e.g. 2GB or SME"
+                    value="<%= query %>"
+                    autocomplete="off"
+                  >
+                  <button type="submit" class="btn btn-primary">Apply</button>
+                  <% if (query || selectedKeys.length !== allProviders.length) { %>
+                    <a href="/admin/provider-analytics" class="btn btn-light ml-2">Reset</a>
+                  <% } %>
+                  <span class="text-muted ml-2" style="font-size:12.5px;">
+                    Size matches exactly (e.g. "2GB"); plan name matches by network or type (e.g. "mtn", "sme").
+                  </span>
+                </div>
               </form>
 
+              <hr>
+
+              <% if (!selectedProviders.length) { %>
+                <p class="text-center text-muted py-4">Select at least one provider above to compare.</p>
+              <% } else { %>
               <div class="table-responsive">
                 <table class="table table-striped">
                   <thead>
                     <tr>
-                      <th>Provider</th>
                       <th>Network</th>
                       <th>Type</th>
                       <th>Size</th>
                       <th>Duration</th>
-                      <th>Price</th>
+                      <% selectedProviders.forEach(function (p) { %>
+                        <th class="text-right"><%= p.label %></th>
+                      <% }) %>
                     </tr>
                   </thead>
                   <tbody>
-                    <% if (!rows.length) { %>
+                    <% if (!comparisonRows.length) { %>
                       <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="<%= 4 + selectedProviders.length %>" class="text-center text-muted py-4">
                           <% if (query) { %>
                             No plans match "<%= query %>".
                           <% } else { %>
-                            No plan data available yet — see the notice<%= providers.filter(p => p.pending).length > 1 ? 's' : '' %> above.
+                            No plan data available yet — see the notice<%= selectedProviders.filter(p => p.pending).length > 1 ? 's' : '' %> above.
                           <% } %>
                         </td>
                       </tr>
                     <% } else { %>
-                      <% rows.forEach(function (r) { %>
+                      <% comparisonRows.forEach(function (r) { %>
                         <tr>
-                          <td><%= r.providerLabel %></td>
                           <td><%= r.network %></td>
                           <td><%= r.type %></td>
                           <td><%= r.size %></td>
                           <td><%= r.duration %></td>
-                          <td>₦<%= Number(r.price).toLocaleString() %></td>
+                          <% selectedProviders.forEach(function (p) { %>
+                            <td class="text-right">
+                              <% var price = r.prices[p.key]; %>
+                              <% if (price == null) { %>
+                                <span class="text-muted">—</span>
+                              <% } else { %>
+                                ₦<%= Number(price).toLocaleString() %>
+                              <% } %>
+                            </td>
+                          <% }) %>
                         </tr>
                       <% }); %>
                     <% } %>
                   </tbody>
                 </table>
               </div>
+              <% } %>
             </div>
           </div>
 

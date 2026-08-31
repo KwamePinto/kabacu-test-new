@@ -19,234 +19,109 @@
 
             <div class="section-body">
 
-              <% if (typeof error !=='undefined' && error) { %>
-                <div class="alert alert-danger" id="ods-error-alert">
-                  <strong>Error loading data:</strong> <%- error %>
-                    <br><small id="ods-refresh-msg">Retrying in <span id="ods-countdown">10</span>s&hellip;</small>
-                </div>
-                <script>
-                  (function () {
-                    var n = 10;
-                    var el = document.getElementById('ods-countdown');
-                    var iv = setInterval(function () {
-                      n--;
-                      if (el) el.textContent = n;
-                      if (n <= 0) { clearInterval(iv); window.location.reload(); }
-                    }, 1000);
-                  })();
-                </script>
-                <% } %>
+              <div id="odsErrorAlert" style="display:none;" class="alert alert-danger">
+                <strong>Error loading data:</strong> <span id="odsErrorMsg"></span>
+                <br><small>Retrying in <span id="odsCountdown">10</span>s&hellip;</small>
+              </div>
 
-                  <!-- ── Account Overview ── -->
-                  <% if (accountInfo) { %>
-                    <div class="row mb-4">
-                      <div class="col-12 col-md-4">
-                        <div class="card card-statistic-1">
-                          <div class="card-icon bg-primary">
-                            <i class="fas fa-wallet"></i>
-                          </div>
-                          <div class="card-wrap">
-                            <div class="card-header">
-                              <h4>Wallet Balance</h4>
-                            </div>
-                            <div class="card-body">
-                              ₦<%= accountInfo.balance %>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="col-12 col-md-4">
-                        <div class="card card-statistic-1">
-                          <div class="card-icon bg-success">
-                            <i class="fas fa-user-circle"></i>
-                          </div>
-                          <div class="card-wrap">
-                            <div class="card-header">
-                              <h4>Account Name</h4>
-                            </div>
-                            <div class="card-body">
-                              <%= accountInfo.username %>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="col-12 col-md-4">
-                        <div class="card card-statistic-1">
-                          <div class="card-icon bg-warning">
-                            <i class="fas fa-list-alt"></i>
-                          </div>
-                          <div class="card-wrap">
-                            <div class="card-header">
-                              <h4>Total Transactions</h4>
-                            </div>
-                            <div class="card-body">
-                              <%= pagination && pagination.total ? pagination.total.toLocaleString() : '—' %>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+              <!-- ── Account Overview (skeleton until /admin/ourdatastore/data resolves) ── -->
+              <div class="row mb-4" id="odsAccountRow">
+                <div class="col-12 col-md-4">
+                  <div class="card card-statistic-1">
+                    <div class="card-icon bg-primary"><i class="fas fa-wallet"></i></div>
+                    <div class="card-wrap">
+                      <div class="card-header"><h4>Wallet Balance</h4></div>
+                      <div class="card-body ods-skel" id="odsBalance">&nbsp;</div>
                     </div>
-                    <% } %>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="card card-statistic-1">
+                    <div class="card-icon bg-success"><i class="fas fa-user-circle"></i></div>
+                    <div class="card-wrap">
+                      <div class="card-header"><h4>Account Name</h4></div>
+                      <div class="card-body ods-skel" id="odsUsername">&nbsp;</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="card card-statistic-1">
+                    <div class="card-icon bg-warning"><i class="fas fa-list-alt"></i></div>
+                    <div class="card-wrap">
+                      <div class="card-header"><h4>Total Transactions</h4></div>
+                      <div class="card-body ods-skel" id="odsTotal">&nbsp;</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                      <!-- ── Transaction History ── -->
-                      <div class="card">
-                        <div class="card-header d-flex align-items-center justify-content-between flex-wrap"
-                          style="gap:10px;">
-                          <h4 class="mb-0">Data Transactions</h4>
-                          <!-- Search form -->
-                          <form method="GET" action="/admin/ourdatastore" class="d-flex"
-                            style="gap:8px;flex-wrap:wrap;">
-                            <input type="hidden" name="status" value="<%= filters.status %>">
-                            <input type="text" name="search" value="<%= filters.search %>"
-                              class="form-control form-control-sm" style="width:220px;"
-                              placeholder="Search by Trans ID…">
-                            <button type="submit" class="btn btn-sm btn-primary">
-                              <i class="fas fa-search"></i> Search
-                            </button>
-                            <% if (filters.search) { %>
-                              <a href="/admin/ourdatastore?status=<%= filters.status %>"
-                                class="btn btn-sm btn-secondary">Clear</a>
-                              <% } %>
-                          </form>
-                        </div>
+              <!-- ── Transaction History ── -->
+              <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap"
+                  style="gap:10px;">
+                  <h4 class="mb-0">Data Transactions</h4>
+                  <!-- Search form -->
+                  <form method="GET" action="/admin/ourdatastore" class="d-flex"
+                    style="gap:8px;flex-wrap:wrap;">
+                    <input type="hidden" name="status" value="<%= filters.status %>">
+                    <input type="text" name="search" value="<%= filters.search %>"
+                      class="form-control form-control-sm" style="width:220px;"
+                      placeholder="Search by Trans ID…">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                      <i class="fas fa-search"></i> Search
+                    </button>
+                    <% if (filters.search) { %>
+                      <a href="/admin/ourdatastore?status=<%= filters.status %>"
+                        class="btn btn-sm btn-secondary">Clear</a>
+                      <% } %>
+                  </form>
+                </div>
 
-                        <!-- Status filter tabs -->
-                        <div class="card-header" style="padding-top:0;border-top:none;">
-                          <ul class="nav nav-pills">
-                            <% statusOptions.forEach(opt=> { %>
-                              <li class="nav-item">
-                                <a class="nav-link <%= filters.status === opt.value ? 'active' : '' %>"
-                                  href="/admin/ourdatastore?status=<%= opt.value %><%= filters.search ? '&search=' + encodeURIComponent(filters.search) : '' %>">
-                                  <%= opt.label %>
-                                </a>
-                              </li>
-                              <% }) %>
-                          </ul>
-                        </div>
+                <!-- Status filter tabs -->
+                <div class="card-header" style="padding-top:0;border-top:none;">
+                  <ul class="nav nav-pills">
+                    <% statusOptions.forEach(opt=> { %>
+                      <li class="nav-item">
+                        <a class="nav-link <%= filters.status === opt.value ? 'active' : '' %>"
+                          href="/admin/ourdatastore?status=<%= opt.value %><%= filters.search ? '&search=' + encodeURIComponent(filters.search) : '' %>">
+                          <%= opt.label %>
+                        </a>
+                      </li>
+                      <% }) %>
+                  </ul>
+                </div>
 
-                        <div class="card-body p-0">
-                          <div class="table-responsive">
-                            <table class="table table-striped table-hover mb-0">
-                              <thead>
-                                <tr>
-                                  <th style="width:48px;">#</th>
-                                  <th>Date</th>
-                                  <th>Phone</th>
-                                  <th>Network</th>
-                                  <th>Plan</th>
-                                  <th class="text-right">Amount</th>
-                                  <th>Trans ID</th>
-                                  <th>API Response</th>
-                                  <th>Status</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <% if (transactions && transactions.length > 0) { %>
-                                  <% transactions.forEach(function(t, i) {
-                                       var txDate  = t.plan_date || t.date || t.created_at || t.adex_date || null;
-                                       var phone   = t.plan_phone || t.phone || t.mobile || '—';
-                                       var network = t.network || t.network_name || '—';
-                                       var plan    = t.plan_name || t.package || t.plan || t.data_plan || '—';
-                                       var amount  = t.amount != null ? Number(t.amount).toLocaleString() : '—';
-                                       var transid = t.transid || t.ident || t.transaction_id || t.id || '—';
-                                  %>
-                                    <tr>
-                                      <td><%= pagination.from + i %></td>
-                                      <td>
-                                        <small>
-                                          <% if (txDate) { %>
-                                            <%= new Date(txDate).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
-                                          <% } else { %>—<% } %>
-                                        </small>
-                                      </td>
-                                      <td><code style="font-size:12px;"><%= phone %></code></td>
-                                      <td><%= network %></td>
-                                      <td style="max-width:180px;word-break:break-word;">
-                                        <small><%= plan %></small>
-                                        <% if (t.network_type) { %>
-                                          <br><small class="text-muted" style="font-size:11px;"><%= t.network_type %></small>
-                                        <% } %>
-                                      </td>
-                                      <td class="text-right"><strong>₦<%= amount %></strong></td>
-                                      <td><code style="font-size:11px;"><%= transid %></code></td>
-                                      <td style="max-width:220px;">
-                                        <% var apiResp = t.api_response; %>
-                                        <% if (!apiResp) { %>
-                                          <span class="text-muted" style="font-size:12px;">—</span>
-                                        <% } else if (typeof apiResp === 'string') { %>
-                                          <small class="api-resp-cell" style="cursor:pointer;word-break:break-word;" title="<%= apiResp %>">
-                                            <%= apiResp.length > 80 ? apiResp.slice(0, 80) + '…' : apiResp %>
-                                          </small>
-                                        <% } else { %>
-                                          <small class="api-resp-cell" style="cursor:pointer;word-break:break-word;"
-                                            title="<%= JSON.stringify(apiResp).replace(/"/g, '&quot;') %>">
-                                            <%= JSON.stringify(apiResp).length > 80
-                                                ? JSON.stringify(apiResp).slice(0, 80) + '…'
-                                                : JSON.stringify(apiResp) %>
-                                          </small>
-                                        <% } %>
-                                      </td>
-                                      <td>
-                                        <span class="badge <%= t.statusInfo.cls %>">
-                                          <%= t.statusInfo.label %>
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  <% }) %>
-                                <% } else { %>
-                                  <tr>
-                                    <td colspan="9" class="text-center py-4 text-muted">
-                                      No data transactions found.
-                                    </td>
-                                  </tr>
-                                <% } %>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th style="width:48px;">#</th>
+                          <th>Date</th>
+                          <th>Phone</th>
+                          <th>Network</th>
+                          <th>Plan</th>
+                          <th class="text-right">Amount</th>
+                          <th>Trans ID</th>
+                          <th>API Response</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody id="odsTableBody">
+                        <tr>
+                          <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="fas fa-spinner fa-spin mr-1"></i> Loading transactions…
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-                        <!-- Pagination -->
-                        <% if (pagination && pagination.lastPage> 1) { %>
-                          <div class="card-footer d-flex align-items-center justify-content-between flex-wrap"
-                            style="gap:8px;">
-                            <small class="text-muted">
-                              Showing <%= pagination.from %>–<%= pagination.to %> of <%=
-                                    pagination.total.toLocaleString() %> transactions
-                            </small>
-                            <ul class="pagination pagination-sm mb-0">
-                              <li class="page-item <%= pagination.currentPage <= 1 ? 'disabled' : '' %>">
-                                <a class="page-link"
-                                  href="/admin/ourdatastore?page=<%= pagination.currentPage - 1 %>&status=<%= filters.status %>&search=<%= encodeURIComponent(filters.search) %>">«</a>
-                              </li>
+                <!-- Pagination (built by JS once data arrives) -->
+                <div id="odsPaginationWrap"></div>
 
-                              <% const cur=pagination.currentPage; const last=pagination.lastPage; let pages=[]; if
-                                (last <=7) { for (let p=1; p <=last; p++) pages.push(p); } else { pages=[1]; if (cur> 3)
-                                pages.push('…');
-                                for (let p = Math.max(2, cur - 1); p <= Math.min(last - 1, cur + 1); p++) pages.push(p);
-                                  if (cur < last - 2) pages.push('…'); pages.push(last); } %>
-                                  <% pages.forEach(p=> { %>
-                                    <% if (p==='…' ) { %>
-                                      <li class="page-item disabled"><span class="page-link">…</span></li>
-                                      <% } else { %>
-                                        <li class="page-item <%= p === cur ? 'active' : '' %>">
-                                          <a class="page-link"
-                                            href="/admin/ourdatastore?page=<%= p %>&status=<%= filters.status %>&search=<%= encodeURIComponent(filters.search) %>">
-                                            <%= p %>
-                                          </a>
-                                        </li>
-                                        <% } %>
-                                          <% }) %>
-
-                                            <li
-                                              class="page-item <%= pagination.currentPage >= pagination.lastPage ? 'disabled' : '' %>">
-                                              <a class="page-link"
-                                                href="/admin/ourdatastore?page=<%= pagination.currentPage + 1 %>&status=<%= filters.status %>&search=<%= encodeURIComponent(filters.search) %>">»</a>
-                                            </li>
-                            </ul>
-                          </div>
-                          <% } %>
-
-                      </div><!-- /card -->
+              </div><!-- /card -->
 
             </div><!-- /section-body -->
           </section>
@@ -257,15 +132,160 @@
 </div>
 <script src="/admin/assets/js/app.min.js"></script>
 <script src="/admin/assets/js/scripts.js"></script>
+<style>
+  .ods-skel {
+    display: inline-block;
+    min-width: 60px;
+    height: 1em;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(0,0,0,.06) 25%, rgba(0,0,0,.12) 37%, rgba(0,0,0,.06) 63%);
+    background-size: 400% 100%;
+    animation: ods-skel-shimmer 1.4s ease infinite;
+  }
+  @keyframes ods-skel-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+  }
+</style>
 <script>
-document.querySelectorAll('.api-resp-cell').forEach(function(el) {
-  var full = el.getAttribute('title');
-  if (!full || el.textContent.trim() === full.trim()) return;
-  var short = el.textContent.trim();
-  var expanded = false;
-  el.addEventListener('click', function() {
-    expanded = !expanded;
-    el.textContent = expanded ? full : short;
-  });
-});
+(function () {
+  var STATUS_LABELS = { 1: { label: 'Success', cls: 'badge-success' }, 2: { label: 'Fail', cls: 'badge-danger' }, 3: { label: 'Processing', cls: 'badge-warning' } };
+
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(raw) {
+    if (!raw) return '—';
+    var d = new Date(raw);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderAccount(info, pagination) {
+    document.getElementById('odsBalance').innerHTML  = info ? '₦' + info.balance : '—';
+    document.getElementById('odsUsername').innerHTML = info ? esc(info.username) : '—';
+    document.getElementById('odsTotal').innerHTML     = pagination && pagination.total != null ? Number(pagination.total).toLocaleString() : '—';
+    document.querySelectorAll('#odsAccountRow .ods-skel').forEach(function (el) { el.classList.remove('ods-skel'); });
+  }
+
+  function apiResponseCell(t) {
+    var apiResp = t.api_response;
+    if (!apiResp) return '<span class="text-muted" style="font-size:12px;">—</span>';
+    var text = typeof apiResp === 'string' ? apiResp : JSON.stringify(apiResp);
+    var short = text.length > 80 ? text.slice(0, 80) + '…' : text;
+    return '<small class="api-resp-cell" style="cursor:pointer;word-break:break-word;" title="' + esc(text) + '">' + esc(short) + '</small>';
+  }
+
+  function renderRow(t, i, fromRow) {
+    var txDate  = t.plan_date || t.date || t.created_at || t.adex_date || null;
+    var phone   = t.plan_phone || t.phone || t.mobile || '—';
+    var network = t.network || t.network_name || '—';
+    var plan    = t.plan_name || t.package || t.plan || t.data_plan || '—';
+    var amount  = t.amount != null ? Number(t.amount).toLocaleString() : '—';
+    var transid = t.transid || t.ident || t.transaction_id || t.id || '—';
+    var statusInfo = STATUS_LABELS[t.plan_status] || { label: 'Unknown', cls: 'badge-secondary' };
+
+    return '<tr>' +
+      '<td>' + (fromRow + i) + '</td>' +
+      '<td><small>' + fmtDate(txDate) + '</small></td>' +
+      '<td><code style="font-size:12px;">' + esc(phone) + '</code></td>' +
+      '<td>' + esc(network) + '</td>' +
+      '<td style="max-width:180px;word-break:break-word;"><small>' + esc(plan) + '</small>' +
+        (t.network_type ? '<br><small class="text-muted" style="font-size:11px;">' + esc(t.network_type) + '</small>' : '') +
+      '</td>' +
+      '<td class="text-right"><strong>₦' + amount + '</strong></td>' +
+      '<td><code style="font-size:11px;">' + esc(transid) + '</code></td>' +
+      '<td style="max-width:220px;">' + apiResponseCell(t) + '</td>' +
+      '<td><span class="badge ' + statusInfo.cls + '">' + statusInfo.label + '</span></td>' +
+      '</tr>';
+  }
+
+  function renderTable(transactions, pagination) {
+    var tbody = document.getElementById('odsTableBody');
+    if (!transactions || !transactions.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No data transactions found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = transactions.map(function (t, i) { return renderRow(t, i, pagination.from); }).join('');
+
+    document.querySelectorAll('.api-resp-cell').forEach(function (el) {
+      var full = el.getAttribute('title');
+      if (!full || el.textContent.trim() === full.trim()) return;
+      var short = el.textContent.trim();
+      var expanded = false;
+      el.addEventListener('click', function () {
+        expanded = !expanded;
+        el.textContent = expanded ? full : short;
+      });
+    });
+  }
+
+  function pageLink(p, current, status, search) {
+    return '/admin/ourdatastore?page=' + p + '&status=' + encodeURIComponent(status) + '&search=' + encodeURIComponent(search);
+  }
+
+  function renderPagination(pagination, status, search) {
+    var wrap = document.getElementById('odsPaginationWrap');
+    if (!pagination || pagination.lastPage <= 1) { wrap.innerHTML = ''; return; }
+
+    var cur = pagination.currentPage, last = pagination.lastPage;
+    var pages = [];
+    if (last <= 7) {
+      for (var p = 1; p <= last; p++) pages.push(p);
+    } else {
+      pages = [1];
+      if (cur > 3) pages.push('…');
+      for (var p2 = Math.max(2, cur - 1); p2 <= Math.min(last - 1, cur + 1); p2++) pages.push(p2);
+      if (cur < last - 2) pages.push('…');
+      pages.push(last);
+    }
+
+    var html = '<div class="card-footer d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">' +
+      '<small class="text-muted">Showing ' + pagination.from + '–' + pagination.to + ' of ' + Number(pagination.total).toLocaleString() + ' transactions</small>' +
+      '<ul class="pagination pagination-sm mb-0">' +
+      '<li class="page-item ' + (cur <= 1 ? 'disabled' : '') + '"><a class="page-link" href="' + pageLink(cur - 1, cur, status, search) + '">«</a></li>' +
+      pages.map(function (p) {
+        if (p === '…') return '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        return '<li class="page-item ' + (p === cur ? 'active' : '') + '"><a class="page-link" href="' + pageLink(p, cur, status, search) + '">' + p + '</a></li>';
+      }).join('') +
+      '<li class="page-item ' + (cur >= last ? 'disabled' : '') + '"><a class="page-link" href="' + pageLink(cur + 1, cur, status, search) + '">»</a></li>' +
+      '</ul></div>';
+
+    wrap.innerHTML = html;
+  }
+
+  function showError(message) {
+    document.getElementById('odsErrorAlert').style.display = '';
+    document.getElementById('odsErrorMsg').textContent = message;
+    document.getElementById('odsTableBody').innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">Could not load transactions.</td></tr>';
+    document.querySelectorAll('#odsAccountRow .ods-skel').forEach(function (el) { el.classList.remove('ods-skel'); el.innerHTML = '—'; });
+
+    var n = 10;
+    var el = document.getElementById('odsCountdown');
+    var iv = setInterval(function () {
+      n--;
+      if (el) el.textContent = n;
+      if (n <= 0) { clearInterval(iv); window.location.reload(); }
+    }, 1000);
+  }
+
+  var params = new URLSearchParams(window.location.search);
+  var page   = params.get('page') || '<%= filters.page %>';
+  var status = params.get('status') || '<%= filters.status %>';
+  var search = params.get('search') || '<%= filters.search %>';
+
+  fetch('/admin/ourdatastore/data?page=' + encodeURIComponent(page) + '&status=' + encodeURIComponent(status) + '&search=' + encodeURIComponent(search))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.success) { showError(data.error || 'Something went wrong.'); return; }
+      renderAccount(data.accountInfo, data.pagination);
+      renderTable(data.transactions, data.pagination);
+      renderPagination(data.pagination, data.filters.status, data.filters.search);
+    })
+    .catch(function () {
+      showError('Network error. Please try again.');
+    });
+})();
 </script>

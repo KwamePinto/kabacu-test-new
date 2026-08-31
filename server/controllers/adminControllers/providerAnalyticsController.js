@@ -136,12 +136,43 @@ const PROVIDERS = [
   },
 ];
 
+const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
+
+function sizeToMB(size) {
+  const m = /([\d.]+)\s*(GB|MB)/i.exec(size || '');
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  return /GB/i.test(m[2]) ? n * 1024 : n;
+}
+
+// Identifies "the same plan" across providers: same network, same plan type
+// (SME/Gifting/...), same size, same duration. Duration is normalized only
+// for case/whitespace, NOT unit-equivalence — OurDataStore phrases a monthly
+// plan "1 month" while GSubz phrases the same idea "30 days", and those are
+// deliberately kept as separate rows rather than guessed to be identical,
+// since "30 days" and "1 calendar month" aren't always the same plan in this
+// industry. A size/duration filter still finds both regardless.
+function planKey(row) {
+  return [norm(row.network), norm(row.type), norm(row.size), norm(row.duration)].join('|');
+}
+
 exports.viewDashboard = [
   authenticateAdminUser,
   async (req, res) => {
     const query = (req.query.q || '').trim();
 
-    const results = await Promise.all(PROVIDERS.map(async (provider) => {
+    // Distinguishes "form submitted with every box unchecked" from "page
+    // never touched yet" — both leave req.query.providers empty/undefined,
+    // but only the first should mean "compare nothing."
+    const submitted = req.query.providersSubmitted === '1';
+    const requestedKeys = [].concat(req.query.providers || []);
+    const selectedKeys = submitted
+      ? requestedKeys
+      : PROVIDERS.map((p) => p.key); // fresh visit — compare everything by default
+
+    const toFetch = PROVIDERS.filter((p) => selectedKeys.includes(p.key));
+
+    const results = await Promise.all(toFetch.map(async (provider) => {
       if (typeof provider.fetchPlans !== 'function') {
         return { ...provider, plans: [], pending: true };
       }
@@ -153,39 +184,48 @@ exports.viewDashboard = [
       }
     }));
 
-    // Flatten into one comparable list: { provider, network, size, duration, price }.
-    // Filtering is substring-based against "size duration" together, so typing
-    // "2gb" matches "2GB" plans regardless of duration, and "30 days" narrows
-    // further within that.
-    let rows = results.flatMap((provider) =>
-      provider.plans.map((plan) => ({
-        providerKey:   provider.key,
-        providerLabel: provider.label,
-        network:       plan.network,
-        type:          plan.type || '',
-        size:          plan.size,
-        duration:      plan.duration,
-        price:         plan.price,
-      }))
-    );
+    // Pivot into one row per unique plan, one column per selected provider —
+    // a plan only one provider carries still gets a row, with "-" for
+    // whichever provider(s) don't have it.
+    const grouped = new Map();
+    results.forEach((provider) => {
+      provider.plans.forEach((plan) => {
+        const key = planKey(plan);
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            network: plan.network, type: plan.type || '', size: plan.size, duration: plan.duration,
+            prices: {},
+          });
+        }
+        grouped.get(key).prices[provider.key] = plan.price;
+      });
+    });
+
+    let comparisonRows = Array.from(grouped.values());
 
     if (query) {
-      // Size matches exactly (normalized), not by substring — otherwise typing
-      // "2gb" would also match "3.2GB", "12GB", "20GB", etc. Duration and
-      // network stay substring-friendly since those are free text.
-      const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
+      // Size matches exactly (normalized) — otherwise typing "2gb" would also
+      // match "3.2GB", "12GB", "20GB", etc. Plan name (network + type, e.g.
+      // "MTN SME") matches by substring so "sme" or "mtn" both work.
       const q = norm(query);
-      rows = rows.filter((r) =>
-        norm(r.size) === q ||
-        norm(r.duration).includes(q) ||
-        norm(r.network).includes(q)
+      comparisonRows = comparisonRows.filter((r) =>
+        norm(r.size) === q || norm(r.network + r.type).includes(q)
       );
     }
 
+    comparisonRows.sort((a, b) =>
+      norm(a.network).localeCompare(norm(b.network)) ||
+      sizeToMB(a.size) - sizeToMB(b.size) ||
+      norm(a.type).localeCompare(norm(b.type)) ||
+      norm(a.duration).localeCompare(norm(b.duration))
+    );
+
     res.render('adminview/providerAnalytics', {
       layout: 'layouts/adminLayout',
-      providers: results,
-      rows,
+      allProviders: PROVIDERS.map((p) => ({ key: p.key, label: p.label })),
+      selectedProviders: results,
+      selectedKeys,
+      comparisonRows,
       query,
     });
   },
