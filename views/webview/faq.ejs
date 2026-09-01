@@ -14,6 +14,43 @@
 .page-hero__title svg { width: 28px; height: 28px; color: var(--primary); }
 .page-hero__sub { font-size: 14px; color: var(--muted); max-width: 480px; margin: 0 auto; }
 
+/* ── Search ──────────────────────────────────────────────── */
+.faq-search {
+  max-width: 460px; margin: 0 auto 28px;
+  position: relative;
+}
+.faq-search__icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--muted); pointer-events: none;
+}
+.faq-search__input {
+  width: 100%; height: 44px;
+  padding: 0 40px 0 40px;
+  border: 1px solid var(--border); border-radius: 22px;
+  background: var(--surface); color: var(--text);
+  font-size: 14px; font-family: var(--font);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.faq-search__input::placeholder { color: var(--muted); }
+.faq-search__input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.faq-search__clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border: none; border-radius: 50%;
+  background: transparent; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.faq-search__clear:hover { background: var(--input-bg); color: var(--text); }
+.faq-search__clear svg { width: 15px; height: 15px; }
+.faq-no-results {
+  max-width: 760px; margin: 0 auto 32px; text-align: center;
+  padding: 32px 0; color: var(--muted);
+}
+.faq-no-results svg { width: 32px; height: 32px; margin-bottom: 10px; }
+
 /* ── Category nav ────────────────────────────────────────── */
 .faq-nav {
   display: flex; gap: 8px; flex-wrap: wrap;
@@ -150,8 +187,19 @@ var visibleCategories = CATEGORY_ORDER.filter(function(cat) {
 
     <% if (visibleCategories.length > 0) { %>
 
+    <!-- Search -->
+    <div class="faq-search">
+      <i data-lucide="search" class="faq-search__icon"></i>
+      <input type="text" id="faqSearchInput" class="faq-search__input"
+             placeholder="Search help articles…" autocomplete="off"
+             aria-label="Search FAQs">
+      <button type="button" id="faqSearchClear" class="faq-search__clear" aria-label="Clear search" hidden>
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
     <!-- Category nav -->
-    <nav class="faq-nav">
+    <nav class="faq-nav" id="faqNav">
       <% visibleCategories.forEach(function(cat) { var m = CATEGORY_META[cat]; %>
       <a href="#<%= cat %>" class="faq-nav__btn">
         <i data-lucide="<%= m.icon %>"></i> <%= m.label %>
@@ -159,7 +207,14 @@ var visibleCategories = CATEGORY_ORDER.filter(function(cat) {
       <% }) %>
     </nav>
 
+    <!-- No results (search) -->
+    <div class="faq-no-results" id="faqNoResults" hidden>
+      <i data-lucide="search-x"></i>
+      <p>No questions match your search.</p>
+    </div>
+
     <!-- FAQ sections -->
+    <div id="faqSections">
     <% visibleCategories.forEach(function(cat) { %>
     <%   var m = CATEGORY_META[cat]; %>
     <%   var items = faqsByCategory[cat]; %>
@@ -170,7 +225,7 @@ var visibleCategories = CATEGORY_ORDER.filter(function(cat) {
       </div>
 
       <% items.forEach(function(faq) { %>
-      <div class="faq-item">
+      <div class="faq-item" data-question="<%= faq.question.toLowerCase().replace(/"/g, '&quot;') %>">
         <button class="faq-item__q" onclick="toggleFaq(this)">
           <%= faq.question %>
           <i data-lucide="chevron-down" class="faq-item__icon"></i>
@@ -185,6 +240,7 @@ var visibleCategories = CATEGORY_ORDER.filter(function(cat) {
 
     </div>
     <% }) %>
+    </div>
 
     <% } else { %>
     <div style="text-align:center;padding:48px 0;color:var(--muted);">
@@ -217,6 +273,55 @@ function toggleFaq(btn) {
   /* re-init icons in newly opened item */
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
+
+/* ── Search: filters questions instantly, hides empty sections ────────── */
+(function () {
+  var input   = document.getElementById('faqSearchInput');
+  var clear   = document.getElementById('faqSearchClear');
+  var noRes   = document.getElementById('faqNoResults');
+  var nav     = document.getElementById('faqNav');
+  var sections = document.querySelectorAll('.faq-section');
+  if (!input) return;
+
+  function apply(query) {
+    var q = query.trim().toLowerCase();
+    var anyVisible = false;
+
+    sections.forEach(function (section) {
+      var shown = 0;
+      section.querySelectorAll('.faq-item').forEach(function (item) {
+        var hit = !q || (item.dataset.question || '').indexOf(q) !== -1;
+        item.hidden = !hit;
+        if (hit) shown++;
+      });
+      section.hidden = shown === 0;
+      if (shown) anyVisible = true;
+    });
+
+    if (nav) nav.hidden = !!q; // jump-links don't make sense against a filtered list
+    if (noRes) noRes.hidden = !q || anyVisible;
+    if (clear) clear.hidden = !q;
+  }
+
+  var timer = null;
+  input.addEventListener('input', function () {
+    var value = this.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () { apply(value); }, 90);
+  });
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { this.value = ''; apply(''); this.blur(); }
+  });
+
+  if (clear) {
+    clear.addEventListener('click', function () {
+      input.value = '';
+      apply('');
+      input.focus();
+    });
+  }
+})();
 
 /* smooth-scroll nav pills */
 document.querySelectorAll('.faq-nav__btn').forEach(function (btn) {

@@ -32,15 +32,15 @@
       <p class="referral-card__label">Your referral code</p>
       <div class="referral-code-row">
         <code class="referral-code" id="referralCode"><%= referralCode || '—' %></code>
-        <button type="button" class="referral-copy-btn" id="referralCopyBtn" data-code="<%= referralCode || '' %>" aria-label="Copy referral code">
+        <button type="button" class="referral-copy-btn" id="referralCopyBtn" data-code="<%= referralCode || '' %>" aria-label="Copy referral link">
           <i data-lucide="copy"></i>
-          <span>Copy</span>
+          <span>Copy Link</span>
         </button>
       </div>
 
       <p class="referral-card__hint">
         <% if (referralSettings && referralSettings.isActive) { %>
-        Share this code. You are rewarded once someone who used it makes their first purchase.
+        Share your link. You are rewarded once someone who used it makes their first purchase.
         <% } else { %>
         The referral programme is currently paused.
         <% } %>
@@ -403,6 +403,10 @@
       copyBtn.addEventListener('click', function() {
         var code = this.dataset.code;
         if (!code) return;
+        // A bare code isn't shareable — a friend has nowhere to type it.
+        // Copy the full signup link with the code pre-filled instead, same
+        // as the ?ref= handling already built into /user/signup.
+        var link = window.location.origin + '/user/signup?ref=' + encodeURIComponent(code);
 
         var done = function() {
           var label = copyBtn.querySelector('span');
@@ -414,7 +418,7 @@
         };
 
         if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(code).then(done).catch(fallback);
+          navigator.clipboard.writeText(link).then(done).catch(fallback);
         } else {
           fallback();
         }
@@ -422,7 +426,7 @@
         /* clipboard API needs HTTPS, so keep a plain-HTTP path working too */
         function fallback() {
           var ta = document.createElement('textarea');
-          ta.value = code;
+          ta.value = link;
           ta.style.position = 'fixed';
           ta.style.opacity = '0';
           document.body.appendChild(ta);
@@ -431,7 +435,7 @@
             document.execCommand('copy');
             done();
           } catch (e) {
-            toast('error', 'Could not copy. Your code is ' + code);
+            toast('error', 'Could not copy. Your referral code is ' + code);
           }
           document.body.removeChild(ta);
         }

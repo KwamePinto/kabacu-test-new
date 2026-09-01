@@ -872,6 +872,12 @@
   <% if (!locals.hideFooter) { %>
   <script type="text/javascript">
     var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    // Whatever auto-popup behavior is configured on the Tawk.to dashboard,
+    // force the widget to start collapsed — it was opening on its own and
+    // covering page content on load.
+    Tawk_API.onLoad = function () {
+      if (typeof Tawk_API.minimize === 'function') Tawk_API.minimize();
+    };
     (function(){
     var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
     s1.async=true;

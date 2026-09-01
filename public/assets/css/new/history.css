@@ -39,7 +39,7 @@
 }
 
 .tx-table tbody tr:last-child td { border-bottom: none; }
-.tx-table tbody tr:hover          { background: #fafafa; }
+.tx-table tbody tr:hover          { background: var(--input-bg); }
 
 /* Mobile: card layout */
 @media (max-width: 600px) {

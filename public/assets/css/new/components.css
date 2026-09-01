@@ -153,6 +153,24 @@
 .iti { display: block; width: 100%; }
 .iti__country-list { border-radius: var(--r-sm); font-family: var(--font); }
 
+/* The library always renders this dropdown on a plain white background,
+   but `body { color: var(--text) }` still cascades into it — in dark mode
+   that's a near-white #eef1ec, making every country name unreadable on the
+   white popup. Force readable colors here regardless of site theme, since
+   the popup's own background never follows the theme either. */
+.iti__country-list,
+.iti__search-input {
+  background: #fff;
+  color: #1a1d21;
+}
+.iti__country-name,
+.iti__dial-code {
+  color: #1a1d21;
+}
+.iti__dial-code { color: #6b7280; }
+.iti__search-input::placeholder { color: #9aa1ac; }
+.iti__country.iti__highlight { background-color: #f4f5f7; }
+
 /* ── Product Card ────────────────────────────────────────── */
 .product-card {
   background: var(--surface);
@@ -643,11 +661,16 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--text);
+  /* Fixed dark icon, not var(--text): the circle behind it is deliberately
+     always near-white (so it reads against whatever promo image it floats
+     over), but `--text` flips near-white in dark mode too — icon and
+     background matched, so the button was invisible until :hover swapped
+     the background to something dark enough to show it. */
+  color: #1a1d21;
   transition: background .15s;
 }
 
-.ann-popup__close:hover { background: var(--surface); }
+.ann-popup__close:hover { background: #fff; }
 .ann-popup__close svg   { width: 16px; height: 16px; }
 
 .ann-popup__media {

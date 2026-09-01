@@ -522,6 +522,13 @@
     word-spacing: 18px;
     transform: rotate(-13deg);
     overflow: hidden;
+    /* Faded out behind the heading/subtitle specifically, not just dimmed
+       everywhere — a flat opacity tweak still reads as "clashing text"
+       right where it overlaps the real copy; masking it out there guarantees
+       the heading stays clean regardless of how prominent the pattern is
+       elsewhere in the hero. */
+    -webkit-mask-image: radial-gradient(ellipse 62% 55% at 50% 34%, transparent 0%, transparent 45%, black 85%);
+            mask-image: radial-gradient(ellipse 62% 55% at 50% 34%, transparent 0%, transparent 45%, black 85%);
   }
 
   /* ── Text + carousel above pattern ──────────────────────── */

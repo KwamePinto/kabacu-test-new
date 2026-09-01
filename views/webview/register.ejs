@@ -50,14 +50,14 @@
         <label class="form-label">Country</label>
         <div class="input-wrapper">
           <i data-lucide="map-pin"></i>
-          <select name="country"  class="form-input form-select" required>
+          <select name="country" id="countrySelect" class="form-input form-select" required>
              <% Object.entries(countryNames).forEach(([code, name]) => { %>
-            
-            <option value="<%= name %>"> <%= name %></option>
+
+            <option value="<%= name %>" <%= name === 'Nigeria' ? 'selected' : '' %>> <%= name %></option>
 
             <% }) %>
-          
-            
+
+
           </select>
         </div>
       </div>
@@ -239,6 +239,39 @@ var phoneInput = window.intlTelInput(phoneInputField, {
   preferredCountries: ['ng', 'gh', 'ke', 'za'],
   separateDialCode: true,
 });
+
+/* ── Keep the Country field and the phone country picker in sync ──────
+   Both defaulted to Nigeria independently before, with nothing tying
+   them together afterward — pick a different phone country and the
+   Country field silently stops matching it, and vice versa. */
+(function () {
+  var countrySelect = document.getElementById('countrySelect');
+  if (!countrySelect) return;
+
+  var isoToName = <%- JSON.stringify(Object.fromEntries(Object.entries(countryNames).map(([code, name]) => [code.toLowerCase(), name]))) %>;
+  var nameToIso = <%- JSON.stringify(Object.fromEntries(Object.entries(countryNames).map(([code, name]) => [name, code.toLowerCase()]))) %>;
+
+  var syncing = false; // guards against the two handlers re-triggering each other
+
+  phoneInputField.addEventListener('countrychange', function () {
+    if (syncing) return;
+    var iso2 = phoneInput.getSelectedCountryData().iso2;
+    var name = iso2 && isoToName[iso2];
+    if (!name || countrySelect.value === name) return;
+    syncing = true;
+    countrySelect.value = name;
+    syncing = false;
+  });
+
+  countrySelect.addEventListener('change', function () {
+    if (syncing) return;
+    var iso2 = nameToIso[countrySelect.value];
+    if (!iso2) return;
+    syncing = true;
+    phoneInput.setCountry(iso2);
+    syncing = false;
+  });
+})();
 
 phoneInputField.addEventListener('blur', function() {
   if (this.value.trim() === '') { this.style.outline = ''; this.style.borderColor = ''; return; }
