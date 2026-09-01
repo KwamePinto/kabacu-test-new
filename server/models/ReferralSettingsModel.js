@@ -63,14 +63,11 @@ const referralSettingsSchema = new mongoose.Schema({
   referralCommission: {
     isActive: { type: Boolean, default: false },
 
-    // Same three currencies as the one-off reward and the signup bonus:
-    //   BTT/USDT    -> percent of the purchase value, credited to that wallet
-    //   rewardpoint -> percent of the RP the referred user earned, paid as RP
-    // 'cashback' (percent of purchase value, paid in Naira) is no longer a
-    // selectable option — see the note on ReferralModel.commissionType for
-    // why it stays legal on the schema despite that.
-    type: { type: String, enum: ['rewardpoint', 'BTT', 'USDT'], default: 'rewardpoint' },
-
+    // No reward-type choice any more — commission is always a percentage of
+    // what the referred user actually spent, paid out in whatever
+    // currency/market that purchase was made in (see referralService's
+    // handleCommission and utils/wallet.js). One admin-set number is the
+    // whole configuration.
     percent: { type: Number, default: 0, min: 0, max: 100 },
 
     // Lifetime ceiling on what a single referred user can ever generate for

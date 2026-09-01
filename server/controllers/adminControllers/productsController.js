@@ -17,6 +17,7 @@ const ReferralCodeRequest = require("../../models/ReferralCodeRequestModel");
 const walletUtil = require("../../utils/wallet");
 const Network       = require("../../models/NetworkModel");
 const Referral        = require("../../models/ReferralModel");
+const ReferralCommission = require("../../models/ReferralCommissionModel");
 const ReferralSettings = require("../../models/ReferralSettingsModel");
 const referralService = require("../../services/referralService");
 
@@ -457,6 +458,23 @@ exports.userDetails = [
         commissionEarned: referralsMade.reduce((s, r) => s + (r.commissionEarned || 0), 0),
         commissionCount:  referralsMade.reduce((s, r) => s + (r.commissionCount || 0), 0),
       };
+
+      // Individual commission payouts this user has earned as a referrer — the
+      // event-level ledger behind the aggregate figures above. Own tab so this
+      // list (potentially long for an active referrer) doesn't clutter the
+      // Referrals tab, which stays about who they referred, not every payout.
+      const COMMISSION_LIST_CAP = 200;
+      const [commissionEvents, commissionTotals] = await Promise.all([
+        ReferralCommission.find({ referrer: user._id })
+          .sort({ createdAt: -1 })
+          .limit(COMMISSION_LIST_CAP)
+          .populate('referred', 'username email')
+          .lean(),
+        ReferralCommission.aggregate([
+          { $match: { referrer: user._id } },
+          { $group: { _id: '$currencyCode', total: { $sum: '$amount' }, symbol: { $first: '$currencySymbol' }, count: { $sum: 1 } } },
+        ]),
+      ]);
       const walletBalances = wallet?.balances || {
         BTT: 0,
         RP: 0,
@@ -566,6 +584,9 @@ exports.userDetails = [
         referredBy,
         referralSettings,
         referralStats,
+        commissionEvents,
+        commissionTotals,
+        commissionListCap: COMMISSION_LIST_CAP,
         layout: adminLayouts,
         user,
         walletBalances,

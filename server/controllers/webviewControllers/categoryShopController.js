@@ -350,7 +350,7 @@ exports.coursePurchase = async (req, res) => {
     const localProduct = await Product.findById(courseId).select('reward_point').lean().catch(() => null);
     const rpEarned = localProduct?.reward_point || 0;
 
-    await Transaction.create({
+    const courseTx = await Transaction.create({
       user: user._id,
       amount: price,
       walletType: 'NAIRA',
@@ -368,8 +368,9 @@ exports.coursePurchase = async (req, res) => {
     await referralService.handlePurchase(user._id, { amount: price });
 
     // Ongoing commission — additive, taken from neither the price nor the
-    // buyer's reward points.
-    await referralService.handleCommission(user._id, { amount: price, rpEarned });
+    // buyer's reward points. Courses are always sold in Naira, so the market
+    // is fixed here rather than resolved from the buyer's wallet.
+    await referralService.handleCommission(user._id, { amount: price, market: 'NG', transactionId: courseTx._id });
 
     const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
     sendEmail({

@@ -7,6 +7,7 @@ const ICONS = {
   refund:    'rotate-ccw',
   attention: 'alert-triangle',
   info:      'bell',
+  reward:    'gift',
 };
 
 async function notify(userId, { text, type = 'info', link } = {}) {

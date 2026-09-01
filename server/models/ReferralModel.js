@@ -50,11 +50,14 @@ const referralSchema = new mongoose.Schema({
   // from purchases made AFTER qualifying. Kept here rather than recomputed so
   // the per-referred-user cap can be enforced with a single read, and so the
   // history survives a change to the commission settings.
-  commissionEarned: { type: Number, default: 0 },   // naira, BTT, USDT or RP, per type
-  /* 'cashback' stays legal though it is no longer offered from the admin
-     panel — rows already paid out under it need to keep saying so. Same
-     reasoning as rewardType above. */
-  commissionType:   { type: String, enum: ['cashback', 'rewardpoint', 'BTT', 'USDT', null], default: null },
+  commissionEarned: { type: Number, default: 0 },   // in commissionType's currency
+  /* Was a fixed reward-type choice (cashback/rewardpoint/BTT/USDT) — commission
+     is now always a percentage of the purchase, paid in whatever market that
+     purchase was made in, so this holds a currency CODE instead (e.g. 'NGN',
+     'GHS'), set from the most recent payout. Historic rows written before this
+     change keep their old value ('cashback', 'rewardpoint', etc.) since this is
+     no longer an enum and nothing rewrites rows that aren't paid again. */
+  commissionType:   { type: String, default: null },
   commissionCount:  { type: Number, default: 0 },   // how many payouts
   commissionLastAt: { type: Date, default: null },
 }, { timestamps: true });

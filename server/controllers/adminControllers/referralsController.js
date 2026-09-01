@@ -108,9 +108,9 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
     update.signupBonus = { isActive: sbActive, rewardType: sbType, amount: sbAmount };
 
     // ── Ongoing referral commission ─────────────────────────────────────
-    // Same three currencies as the reward and the signup bonus.
-    const rcType = ['rewardpoint', 'BTT', 'USDT'].includes(req.body.commissionType)
-      ? req.body.commissionType : 'rewardpoint';
+    // No reward-type choice — commission is always a percentage of what the
+    // referred user spent, paid in whatever currency that purchase was made
+    // in (see referralService.handleCommission).
     const rcActive = req.body.commissionActive === true || req.body.commissionActive === 'true';
     const rcPercent = Math.max(0, Math.min(100, Number(req.body.commissionPercent) || 0));
     const rcCap = Math.max(0, Number(req.body.commissionMaxPerReferredUser) || 0);
@@ -121,7 +121,6 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
 
     update.referralCommission = {
       isActive: rcActive,
-      type: rcType,
       percent: rcPercent,
       maxPerReferredUser: rcCap,
     };

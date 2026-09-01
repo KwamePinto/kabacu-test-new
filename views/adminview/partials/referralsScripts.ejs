@@ -26,14 +26,6 @@ function onSignupBonusTypeChange() {
   else help.textContent = 'Points per verified signup.';
 }
 
-function onCommissionTypeChange() {
-  var t = document.getElementById('rc-type').value;
-  var help = document.getElementById('rc-type-help');
-  if (t === 'BTT')  help.textContent = 'Percent of the purchase value, credited in BTT.';
-  else if (t === 'USDT') help.textContent = 'Percent of the purchase value, credited in USDT.';
-  else help.textContent = 'Percent of the points earned.';
-}
-
 async function saveSettings() {
   var type = document.getElementById('f-rewardtype').value;
 
@@ -49,7 +41,6 @@ async function saveSettings() {
     signupBonusAmount: document.getElementById('sb-amount').value,
 
     commissionActive:  onOff('rc-active'),
-    commissionType:    document.getElementById('rc-type').value,
     commissionPercent: document.getElementById('rc-percent').value,
     commissionMaxPerReferredUser: document.getElementById('rc-cap').value,
 
@@ -417,6 +408,5 @@ async function deleteSpecialCode(id) {
 document.addEventListener('DOMContentLoaded', function () {
   onRewardTypeChange();
   onSignupBonusTypeChange();
-  onCommissionTypeChange();
 });
 </script>

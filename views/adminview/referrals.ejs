@@ -277,8 +277,9 @@
                     <div class="kp-card__body">
                       <p class="kp-note" style="margin-top:14px;">
                         Once a referred user has qualified, every later purchase earns their referrer
-                        a percentage. <strong>Always a gift on top</strong> — the buyer is charged in
-                        full and keeps their own reward points.
+                        a percentage of what was spent — paid in the same currency the purchase was
+                        made in. <strong>Always a gift on top</strong> — the buyer is charged in full
+                        and keeps their own reward points.
                       </p>
                       <div class="kp-row">
                         <div class="kp-row__main"><span class="kp-row__label">Commission</span></div>
@@ -287,19 +288,6 @@
                             <input type="checkbox" id="rc-active" <%= rc.isActive ? 'checked' : '' %>>
                             <span class="kp-toggle__track"></span>
                           </label>
-                        </div>
-                      </div>
-                      <div class="kp-row">
-                        <div class="kp-row__main">
-                          <span class="kp-row__label">Type</span>
-                          <p class="kp-row__hint" id="rc-type-help"></p>
-                        </div>
-                        <div class="kp-row__ctrl">
-                          <select id="rc-type" class="kp-select" onchange="onCommissionTypeChange()">
-                            <option value="rewardpoint" <%= rc.type === 'rewardpoint' ? 'selected' : '' %>>Reward Points</option>
-                            <option value="BTT"         <%= rc.type === 'BTT'          ? 'selected' : '' %>>BTT</option>
-                            <option value="USDT"        <%= rc.type === 'USDT'         ? 'selected' : '' %>>USDT</option>
-                          </select>
                         </div>
                       </div>
                       <div class="kp-row">
@@ -315,7 +303,7 @@
                       <div class="kp-row">
                         <div class="kp-row__main">
                           <span class="kp-row__label">Lifetime cap per referred user</span>
-                          <p class="kp-row__hint">0 means unlimited.</p>
+                          <p class="kp-row__hint">In that referred user's own currency. 0 means unlimited.</p>
                         </div>
                         <div class="kp-row__ctrl">
                           <input type="number" id="rc-cap" class="kp-input kp-input--num" min="0" step="any"

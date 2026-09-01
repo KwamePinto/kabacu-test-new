@@ -309,6 +309,49 @@
       </div>
     </div>
 
+    <!-- ── Ongoing commission ──────────────────────────────── -->
+    <div class="acct-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <h3 class="acct-section__title" style="margin-bottom:0;">Commissions</h3>
+        <button type="button" class="btn btn--outline btn--sm" id="commissionsToggleBtn">
+          <span id="commissionsToggleLabel">View Commissions</span>
+          <i data-lucide="chevron-down" id="commissionsToggleIcon"></i>
+        </button>
+      </div>
+      <p class="referral-card__hint" style="margin-top:6px;">
+        <% if (commissionTotals && commissionTotals.length) { %>
+          Total earned:
+          <% commissionTotals.forEach(function (t, i) { %><strong><%= t.symbol %><%= Number(t.total).toLocaleString() %></strong><%= i < commissionTotals.length - 1 ? ' · ' : '' %><% }) %>
+          from <%= commissionTotalCount %> purchase<%= commissionTotalCount === 1 ? '' : 's' %> by people you referred.
+        <% } else { %>
+          You have not earned any commission yet — this is paid every time someone you referred makes a purchase, after their first one.
+        <% } %>
+      </p>
+
+      <div id="commissionsPanel" hidden>
+        <% if (commissionEvents && commissionEvents.length) { %>
+        <div class="referral-track-list">
+          <% commissionEvents.forEach(function (c) { %>
+          <div class="referral-track-row referral-track-row--fulfilled">
+            <span class="referral-track-row__name">
+              <%= (c.referred && c.referred.username) || 'A referral' %>
+              <small style="display:block;color:var(--muted);font-weight:400;">
+                <%= new Date(c.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+              </small>
+            </span>
+            <span class="referral-track-row__reward"><%= c.currencySymbol %><%= Number(c.amount).toLocaleString() %></span>
+          </div>
+          <% }) %>
+        </div>
+        <% if (commissionEvents.length >= commissionListCap) { %>
+        <p class="referral-card__hint">Showing your <%= commissionListCap %> most recent commissions.</p>
+        <% } %>
+        <% } else { %>
+        <p class="referral-card__hint">Nothing here yet.</p>
+        <% } %>
+      </div>
+    </div>
+
     <!-- ── Everyone who's used your code ────────────────────── -->
     <%
       /* Each row's reward comes from r.rewardLabel, set in referralsPage:
@@ -381,6 +424,29 @@
 </section>
 
 <script>
+  /* ── Commissions: reveal/hide the payout list ──────────────────────────── */
+  (function() {
+    var btn   = document.getElementById('commissionsToggleBtn');
+    var panel = document.getElementById('commissionsPanel');
+    var label = document.getElementById('commissionsToggleLabel');
+    var icon  = document.getElementById('commissionsToggleIcon');
+    if (!btn || !panel) return;
+
+    btn.addEventListener('click', function () {
+      var hidden = panel.hasAttribute('hidden');
+      if (hidden) {
+        panel.removeAttribute('hidden');
+        label.textContent = 'Hide Commissions';
+        icon.setAttribute('data-lucide', 'chevron-up');
+      } else {
+        panel.setAttribute('hidden', '');
+        label.textContent = 'View Commissions';
+        icon.setAttribute('data-lucide', 'chevron-down');
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+  })();
+
   /* ── Referrals: copy own code, apply someone else's ───────────────────── */
   (function() {
     var copyBtn = document.getElementById('referralCopyBtn');

@@ -21,6 +21,7 @@ const mongoose = require("mongoose");
 
 const referralService = require("../../services/referralService");
 const Referral = require("../../models/ReferralModel");
+const ReferralCommission = require("../../models/ReferralCommissionModel");
 const ReferralSettings = require("../../models/ReferralSettingsModel");
 const {
   resolveViewerCountry,
@@ -1320,8 +1321,13 @@ exports.payWithWallet = async (req, res) => {
 
     // Ongoing commission for the referrer, once this buyer has qualified.
     // Paid on top — the buyer was charged `total` in full and keeps all
-    // `totalRP`, so revenue and profit reporting are unaffected.
-    await referralService.handleCommission(userId, { amount: total, rpEarned: totalRP });
+    // `totalRP`, so revenue and profit reporting are unaffected. Wallet-aware:
+    // credited in the same market the buyer paid in.
+    await referralService.handleCommission(userId, {
+      amount: total,
+      market: buyerMarket,
+      transactionId: successTx && successTx._id,
+    });
 
     // =====================================
     // ✅ SUCCESS RESPONSE
@@ -1996,6 +2002,23 @@ exports.referralsPage = async (req, res) => {
 
     const codePricing = referralCodeService.pricingFrom(referralSettings);
 
+    // Commission ledger: every individual payout, most recent first. Capped
+    // rather than paginated — plenty for "reveal the list" on this page, and
+    // avoids a second pagination system alongside the referrals list above.
+    const COMMISSION_LIST_CAP = 100;
+    const [commissionEvents, commissionTotalsRaw] = await Promise.all([
+      ReferralCommission.find({ referrer: userId })
+        .sort({ createdAt: -1 })
+        .limit(COMMISSION_LIST_CAP)
+        .populate('referred', 'username')
+        .lean(),
+      ReferralCommission.aggregate([
+        { $match: { referrer: new mongoose.Types.ObjectId(userId) } },
+        { $group: { _id: '$currencyCode', total: { $sum: '$amount' }, symbol: { $first: '$currencySymbol' }, count: { $sum: 1 } } },
+      ]),
+    ]);
+    const commissionTotalCount = commissionTotalsRaw.reduce((s, t) => s + t.count, 0);
+
     res.render("webview/referrals", {
       referralCode,
       referralSettings,
@@ -2009,6 +2032,10 @@ exports.referralsPage = async (req, res) => {
       referralPagination: { pages, current: page, hasNext: page < pages, hasPrev: page > 1 },
       referralsRewarded: myReferrals.filter(r => r.status === 'rewarded').length,
       rewardStats,
+      commissionEvents,
+      commissionTotals: commissionTotalsRaw,
+      commissionTotalCount,
+      commissionListCap: COMMISSION_LIST_CAP,
     });
   } catch (error) {
     console.log(error);

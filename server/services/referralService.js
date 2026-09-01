@@ -1,12 +1,16 @@
 const crypto = require('crypto');
 
-const User             = require('../models/UserModel');
-const Referral         = require('../models/ReferralModel');
-const ReferralSettings = require('../models/ReferralSettingsModel');
+const User               = require('../models/UserModel');
+const Referral           = require('../models/ReferralModel');
+const ReferralCommission = require('../models/ReferralCommissionModel');
+const ReferralSettings   = require('../models/ReferralSettingsModel');
 const ReferralCode = require('../models/ReferralCodeModel');
 const referralCodeService = require('./referralCodeService');
 const Wallet           = require('../models/WalletModal');
 const SpecialCode      = require('../models/SpecialReferralCodeModel');
+const walletUtil        = require('../utils/wallet');
+const { currencyFor }   = require('../utils/country');
+const { notify }        = require('./userNotificationService');
 
 /**
  * System-generated codes are always KB + 8 digits, 10 characters in total:
@@ -320,43 +324,42 @@ async function grantSignupBonus(userId) {
 
 /**
  * Ongoing commission: once a referred user has QUALIFIED, every later purchase
- * earns their referrer a percentage.
+ * earns their referrer a percentage of what they spent.
  *
  * This is always a gift on top, never a deduction. The referred user is charged
  * the full amount and keeps their full RP — taking the commission out of the
  * sale would understate revenue and distort profit reporting, so it is credited
  * separately to the referrer.
  *
- *   BTT/USDT    -> percent of the purchase value, credited to that wallet
- *   rewardpoint -> percent of the RP the referred user earned, as RP
- *
- * 'cashback' (percent of purchase value, paid in Naira) cannot be chosen from
- * the admin panel any more, but a settings document saved before this change
- * keeps saying so until an admin resaves it — handled the same way as the
- * signup bonus's legacy 'money' branch below, rather than silently
- * reinterpreted as one of the new types.
+ * Wallet-aware: paid into the SAME market/currency the referred user's
+ * purchase was made in (Nigeria's balances.NAIRA, or another market's
+ * countryBalances entry — see utils/wallet.js), not a fixed admin-chosen
+ * reward type. There is no reward-type setting any more; the only thing an
+ * admin configures is the percentage.
  *
  * Bounded by maxPerReferredUser so a single referral cannot generate an
- * open-ended liability.
+ * open-ended liability. That cap is enforced in whatever currency this
+ * referred user pays in — since one referred user's market does not change
+ * purchase to purchase, that stays a well-defined, single-currency number.
+ *
+ * `market` should be the buyer's wallet market (e.g. 'NG'); callers that only
+ * ever charge Naira can omit it and get the correct default.
  */
-async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {}) {
+async function handleCommission(referredUserId, { amount = 0, market, transactionId = null } = {}) {
   try {
     const settings = await ReferralSettings.getSettings();
     const cfg = settings.referralCommission || {};
 
     if (!cfg.isActive) return null;
     if (!(cfg.percent > 0)) return null;
+    if (!(amount > 0)) return null;
 
     // Only referrals that already paid out their one-off reward qualify.
-    const referral = await Referral.findOne({ referred: referredUserId, status: 'rewarded' });
+    const referral = await Referral.findOne({ referred: referredUserId, status: 'rewarded' })
+      .populate('referred', 'username');
     if (!referral) return null;
 
-    // Base differs by type: BTT/USDT/legacy-cashback are a share of the sale,
-    // RP a share of the points the referred user just earned.
-    const base = cfg.type === 'rewardpoint' ? rpEarned : amount;
-    if (!(base > 0)) return null;
-
-    let payout = (base * cfg.percent) / 100;
+    let payout = (amount * cfg.percent) / 100;
 
     /* A paid code can also lift the ongoing commission, on top of the one-off
        reward uplift in grantReward. Set separately by the admin because the two
@@ -381,40 +384,49 @@ async function handleCommission(referredUserId, { amount = 0, rpEarned = 0 } = {
       if (payout > headroom) payout = headroom;   // partial final payout
     }
 
-    // Round wallet currencies to 2dp; RP to whole points.
-    payout = cfg.type === 'rewardpoint'
-      ? Math.floor(payout)
-      : Math.round(payout * 100) / 100;
+    payout = Math.round(payout * 100) / 100;
     if (!(payout > 0)) return null;
 
-    if (cfg.type === 'BTT' || cfg.type === 'USDT') {
-      await Wallet.updateOne(
-        { user: referral.referrer },
-        { $inc: { [`balances.${cfg.type}`]: payout } },
-        { upsert: true, setOnInsert: { user: referral.referrer } },
-      );
-    } else if (cfg.type === 'cashback') {
-      // Legacy — see the note above the function.
-      await Wallet.updateOne(
-        { user: referral.referrer },
-        { $inc: { 'balances.NAIRA': payout } },
-        { upsert: true, setOnInsert: { user: referral.referrer } },
-      );
-    } else {
-      await User.updateOne({ _id: referral.referrer }, { $inc: { rpBalance: payout } });
-    }
+    const currency = currencyFor(market);
+    const path = walletUtil.balancePath(market);
+
+    await Wallet.updateOne(
+      { user: referral.referrer },
+      { $inc: { [path]: payout } },
+      { upsert: true, setOnInsert: { user: referral.referrer } },
+    );
 
     await Referral.updateOne(
       { _id: referral._id },
       {
         $inc: { commissionEarned: payout, commissionCount: 1 },
-        $set: { commissionType: cfg.type, commissionLastAt: new Date() },
+        $set: { commissionType: currency.code, commissionLastAt: new Date() },
       },
     );
 
+    await ReferralCommission.create({
+      referrer:       referral.referrer,
+      referred:       referredUserId,
+      referral:       referral._id,
+      amount:         payout,
+      market:         currency.country,
+      currencyCode:   currency.code,
+      currencySymbol: currency.symbol,
+      purchaseAmount: amount,
+      transaction:    transactionId,
+    });
+
+    const refereeName = (referral.referred && referral.referred.username) || 'a referral';
+    notify(referral.referrer, {
+      type: 'reward',
+      text: `You earned ${currency.symbol}${payout.toLocaleString()} commission from a purchase by ${refereeName}.`,
+      link: '/referrals',
+    });
+
     return {
-      type: cfg.type,
       payout,
+      market: currency.country,
+      currencyCode: currency.code,
       bonusPercent: bonuses.commission,
       referrer: referral.referrer,
     };
