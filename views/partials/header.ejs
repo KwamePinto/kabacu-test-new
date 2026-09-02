@@ -244,26 +244,30 @@
   }
 
   function buildCountries() {
-    var fallback = [
-      { code: 'NG', name: 'Nigeria' }, { code: 'US', name: 'United States' },
-      { code: 'GB', name: 'United Kingdom' }, { code: 'GH', name: 'Ghana' },
-      { code: 'KE', name: 'Kenya' }, { code: 'ZA', name: 'South Africa' },
-      { code: 'CA', name: 'Canada' }, { code: 'IN', name: 'India' },
-      { code: 'CN', name: 'China' }, { code: 'DE', name: 'Germany' },
-      { code: 'FR', name: 'France' }, { code: 'AE', name: 'United Arab Emirates' },
-      { code: 'EG', name: 'Egypt' }, { code: 'BR', name: 'Brazil' },
-      { code: 'AU', name: 'Australia' }
-    ];
+    // Same ~250-country list the signup form uses (server-rendered from
+    // i18n-iso-countries via countryMiddleware — see server/middleware/countryMiddleware.js),
+    // so this selector never depends on a browser supporting Intl.supportedValuesOf/
+    // Intl.DisplayNames. That API silently fell back to a hardcoded 15-country
+    // list on any browser without it, with no sign to the user that most
+    // countries were simply missing.
+    var serverList = <%- JSON.stringify(locals.allCountries || []) %>;
+    if (serverList.length) return serverList;
+
+    // Last-resort fallback only — should not be reachable on any page that
+    // goes through countryMiddleware, which is every non-admin, non-API page.
     try {
       var codes = Intl.supportedValuesOf('region').filter(function (c) { return /^[A-Z]{2}$/.test(c); });
       var dn = new Intl.DisplayNames(['en'], { type: 'region' });
       var list = codes.map(function (c) { return { code: c, name: dn.of(c) }; });
       list.sort(function (a, b) { return a.name.localeCompare(b.name); });
-      return list.length ? list : fallback;
-    } catch (e) {
-      fallback.sort(function (a, b) { return a.name.localeCompare(b.name); });
-      return fallback;
-    }
+      if (list.length) return list;
+    } catch (e) { /* fall through */ }
+
+    return [
+      { code: 'NG', name: 'Nigeria' }, { code: 'US', name: 'United States' },
+      { code: 'GB', name: 'United Kingdom' }, { code: 'GH', name: 'Ghana' },
+      { code: 'KE', name: 'Kenya' }, { code: 'ZA', name: 'South Africa' },
+    ];
   }
 
   var countries = buildCountries();

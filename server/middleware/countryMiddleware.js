@@ -1,6 +1,21 @@
 const { resolveViewerCountry, toName, toFlag, DEFAULT_COUNTRY } = require('../utils/country');
 const { getBalance, balancesFor } = require('../utils/wallet');
 const marketService = require('../services/marketService');
+const isoCountries = require('i18n-iso-countries');
+
+isoCountries.registerLocale(require('i18n-iso-countries/langs/en.json'));
+
+/* Same source signup's Country field uses (i18n-iso-countries, ~250 entries),
+   built once at module load rather than per-request. The header/profile
+   country-selector modal used to build its own list client-side from
+   Intl.supportedValuesOf('region') + Intl.DisplayNames, which is unsupported
+   on some browsers — silently falling back to a hardcoded 15-country list
+   baked into header.ejs, with no indication to the user that most countries
+   were simply missing. Serving the same full list everywhere removes that
+   browser-support gap entirely. */
+const ALL_COUNTRIES = Object.entries(isoCountries.getNames('en'))
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 /**
  * Exposes the viewer's market to every view as:
@@ -24,6 +39,10 @@ async function countryMiddleware(req, res, next) {
   if (req.originalUrl.startsWith('/admin') || req.originalUrl.startsWith('/api')) {
     return next();
   }
+
+  // Static data — set unconditionally, independent of whether resolving the
+  // viewer's own market below succeeds.
+  res.locals.allCountries = ALL_COUNTRIES;
 
   try {
     const viewer = await resolveViewerCountry(req);
