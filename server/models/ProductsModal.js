@@ -49,10 +49,21 @@ const productSchema = new mongoose.Schema({
 
   // DATA PRODUCT
   dataDetails: {
+    // Which service actually fulfils this bundle. Default 'ODS' preserves
+    // every product created before this field existed. Decides whether
+    // `network` resolves against NetworkModel (ODS) or GsubzPlanModel
+    // (GSUBZ), and which of plan_id / gsubz_plan_code the purchase uses.
+    provider: { type: String, enum: ['ODS', 'GSUBZ'], default: 'ODS' },
     // Inherited from the selected Data Plan (NetworkModel.planId), never typed
-    // on the product form. Sent to the provider as `data_plan` on purchase.
+    // on the product form. Sent to OurDataStore as `data_plan` on purchase.
     plan_id: Number,
-    // The plan this bundle belongs to, by name, e.g. "CTC Weekly Special-MTN"
+    // GSubz's own plan code for this exact bundle size (its `plan` field on
+    // /pay). Kept separate from plan_id rather than reusing it — plan_id is
+    // a Number and every purchase call site reads it directly, so conflating
+    // the two types risks a silent bug at a money-handling call site.
+    gsubz_plan_code: String,
+    // The plan this bundle belongs to, by name, e.g. "CTC Weekly Special-MTN".
+    // Resolved against NetworkModel or GsubzPlanModel depending on `provider`.
     network: String,
     // Card headline, e.g. "2GB Data Plan"
     plan_type: String,

@@ -89,8 +89,8 @@ const ADMIN_FAQ_SEED = [
     order: 32,
   },
   {
-    question: 'How do I manage networks and their plans?',
-    answer: '<p>Go to <strong>Products &rarr; Networks</strong>. Each network holds the plan IDs used when a bundle is sent to the provider. If a bundle is failing to deliver, check the plan ID here against the provider\'s own list first — a wrong ID is the most common cause.</p>',
+    question: 'How do I manage data plans and their providers?',
+    answer: '<p>Go to <strong>Products &rarr; Data Config</strong>. It has a tab for each provider — OurDataStore and GSubz — and each configured plan holds the identifiers used when a bundle is sent to that provider. If a bundle is failing to deliver, check the plan/service ID here against the provider\'s own list first — a wrong ID is the most common cause.</p>',
     order: 33,
   },
   {

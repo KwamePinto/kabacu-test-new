@@ -54,27 +54,62 @@
                       <!-- DATA fields -->
                       <div id="dataFields" style="display:none;">
                         <div class="form-group">
-                          <label>Select Plan <span class="text-danger">*</span></label>
-                          <select name="network" class="form-control" required>
-                            <option value="" disabled selected>Select plan…</option>
-                            <% if (typeof networks !== 'undefined') { networks.forEach(n => { %>
-                            <option value="<%= n.name %>"><%= n.name %></option>
-                            <% }) } %>
+                          <label>Data Service Provider <span class="text-danger">*</span></label>
+                          <select name="provider" id="dataProviderSelect" class="form-control" required>
+                            <option value="ODS">OurDataStore (ODS)</option>
+                            <option value="GSUBZ">GSubz</option>
                           </select>
-                          <small class="text-muted">
-                            The plan carries its own network, so that isn't entered here.
-                            Plan not listed? <a href="/admin/networks" target="_blank">Manage Data Plans</a>
-                          </small>
+                          <small class="text-muted">Which provider actually fulfils this bundle.</small>
                         </div>
-                        <div class="form-group">
-                          <label>Bundle ID <span class="text-danger">*</span></label>
-                          <input type="number" name="plan_id" class="form-control" placeholder="e.g. 244" min="0" required>
-                          <small class="text-muted">
-                            The provider's id for <em>this exact size</em>. It cannot come from the
-                            plan — every size under a plan has its own id (1GB, 2GB and 15GB on the
-                            same plan are all different), and a wrong id delivers the wrong bundle.
-                          </small>
+
+                        <div id="odsPlanGroup">
+                          <div class="form-group">
+                            <label>Select Plan <span class="text-danger">*</span></label>
+                            <select name="network" id="odsNetworkSelect" class="form-control" required>
+                              <option value="" disabled selected>Select plan…</option>
+                              <% if (typeof networks !== 'undefined') { networks.forEach(n => { %>
+                              <option value="<%= n.name %>"><%= n.name %></option>
+                              <% }) } %>
+                            </select>
+                            <small class="text-muted">
+                              The plan carries its own network, so that isn't entered here.
+                              Plan not listed? <a href="/admin/networks" target="_blank">Manage Data Plans</a>
+                            </small>
+                          </div>
+                          <div class="form-group">
+                            <label>Bundle ID <span class="text-danger">*</span></label>
+                            <input type="number" name="plan_id" id="odsPlanIdInput" class="form-control" placeholder="e.g. 244" min="0" required>
+                            <small class="text-muted">
+                              The provider's id for <em>this exact size</em>. It cannot come from the
+                              plan — every size under a plan has its own id (1GB, 2GB and 15GB on the
+                              same plan are all different), and a wrong id delivers the wrong bundle.
+                            </small>
+                          </div>
                         </div>
+
+                        <div id="gsubzPlanGroup" style="display:none;">
+                          <div class="form-group">
+                            <label>Select Plan <span class="text-danger">*</span></label>
+                            <select name="network" id="gsubzNetworkSelect" class="form-control">
+                              <option value="" disabled selected>Select plan…</option>
+                              <% if (typeof gsubzPlans !== 'undefined') { gsubzPlans.forEach(function (p) { %>
+                              <option value="<%= p.name %>"><%= p.name %> (<%= p.carrier %> · <%= p.category %>)</option>
+                              <% }) } %>
+                            </select>
+                            <small class="text-muted">
+                              Plan not listed? <a href="/admin/networks#gsubz" target="_blank">Manage GSubz Plans</a>
+                            </small>
+                          </div>
+                          <div class="form-group">
+                            <label>Plan Code <span class="text-danger">*</span></label>
+                            <input type="text" name="gsubz_plan_code" id="gsubzPlanCodeInput" class="form-control" placeholder="GSubz's plan value for this exact size">
+                            <small class="text-muted">
+                              GSubz's own code for <em>this exact bundle size</em> — look it up under the
+                              chosen plan's category on GSubz's own plan list.
+                            </small>
+                          </div>
+                        </div>
+
                         <div class="form-group">
                           <label>Plan Type <span class="text-danger">*</span></label>
                           <input type="text" name="plan_type" class="form-control" placeholder="e.g. 2GB Data Plan">
@@ -290,6 +325,36 @@
     else if (this.value === 'AUTOMOBILE') automobileFields.style.display  = 'block';
     else if (this.value === 'ELECTRONICS') electronicsFields.style.display = 'block';
   });
+
+  // DATA: provider toggle — only the group matching the chosen provider is
+  // enabled, so its "network" field is the only one actually submitted (a
+  // disabled field is left out of form submission entirely; a merely-hidden
+  // one is not).
+  var providerSelect     = document.getElementById('dataProviderSelect');
+  var odsPlanGroup        = document.getElementById('odsPlanGroup');
+  var gsubzPlanGroup      = document.getElementById('gsubzPlanGroup');
+  var odsNetworkSelect    = document.getElementById('odsNetworkSelect');
+  var odsPlanIdInput      = document.getElementById('odsPlanIdInput');
+  var gsubzNetworkSelect  = document.getElementById('gsubzNetworkSelect');
+  var gsubzPlanCodeInput  = document.getElementById('gsubzPlanCodeInput');
+
+  function onProviderChange() {
+    var isGsubz = providerSelect.value === 'GSUBZ';
+    odsPlanGroup.style.display   = isGsubz ? 'none' : 'block';
+    gsubzPlanGroup.style.display = isGsubz ? 'block' : 'none';
+
+    odsNetworkSelect.disabled = isGsubz;
+    odsNetworkSelect.required = !isGsubz;
+    odsPlanIdInput.disabled   = isGsubz;
+    odsPlanIdInput.required   = !isGsubz;
+
+    gsubzNetworkSelect.disabled = !isGsubz;
+    gsubzNetworkSelect.required = isGsubz;
+    gsubzPlanCodeInput.disabled = !isGsubz;
+    gsubzPlanCodeInput.required = isGsubz;
+  }
+  providerSelect.addEventListener('change', onProviderChange);
+  onProviderChange();
 
   var imageInput      = document.getElementById('imageInput');
   var previewContainer = document.getElementById('imagePreview');

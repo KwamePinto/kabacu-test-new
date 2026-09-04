@@ -21,7 +21,21 @@ async function pollPendingTransactions() {
 
   for (const tx of pending) {
     try {
-      const age       = Date.now() - new Date(tx.createdAt).getTime();
+      const age = Date.now() - new Date(tx.createdAt).getTime();
+
+      // GSubz transactions never go through OurDataStore's lookup-then-refund
+      // path below — that path searches ODS's OWN transaction history, which
+      // for a GSubz order finds nothing regardless of what actually happened,
+      // and would eventually auto-refund a purchase that may well have been
+      // delivered. GSubz's own reconciliation (`gsubz.verify`) has never been
+      // confirmed live (gsubz_doc.md §6.2), so it isn't trusted for an
+      // automatic decision yet — a GSubz transaction just gets flagged for a
+      // human to check with the manual "Check GSubz status" admin action.
+      if (tx.provider === 'GSUBZ') {
+        await handleGsubzPending(tx, age);
+        continue;
+      }
+
       const requestId = tx.apiResponse?.requestId;
 
       if (age > AUTO_REFUND_AFTER_MS) {
@@ -111,6 +125,27 @@ async function pollPendingTransactions() {
   }
 }
 
+// GSubz-pending handling — deliberately does far less than the ODS branch
+// above. Below 30 minutes it just waits, same as ODS. Past 30 minutes it
+// flags the transaction for a human instead of asking a provider-specific
+// "was this delivered?" question automatically, because that question has
+// no confirmed-safe answer for GSubz yet (see the note at the call site).
+// Never auto-refunds. Idempotent — re-flags without re-logging on repeat cycles.
+async function handleGsubzPending(tx, age) {
+  if (age <= AUTO_REFUND_AFTER_MS) return;
+  if (tx.apiResponse?._needsManualReview) return;
+
+  tx.apiResponse = {
+    ...(tx.apiResponse || {}),
+    _needsManualReview: true,
+    _needsManualReviewAt: new Date().toISOString(),
+    _needsManualReviewReason: 'gsubz_pending_unreconciled',
+  };
+  tx.markModified('apiResponse');
+  await tx.save();
+  logger.warn(`[POLLER] TX ${tx._id}: GSubz pending past ${Math.round(AUTO_REFUND_AFTER_MS / 60000)}min — flagged for manual review, NOT auto-refunded (GSubz reconciliation is not wired into the automatic poller yet)`);
+}
+
 async function refundAndFail(tx, reason) {
   if (tx.walletCredited) {
     logger.warn(`[POLLER] TX ${tx._id}: wallet already credited (idempotency guard), skipping refund`);
@@ -158,6 +193,11 @@ async function refundAndFail(tx, reason) {
 // amount was shared, so a short delivery is invisible on our side. The only
 // signal is the leg summary on their record.
 //
+// OurDataStore-specific: the leg-splitting behavior this sweep looks for (and
+// `shortDeliveryAudit`'s history search underneath it) has no confirmed GSubz
+// analogue, so GSubz-provider products are excluded from the candidate query
+// below rather than searched against the wrong provider's history.
+//
 // This runs on its own slower interval and STAMPS the transaction, so the
 // flagged-transactions page stays an ordinary Mongo query like its other tabs
 // instead of making provider calls during a page render.
@@ -169,8 +209,12 @@ async function pollShortDelivery() {
   const { checkOne } = require('./shortDeliveryAudit');
   const Product = require('../models/ProductsModal');
 
-  // Only bundles big enough to be split are worth checking.
-  const products = await Product.find({ category: 'DATA' }).select('dataDetails').lean();
+  // Only bundles big enough to be split are worth checking. ODS only — see
+  // the note above.
+  const products = await Product.find({
+    category: 'DATA',
+    'dataDetails.provider': { $ne: 'GSUBZ' },
+  }).select('dataDetails').lean();
   const bigIds = products
     .filter(p => {
       const m = String(p.dataDetails && p.dataDetails.plan_type || '').match(/([\d.]+)\s*GB/i);

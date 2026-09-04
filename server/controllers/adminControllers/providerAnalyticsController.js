@@ -14,27 +14,22 @@ const logger = require('../../config/logger');
 // plan names) — every grammatically-correct guess ('corporate_gifting', 'cg', ...)
 // silently returns an empty list rather than an error, so this was NOT obvious.
 //
-// GSubz: service IDs were captured directly from the GSubz dashboard's page
-// source (their own docs never publish which IDs carry data plans — see
-// gsubz_doc.md) and verified live. Of the 11 found, 5 currently return
-// "Service not found or inactive" on this account (mtn_cg_lite, mtn_coupon,
-// mtncg, airtel_cg, etisalat_data) — not a wrong-value problem like ODS's
-// corporate gifting was, the API itself says inactive, so they're left out
-// rather than shown as empty. Re-check if GSubz activates them later.
+// GSubz: service IDs are the same carrier -> category -> serviceID registry
+// the admin GSubz plan-configuration UI is built from (server/services/
+// gsubz.js's GSUBZ_CARRIER_CATEGORIES) — kept as one source of truth rather
+// than a second copy here, so the two never drift when a service is
+// activated/deactivated. Of the 11 GSubz IDs found on the dashboard, 5
+// currently return "Service not found or inactive" on this account
+// (mtn_cg_lite, mtn_coupon, mtncg, airtel_cg, etisalat_data) — not a
+// wrong-value problem like ODS's corporate gifting was, the API itself says
+// inactive, so they're left out of the registry rather than shown as empty.
 const ODS_NETWORK_TYPES = [
   { value: 'sme',                label: 'SME',                flag: 'network_sme' },
   { value: 'gifting',             label: 'GIFTING',            flag: 'network_g' },
   { value: 'cooperate gifting',   label: 'CORPORATE GIFTING',  flag: 'network_cg' },
 ];
 
-const GSUBZ_SERVICES = [
-  { service: 'mtn_sme',       network: 'MTN',    label: 'SME' },
-  { service: 'mtn_gifting',   network: 'MTN',    label: 'GIFTING' },
-  { service: 'mtn_datashare', network: 'MTN',    label: 'DATA SHARE' },
-  { service: 'airtel_sme',    network: 'AIRTEL', label: 'SME' },
-  { service: 'glo_data',      network: 'GLO',    label: 'DATA' },
-  { service: 'glo_sme',       network: 'GLO',    label: 'SME' },
-];
+const GSUBZ_SERVICES = gsubz.GSUBZ_SERVICES;
 
 function parsePlanSize(name) {
   const m = /^([\d.]+\s?(?:GB|MB))/i.exec(name || '');

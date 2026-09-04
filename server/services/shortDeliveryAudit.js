@@ -220,9 +220,21 @@ async function checkOne(tx, { productById } = {}) {
  * topped up exactly and has to be refunded instead. The caller must handle that
  * rather than assume a top-up is always possible.
  */
+// ODS only — this whole short-delivery audit is OurDataStore's leg-splitting
+// quirk with no confirmed GSubz analogue (see transactionPoller.js's
+// pollShortDelivery). Excluding GSUBZ-provider products here matters beyond
+// consistency: two providers' plans could share a `network` brand name (each
+// is only unique within its own collection), so without this filter a
+// shortfall detected on an ODS order could resolve its top-up bundle from an
+// unrelated GSubz plan of the same name and route the top-up through the
+// wrong provider.
 async function findTopUpProduct(network, missingGb) {
   if (!network || !missingGb) return null;
-  const candidates = await Product.find({ category: 'DATA', 'dataDetails.network': network }).lean();
+  const candidates = await Product.find({
+    category: 'DATA',
+    'dataDetails.network': network,
+    'dataDetails.provider': { $ne: 'GSUBZ' },
+  }).lean();
   return candidates.find(p => gbOf(p.dataDetails && p.dataDetails.plan_type) === missingGb) || null;
 }
 

@@ -6,6 +6,7 @@ router.get('/',                    ctrl.viewDamageControl);
 router.get('/tab-data',            ctrl.getTabData);
 router.post('/deduct',             ctrl.deductWallet);
 router.post('/resolve',            ctrl.resolveTransaction);
+router.post('/check-gsubz-status', ctrl.checkGsubzStatus);
 router.post('/clear',              ctrl.clearTransaction);
 router.post('/refund-deduction',   ctrl.adminRefundDeduction);
 router.post('/approve-refund',     ctrl.approveRefundRequest);

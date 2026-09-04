@@ -468,6 +468,35 @@ exports.resolveTransaction = [authenticateAdminUser, async (req, res) => {
   }
 }];
 
+/**
+ * Asks GSubz what actually happened to a stuck-pending transaction, by its
+ * requestID — the manual "ask before refunding" tool for GSubz, standing in
+ * for the automatic OurDataStore reconciliation in transactionPoller.js,
+ * which GSubz transactions deliberately skip (see the note in that file).
+ *
+ * Read-only: this does not itself mark the transaction resolved either way —
+ * the admin still uses "Mark Delivered" / "Refund User" above, informed by
+ * whatever GSubz reports here.
+ */
+exports.checkGsubzStatus = [authenticateAdminUser, async (req, res) => {
+  try {
+    const { transactionId } = req.body;
+    const tx = await Transaction.findById(transactionId);
+    if (!tx) return res.json({ success: false, message: 'Transaction not found' });
+    if (tx.provider !== 'GSUBZ') return res.json({ success: false, message: 'Not a GSubz transaction' });
+
+    const requestID = tx.apiResponse?.requestId;
+    if (!requestID) return res.json({ success: false, message: 'No requestID recorded on this transaction' });
+
+    const { verify } = require('../../services/gsubz');
+    const raw = await verify(requestID);
+    return res.json({ success: true, raw });
+  } catch (err) {
+    console.error('[checkGsubzStatus]', err);
+    return res.json({ success: false, message: err.response?.data?.description || 'GSubz did not respond' });
+  }
+}];
+
 // =============================================================================
 // SHORT DELIVERY
 // =============================================================================

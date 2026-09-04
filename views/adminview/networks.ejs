@@ -1,201 +1,309 @@
 <div class="loader"></div>
 <div id="app">
-  <div class="main-wrapper main-wrapper-1">
+  <div class="main-wrapper main-wrapper-1 kp-has-drawer">
     <div class="navbar-bg"></div>
+
     <%- include('../partials/headerAdmin.ejs') %>
     <%- include('../partials/sideMenuAdmin.ejs') %>
 
     <div class="main-content">
       <section class="section">
-
-        <div class="section-header">
-          <h1>Data Plans</h1>
-          <div class="section-header-breadcrumb">
-            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-            <div class="breadcrumb-item"><a href="/admin/product/view-products">Products</a></div>
-            <div class="breadcrumb-item">Networks</div>
-          </div>
-        </div>
-
         <div class="section-body">
-          <div class="row">
 
-            <!-- ── Add Data Plan ────────────────────────────── -->
-            <div class="col-12 col-lg-4 mb-4">
-              <div class="card h-100">
-                <div class="card-header">
-                  <h4>Add Data Plans</h4>
-                </div>
-                <div class="card-body">
+          <div class="kp-panel">
 
-                  <% if (query.added == '1') { %>
-                  <div class="alert alert-success alert-dismissible fade show">
-                    Network added successfully.
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                  </div>
-                  <% } %>
-                  <% if (query.deleted == '1') { %>
-                  <div class="alert alert-success alert-dismissible fade show">
-                    Network removed.
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                  </div>
-                  <% } %>
-                  <% if (query.error == 'duplicate') { %>
-                  <div class="alert alert-warning alert-dismissible fade show">
-                    A network with that name already exists.
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                  </div>
-                  <% } else if (query.error) { %>
-                  <div class="alert alert-danger alert-dismissible fade show">
-                    Something went wrong. Please try again.
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                  </div>
-                  <% } %>
+            <%
+              var _navSections = [
+                { id: 'ods',   label: 'OurDataStore', icon: 'wifi' },
+                { id: 'gsubz', label: 'GSubz',         icon: 'zap' },
+              ];
+              var providerColors = { 1: '#fbbf24', 2: '#22c55e', 3: '#ef4444', 4: '#3b82f6' };
+            %>
 
-                  <form method="post" action="/admin/networks/add">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-                    <div class="form-group">
-                      <label class="net-label">Plan Name</label>
-                      <p class="net-hint">The exact plan name that will appear on products and be stored in the database.</p>
-                      <input type="text" name="name" class="form-control"
-                        placeholder="e.g. CTC Weekly Special-MTN"
-                        required maxlength="60">
-                    </div>
-
-                    <div class="form-group">
-                      <label class="net-label">API Provider</label>
-                      <p class="net-hint">The network this plan routes through.</p>
-                      <select name="apiCode" class="form-control" required>
-                        <option value="" disabled selected>Select provider…</option>
-                        <option value="1">MTN</option>
-                        <option value="2">GLO</option>
-                        <option value="3">Airtel</option>
-                        <option value="4">9mobile</option>
-                      </select>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-block mt-3">Add Data Plan</button>
-                  </form>
-                </div>
-              </div>
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Data Plan Configuration</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
-            <!-- ── Network List ─────────────────────────────── -->
-            <div class="col-12 col-lg-8 mb-4">
-              <div class="card">
-                <div class="card-header">
-                  <h4>Configured Plans</h4>
-                  <div class="card-header-action">
-                    <span class="badge badge-primary" style="font-size:13px;padding:6px 12px;">
-                      <%= networks.length %> network<%= networks.length !== 1 ? 's' : '' %>
-                    </span>
-                  </div>
-                </div>
-                <div class="card-body p-0">
-                  <% if (!networks.length) { %>
-                  <div class="text-center py-5 text-muted">
-                    <i data-feather="wifi-off" style="width:40px;height:40px;opacity:.3;display:block;margin:0 auto 12px;"></i>
-                    No networks configured yet. Add one to get started.
-                  </div>
-                  <% } else { %>
-                  <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                      <thead style="background:#f9fafb;">
-                        <tr>
-                          <th style="padding:14px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:700;">Plan Name</th>
-                          <th style="padding:14px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:700;">Network</th>
-                          <th style="padding:14px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:700;">Code</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <% networks.forEach(net => { %>
-                        <% const providerColors = { 1: '#fbbf24', 2: '#22c55e', 3: '#ef4444', 4: '#3b82f6' }; %>
-                        <tr>
-                          <td style="padding:14px 20px;font-weight:600;font-size:14px;"><%= net.name %></td>
-                          <td style="padding:14px 20px;">
-                            <span class="net-provider-badge" style="background:<%= providerColors[net.apiCode] %>20;color:<%= providerColors[net.apiCode] %>;">
-                              <%= providerLabels[net.apiCode] %>
-                            </span>
-                          </td>
-                          <td style="padding:14px 20px;color:#9ca3af;font-family:monospace;"><%= net.apiCode %></td>
-                          <td style="padding:14px 20px;text-align:right;">
-                            <form method="post" action="/admin/networks/delete/<%= net._id %>" class="d-inline" onsubmit="return confirmDelete(this)">
-                              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                              <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:20px;">Remove</button>
-                            </form>
-                          </td>
-                        </tr>
-                        <% }) %>
-                      </tbody>
-                    </table>
-                  </div>
-                  <% } %>
-                </div>
-              </div>
-            </div>
+            <div class="kp-panel__body">
 
-          </div>
+              <%- include('partials/panelDrawer', {
+                panelKey: 'dataConfig',
+                drawerLabel: 'Data Providers',
+                sections: _navSections
+              }) %>
+
+              <div class="kp-panel__main">
+
+                <!-- ══ OurDataStore ══════════════════════════════════════ -->
+                <div class="kp-section" data-section="ods">
+                  <div class="kp-grid kp-grid--2">
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Add OurDataStore Plan</h2></div>
+                      <div class="kp-card__body">
+
+                        <% if (query.added == '1') { %>
+                        <div class="alert alert-success alert-dismissible fade show">
+                          Plan added successfully.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } %>
+                        <% if (query.deleted == '1') { %>
+                        <div class="alert alert-success alert-dismissible fade show">
+                          Plan removed.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } %>
+                        <% if (query.error == 'duplicate') { %>
+                        <div class="alert alert-warning alert-dismissible fade show">
+                          A plan with that name already exists.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } else if (query.error) { %>
+                        <div class="alert alert-danger alert-dismissible fade show">
+                          Something went wrong. Please try again.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } %>
+
+                        <form method="post" action="/admin/networks/add">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                          <div class="kp-field">
+                            <label class="kp-field__label">Plan Name</label>
+                            <input type="text" name="name" class="kp-input"
+                              placeholder="e.g. CTC Weekly Special-MTN" required maxlength="60">
+                            <p class="kp-row__hint">The exact plan name that will appear on products.</p>
+                          </div>
+
+                          <div class="kp-field">
+                            <label class="kp-field__label">Carrier</label>
+                            <select name="apiCode" class="kp-select" required>
+                              <option value="" disabled selected>Select carrier…</option>
+                              <option value="1">MTN</option>
+                              <option value="2">GLO</option>
+                              <option value="3">Airtel</option>
+                              <option value="4">9mobile</option>
+                            </select>
+                            <p class="kp-row__hint">The network this plan routes through on OurDataStore.</p>
+                          </div>
+
+                          <button type="submit" class="kp-btn kp-btn--primary kp-btn--block" style="margin-top:8px;">Add Data Plan</button>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">Configured Plans</h2>
+                        <div class="kp-card__aside">
+                          <span class="kp-pill kp-pill--info"><%= networks.length %> plan<%= networks.length !== 1 ? 's' : '' %></span>
+                        </div>
+                      </div>
+                      <div class="kp-card__body kp-card__body--flush">
+                        <% if (!networks.length) { %>
+                        <div class="kp-empty">No plans configured yet. Add one to get started.</div>
+                        <% } else { %>
+                        <div class="kp-tablewrap">
+                          <table class="kp-table">
+                            <thead>
+                              <tr><th>Plan Name</th><th>Carrier</th><th>Code</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <% networks.forEach(function (net) { %>
+                              <tr>
+                                <td><span class="kp-strong"><%= net.name %></span></td>
+                                <td>
+                                  <span class="kp-pill" style="background:<%= providerColors[net.apiCode] %>20;color:<%= providerColors[net.apiCode] %>;">
+                                    <%= providerLabels[net.apiCode] %>
+                                  </span>
+                                </td>
+                                <td><span class="kp-code"><%= net.apiCode %></span></td>
+                                <td class="kp-table__act">
+                                  <form method="post" action="/admin/networks/delete/<%= net._id %>" onsubmit="return confirmDeletePlan(this)">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                    <button type="submit" class="kp-btn kp-btn--sm kp-btn--danger">Remove</button>
+                                  </form>
+                                </td>
+                              </tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } %>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <!-- ══ GSubz ═════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="gsubz">
+                  <div class="kp-grid kp-grid--2">
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Add GSubz Plan</h2></div>
+                      <div class="kp-card__body">
+
+                        <% if (query.gadded == '1') { %>
+                        <div class="alert alert-success alert-dismissible fade show">
+                          Plan added successfully.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } %>
+                        <% if (query.gdeleted == '1') { %>
+                        <div class="alert alert-success alert-dismissible fade show">
+                          Plan removed.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } %>
+                        <% if (query.gerror == 'duplicate') { %>
+                        <div class="alert alert-warning alert-dismissible fade show">
+                          A plan with that name already exists.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } else if (query.gerror == 'invalid') { %>
+                        <div class="alert alert-danger alert-dismissible fade show">
+                          Pick a carrier and a category before saving.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } else if (query.gerror) { %>
+                        <div class="alert alert-danger alert-dismissible fade show">
+                          Something went wrong. Please try again.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
+                        <% } %>
+
+                        <form method="post" action="/admin/networks/gsubz/add">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                          <div class="kp-field">
+                            <label class="kp-field__label">Plan Name</label>
+                            <input type="text" name="name" class="kp-input"
+                              placeholder="e.g. MTN SME Special" required maxlength="60">
+                            <p class="kp-row__hint">The brand name that will appear on products.</p>
+                          </div>
+
+                          <div class="kp-field">
+                            <label class="kp-field__label">Carrier</label>
+                            <select id="gsubzCarrier" class="kp-select" onchange="onGsubzCarrierChange(this.value)">
+                              <% Object.keys(carrierCategories).forEach(function (carrier) { %>
+                              <option value="<%= carrier %>" <%= carrier === 'MTN' ? 'selected' : '' %>><%= carrier %></option>
+                              <% }) %>
+                            </select>
+                            <p class="kp-row__hint">Picking a carrier reveals the categories GSubz offers for it below.</p>
+                          </div>
+
+                          <div class="kp-field">
+                            <label class="kp-field__label">Category</label>
+                            <% Object.keys(carrierCategories).forEach(function (carrier) { %>
+                            <% var cats = carrierCategories[carrier]; %>
+                            <div class="gsubz-cat-panel" id="gsubzCat-<%= carrier %>" style="<%= carrier === 'MTN' ? '' : 'display:none;' %>">
+                              <% if (!cats.length) { %>
+                              <p class="kp-mute" style="font-size:12.5px;">No active categories on this account yet for <%= carrier %>.</p>
+                              <% } else { %>
+                              <div class="kp-stack">
+                                <% cats.forEach(function (cat, i) { %>
+                                <label class="kp-row" style="cursor:pointer;">
+                                  <input type="radio" name="category" value="<%= cat.key %>"
+                                    <%= (carrier === 'MTN' && i === 0) ? 'checked' : '' %>
+                                    <%= carrier === 'MTN' ? 'required' : '' %>
+                                    style="margin-right:10px;">
+                                  <span class="kp-row__label"><%= cat.label %></span>
+                                  <span class="kp-code" style="margin-left:auto;"><%= cat.serviceID %></span>
+                                </label>
+                                <% }) %>
+                              </div>
+                              <% } %>
+                            </div>
+                            <% }) %>
+                          </div>
+
+                          <button type="submit" class="kp-btn kp-btn--primary kp-btn--block" style="margin-top:8px;">Add GSubz Plan</button>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head">
+                        <h2 class="kp-card__title">Configured Plans</h2>
+                        <div class="kp-card__aside">
+                          <span class="kp-pill kp-pill--info"><%= gsubzPlans.length %> plan<%= gsubzPlans.length !== 1 ? 's' : '' %></span>
+                        </div>
+                      </div>
+                      <div class="kp-card__body kp-card__body--flush">
+                        <% if (!gsubzPlans.length) { %>
+                        <div class="kp-empty">No GSubz plans configured yet. Add one to get started.</div>
+                        <% } else { %>
+                        <div class="kp-tablewrap">
+                          <table class="kp-table">
+                            <thead>
+                              <tr><th>Plan Name</th><th>Carrier</th><th>Category</th><th>Service ID</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <% gsubzPlans.forEach(function (p) { %>
+                              <tr>
+                                <td><span class="kp-strong"><%= p.name %></span></td>
+                                <td><span class="kp-pill kp-pill--good"><%= p.carrier %></span></td>
+                                <td><%= p.category %></td>
+                                <td><span class="kp-code"><%= p.serviceID %></span></td>
+                                <td class="kp-table__act">
+                                  <form method="post" action="/admin/networks/gsubz/delete/<%= p._id %>" onsubmit="return confirmDeletePlan(this)">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                    <button type="submit" class="kp-btn kp-btn--sm kp-btn--danger">Remove</button>
+                                  </form>
+                                </td>
+                              </tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } %>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
+
         </div>
       </section>
-
-      <div class="settingSidebar">
-        <a href="javascript:void(0)" class="settingPanelToggle"><i class="fa fa-spin fa-cog"></i></a>
-        <div class="settingSidebar-body ps-container ps-theme-default">
-          <div class="fade show active">
-            <div class="setting-panel-header">Setting Panel</div>
-            <div class="p-15 border-bottom">
-              <h6 class="font-medium m-b-10">Select Layout</h6>
-              <div class="selectgroup layout-color w-50">
-                <label class="selectgroup-item">
-                  <input type="radio" name="value" value="1" class="selectgroup-input-radio select-layout" checked>
-                  <span class="selectgroup-button">Light</span>
-                </label>
-                <label class="selectgroup-item">
-                  <input type="radio" name="value" value="2" class="selectgroup-input-radio select-layout">
-                  <span class="selectgroup-button">Dark</span>
-                </label>
-              </div>
-            </div>
-            <div class="mt-4 mb-4 p-3 align-center rt-sidebar-last-ele">
-              <a href="#" class="btn btn-icon icon-left btn-primary btn-restore-theme">
-                <i class="fas fa-undo"></i> Restore Default
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <footer class="main-footer">
-      <div class="footer-left">&copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.</div>
-      <div class="footer-right"></div>
-    </footer>
+    <%- include('../partials/footerAdmin.ejs') %>
   </div>
 </div>
 
-<style>
-.net-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; display: block; }
-.net-hint  { font-size: 12px; color: #9ca3af; margin-bottom: 8px; }
-.net-provider-badge {
-  display: inline-block; font-size: 12px; font-weight: 700;
-  padding: 3px 10px; border-radius: 20px; letter-spacing: .3px;
-}
-</style>
-
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
 <script>
-function confirmDelete(form) {
+function onGsubzCarrierChange(carrier) {
+  document.querySelectorAll('.gsubz-cat-panel').forEach(function (panel) {
+    var active = panel.id === 'gsubzCat-' + carrier;
+    panel.style.display = active ? '' : 'none';
+    panel.querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.required = active;
+      if (!active) r.checked = false;
+    });
+  });
+}
+
+function confirmDeletePlan(form) {
   Swal.fire({
-    title: 'Remove Network?',
-    text: 'Products using this network name will still work, but it will no longer appear in the dropdown.',
+    title: 'Remove this plan?',
+    text: 'Products already using it will still work, but it will no longer appear in the dropdown.',
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Yes, Remove',
     confirmButtonColor: '#ef4444',
     cancelButtonText: 'Cancel',
-  }).then(r => { if (r.isConfirmed) form.submit(); });
+  }).then(function (r) { if (r.isConfirmed) form.submit(); });
   return false;
 }
 </script>

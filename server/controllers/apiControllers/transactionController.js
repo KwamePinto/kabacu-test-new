@@ -2,7 +2,7 @@ const Transaction = require('../../models/TransactionModel');
 const Wallet      = require('../../models/WalletModal');
 const Product     = require('../../models/ProductsModal');
 const User        = require('../../models/UserModel');
-const { buyData, networkCode } = require('../../services/ourdatastore');
+const { purchaseData } = require('../../services/dataProviders');
 
 exports.getTransactions = async (req, res) => {
   try {
@@ -50,28 +50,13 @@ exports.retryTransaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid product data' });
     }
 
-    let apiResponse;
-    try {
-      apiResponse = await Promise.race([
-        buyData({
-          network:   await networkCode(product.dataDetails.network),
-          phone:     tx.phone,
-          data_plan: product.dataDetails.plan_id
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), 60000)
-        ),
-      ]);
-    } catch (err) {
-      if (err.response) {
-        console.log('API HTTP ERROR (retry):', err.response.status, err.response.data);
-        apiResponse = { status: 'fail', message: 'API error' };
-      } else {
-        const reason = err.message === 'Request timeout' ? 'timeout' : (err.code || err.message);
-        console.log('API NO-RESPONSE (retry):', reason);
-        apiResponse = { status: 'pending', _timedOut: true, _reason: reason };
-      }
-    }
+    // Reflects what this retry actually attempts, not necessarily what was
+    // true when the transaction was first created (the product's provider
+    // could have changed since) — the poller reads this to decide how a
+    // still-pending outcome gets reconciled.
+    tx.provider = product.dataDetails.provider === 'GSUBZ' ? 'GSUBZ' : 'ODS';
+
+    const apiResponse = await purchaseData(product, tx.phone);
 
     if (apiResponse.status === 'success') {
       if (wallet.balances.NAIRA < tx.amount) {

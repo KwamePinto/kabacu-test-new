@@ -50,31 +50,74 @@
 
                       <!-- DATA fields -->
                       <% if (product.category === 'DATA') { %>
+                      <%
+                        var _provider = product.dataDetails?.provider || 'ODS';
+                        var _isGsubz  = _provider === 'GSUBZ';
+                      %>
                       <div class="form-group">
-                        <label>Bundle ID</label>
-                        <input type="number" name="plan_id" class="form-control" value="<%= product.dataDetails?.plan_id || '' %>">
-                        <small class="text-muted">The provider's id for this exact bundle size. Every size has its own.</small>
-                      </div>
-                      <div class="form-group">
-                        <label>Network</label>
-                        <select name="network" class="form-control">
-                          <option value="" disabled>Select network…</option>
-                          <% if (typeof networks !== 'undefined') { networks.forEach(n => { %>
-                          <option value="<%= n.name %>" <%= (product.dataDetails?.network === n.name) ? 'selected' : '' %>><%= n.name %></option>
-                          <% }) } %>
-                          <%
-                            // If current value isn't in the list, show it as a fallback option
-                            const _cur = product.dataDetails?.network || '';
-                            const _inList = typeof networks !== 'undefined' && networks.some(n => n.name === _cur);
-                            if (_cur && !_inList) {
-                          %>
-                          <option value="<%= _cur %>" selected><%= _cur %> (legacy)</option>
-                          <% } %>
+                        <label>Data Service Provider</label>
+                        <select name="provider" id="dataProviderSelect" class="form-control">
+                          <option value="ODS" <%= !_isGsubz ? 'selected' : '' %>>OurDataStore (ODS)</option>
+                          <option value="GSUBZ" <%= _isGsubz ? 'selected' : '' %>>GSubz</option>
                         </select>
-                        <small class="text-muted">
-                          Networks not listed? <a href="/admin/networks" target="_blank">Manage Networks</a>
-                        </small>
+                        <small class="text-muted">Which provider actually fulfils this bundle.</small>
                       </div>
+
+                      <div id="odsPlanGroup" style="<%= _isGsubz ? 'display:none;' : '' %>">
+                        <div class="form-group">
+                          <label>Bundle ID</label>
+                          <input type="number" name="plan_id" id="odsPlanIdInput" class="form-control" value="<%= product.dataDetails?.plan_id || '' %>">
+                          <small class="text-muted">The provider's id for this exact bundle size. Every size has its own.</small>
+                        </div>
+                        <div class="form-group">
+                          <label>Network</label>
+                          <select name="network" id="odsNetworkSelect" class="form-control">
+                            <option value="" disabled>Select network…</option>
+                            <% if (typeof networks !== 'undefined') { networks.forEach(n => { %>
+                            <option value="<%= n.name %>" <%= (!_isGsubz && product.dataDetails?.network === n.name) ? 'selected' : '' %>><%= n.name %></option>
+                            <% }) } %>
+                            <%
+                              // If current value isn't in the list, show it as a fallback option
+                              const _cur = !_isGsubz ? (product.dataDetails?.network || '') : '';
+                              const _inList = typeof networks !== 'undefined' && networks.some(n => n.name === _cur);
+                              if (_cur && !_inList) {
+                            %>
+                            <option value="<%= _cur %>" selected><%= _cur %> (legacy)</option>
+                            <% } %>
+                          </select>
+                          <small class="text-muted">
+                            Networks not listed? <a href="/admin/networks" target="_blank">Manage Networks</a>
+                          </small>
+                        </div>
+                      </div>
+
+                      <div id="gsubzPlanGroup" style="<%= _isGsubz ? '' : 'display:none;' %>">
+                        <div class="form-group">
+                          <label>Plan Code</label>
+                          <input type="text" name="gsubz_plan_code" id="gsubzPlanCodeInput" class="form-control" value="<%= product.dataDetails?.gsubz_plan_code || '' %>">
+                          <small class="text-muted">GSubz's own code for this exact bundle size.</small>
+                        </div>
+                        <div class="form-group">
+                          <label>Plan</label>
+                          <select name="network" id="gsubzNetworkSelect" class="form-control">
+                            <option value="" disabled>Select plan…</option>
+                            <% if (typeof gsubzPlans !== 'undefined') { gsubzPlans.forEach(function (p) { %>
+                            <option value="<%= p.name %>" <%= (_isGsubz && product.dataDetails?.network === p.name) ? 'selected' : '' %>><%= p.name %> (<%= p.carrier %> · <%= p.category %>)</option>
+                            <% }) } %>
+                            <%
+                              const _gcur = _isGsubz ? (product.dataDetails?.network || '') : '';
+                              const _ginList = typeof gsubzPlans !== 'undefined' && gsubzPlans.some(function (p) { return p.name === _gcur; });
+                              if (_gcur && !_ginList) {
+                            %>
+                            <option value="<%= _gcur %>" selected><%= _gcur %> (legacy)</option>
+                            <% } %>
+                          </select>
+                          <small class="text-muted">
+                            Plan not listed? <a href="/admin/networks#gsubz" target="_blank">Manage GSubz Plans</a>
+                          </small>
+                        </div>
+                      </div>
+
                       <div class="form-group">
                         <label>Plan Type</label>
                         <input type="text" name="plan_type" class="form-control" value="<%= product.dataDetails?.plan_type || '' %>">
@@ -263,6 +306,33 @@ editImageInput.addEventListener('change', function() {
     reader.readAsDataURL(file);
   });
 });
+
+// DATA: provider toggle — only present when the product's category is DATA.
+// Same reasoning as add-products.ejs: only the group matching the chosen
+// provider stays enabled, so its "network" field is the only one actually
+// submitted (a disabled field is left out of submission entirely).
+var providerSelect = document.getElementById('dataProviderSelect');
+if (providerSelect) {
+  var odsPlanGroup       = document.getElementById('odsPlanGroup');
+  var gsubzPlanGroup     = document.getElementById('gsubzPlanGroup');
+  var odsNetworkSelect   = document.getElementById('odsNetworkSelect');
+  var odsPlanIdInput     = document.getElementById('odsPlanIdInput');
+  var gsubzNetworkSelect = document.getElementById('gsubzNetworkSelect');
+  var gsubzPlanCodeInput = document.getElementById('gsubzPlanCodeInput');
+
+  var onProviderChange = function () {
+    var isGsubz = providerSelect.value === 'GSUBZ';
+    odsPlanGroup.style.display   = isGsubz ? 'none' : 'block';
+    gsubzPlanGroup.style.display = isGsubz ? 'block' : 'none';
+
+    odsNetworkSelect.disabled = isGsubz;
+    odsPlanIdInput.disabled   = isGsubz;
+    gsubzNetworkSelect.disabled = !isGsubz;
+    gsubzPlanCodeInput.disabled = !isGsubz;
+  };
+  providerSelect.addEventListener('change', onProviderChange);
+  onProviderChange();
+}
 
 document.getElementById('saveProductBtn').addEventListener('click', function() {
   Swal.fire({

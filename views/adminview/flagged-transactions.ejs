@@ -171,6 +171,9 @@
                                   <% if (tx.apiResponse && tx.apiResponse._odsUnreachable) { %>
                                     <span style="display:block;color:#9a3412;font-size:11px;font-weight:600;">Provider unreachable — needs review</span>
                                   <% } %>
+                                  <% if (tx.apiResponse && tx.apiResponse._needsManualReview) { %>
+                                    <span style="display:block;color:#9a3412;font-size:11px;font-weight:600;">GSubz — needs review</span>
+                                  <% } %>
                                 </div>
                               <% } else if (tx.hasSuccessRetry) { %>
                                 <div style="display:inline-block;background:#fff3cd;border:1px solid #ffeeba;border-radius:4px;padding:4px 10px;line-height:1.6;">
@@ -191,6 +194,12 @@
                                     Deduct Wallet
                                   </button>
                                 <% } else { %>
+                                  <% if (tx.provider === 'GSUBZ') { %>
+                                  <button class="btn btn-sm btn-outline-warning gsubz-check-btn"
+                                    data-id="<%= tx._id %>">
+                                    Check GSubz status
+                                  </button>
+                                  <% } %>
                                   <button class="btn btn-sm btn-success resolve-btn"
                                     data-id="<%= tx._id %>" data-action="delivered"
                                     data-amount="<%= tx.amount %>" data-user="<%= userName %>">
@@ -493,6 +502,31 @@ document.querySelectorAll('.resolve-btn').forEach(function (btn) {
     } catch (_) {
       Swal.fire({ icon: 'error', text: 'Something went wrong' });
       btn.disabled = false; btn.textContent = isDelivered ? 'Mark Delivered' : 'Refund User';
+    }
+  });
+});
+
+document.querySelectorAll('.gsubz-check-btn').forEach(function (btn) {
+  btn.addEventListener('click', async function () {
+    var id = this.dataset.id;
+    btn.disabled = true; var originalText = btn.textContent; btn.textContent = 'Checking…';
+    try {
+      var data = await postAction('/admin/flagged-transactions/check-gsubz-status', { transactionId: id });
+      if (data.success) {
+        Swal.fire({
+          icon: 'info',
+          title: 'GSubz status',
+          html: '<pre style="text-align:left;font-size:12px;max-height:300px;overflow:auto;">' +
+                escHtml(JSON.stringify(data.raw, null, 2)) + '</pre>',
+          width: 500,
+        });
+      } else {
+        Swal.fire({ icon: 'error', title: 'Could not check', text: data.message });
+      }
+    } catch (_) {
+      Swal.fire({ icon: 'error', text: 'Something went wrong' });
+    } finally {
+      btn.disabled = false; btn.textContent = originalText;
     }
   });
 });

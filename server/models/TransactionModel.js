@@ -97,6 +97,16 @@ const transactionSchema = new mongoose.Schema({
     adminClearedAt: { type: Date },
     adminClearedBy: { type: String },
 
+    // Which data provider actually handled this purchase. Set once, at
+    // creation, from product.dataDetails.provider — never inferred later
+    // from apiResponse shape. transactionPoller.js reads this to decide
+    // whether a stuck-pending row can go through OurDataStore's
+    // lookup-then-refund reconciliation (ODS only) or must wait for a
+    // human, since GSubz's own reconciliation has never been confirmed
+    // live. Default 'ODS' preserves every transaction that predates this
+    // field.
+    provider: { type: String, enum: ['ODS', 'GSUBZ'], default: 'ODS' },
+
     apiResponse: {
         type: Object
     },

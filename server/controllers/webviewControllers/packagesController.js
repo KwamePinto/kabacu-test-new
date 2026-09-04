@@ -1,4 +1,5 @@
-﻿const { buyData, networkCode, userMessage } = require("../../services/ourdatastore");
+﻿const { userMessage } = require("../../services/ourdatastore");
+const { purchaseData } = require("../../services/dataProviders");
 const { notify } = require("../../services/userNotificationService");
 const Product = require("../../models/ProductsModal");
 const Checkout = require("../../models/CheckoutModal");
@@ -252,32 +253,7 @@ exports.walletCheckout = async (req, res) => {
       return res.redirect("/checkout");
     }
 
-    // const apiResponse = await buyData({
-    //   network: checkout.package.network === 'MTN' ? 1 : 2,
-    //   phone: phone,
-    //   data_plan: checkout.package.plan_id
-    // });
-
-    let apiResponse;
-
-    try {
-      apiResponse = await Promise.race([
-        buyData({
-          network: await networkCode(checkout.product.dataDetails.network),
-          phone: phone,
-          data_plan: checkout.product.dataDetails.plan_id,
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 60000)),
-      ]);
-    } catch (err) {
-      console.log("API ERROR:", err.response?.data || err.message);
-      if (err.response) {
-        apiResponse = { status: "fail", message: err.response?.data?.message || "API error" };
-      } else {
-        const reason = err.message === 'Request timeout' ? 'timeout' : (err.code || err.message);
-        apiResponse = { status: "pending", _timedOut: true, _reason: reason };
-      }
-    }
+    const apiResponse = await purchaseData(checkout.product, phone);
 
     console.log("About to save transaction...");
 
@@ -291,6 +267,7 @@ exports.walletCheckout = async (req, res) => {
       phone: phone,
       amount,
       status: txStatus,
+      provider: checkout.product.dataDetails.provider === "GSUBZ" ? "GSUBZ" : "ODS",
       reference: `TX-${Date.now()}`,
       apiResponse,
     });
@@ -370,26 +347,11 @@ exports.retryTransaction = async (req, res) => {
       return res.json({ success: false, message: "Invalid product data" });
     }
 
-    let apiResponse;
+    // Reflects what this retry actually attempts — see the identical note in
+    // apiControllers/transactionController.js::retryTransaction.
+    tx.provider = product.dataDetails.provider === "GSUBZ" ? "GSUBZ" : "ODS";
 
-    try {
-      apiResponse = await Promise.race([
-        buyData({
-          network: await networkCode(product.dataDetails.network),
-          phone: tx.phone,
-          data_plan: product.dataDetails.plan_id,
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Request timeout")), 60000)
-        ),
-      ]);
-    } catch (err) {
-      if (err.message === "Request timeout") {
-        apiResponse = { status: "pending", _timedOut: true };
-      } else {
-        apiResponse = { status: "fail", message: "API error" };
-      }
-    }
+    const apiResponse = await purchaseData(product, tx.phone);
 
     if (apiResponse.status === "success") {
       if (wallet.balances.NAIRA < tx.amount) {
@@ -1160,46 +1122,15 @@ exports.payWithWallet = async (req, res) => {
           walletType:    "NAIRA",
           paymentMethod: "wallet",
           status:        "pending",
+          provider:      product.dataDetails.provider === "GSUBZ" ? "GSUBZ" : "ODS",
           reference:     "PAY-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
           balanceBefore,
           balanceAfter:  balanceAfterDeduction,
           apiResponse:   { _reserved: true },
         });
 
-        try {
-          apiResponse = await Promise.race([
-            buyData({
-              network: await networkCode(product.dataDetails.network),
-
-              phone,
-
-              data_plan: product.dataDetails.plan_id,
-            }),
-
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error("Request timeout")),
-
-                60000,
-              ),
-            ),
-          ]);
-
-          console.log("BUY RESPONSE:", apiResponse);
-        } catch (err) {
-          if (err.response) {
-            // OurDataStore sent back an HTTP error — they received and rejected our request.
-            // Data was not delivered; safe to refund.
-            console.log("API HTTP ERROR:", err.response.status, err.response.data);
-            apiResponse = { status: "fail" };
-          } else {
-            // No response received (timeout, network drop, connection reset, etc.).
-            // OurDataStore may have processed the request — keep wallet deducted.
-            const reason = err.message === "Request timeout" ? "timeout" : (err.code || err.message);
-            console.log("API NO-RESPONSE:", reason);
-            apiResponse = { status: "pending", _timedOut: true, _reason: reason };
-          }
-        }
+        apiResponse = await purchaseData(product, phone);
+        console.log("BUY RESPONSE:", apiResponse);
 
         // =====================================
         // ⏳ PENDING — do not refund

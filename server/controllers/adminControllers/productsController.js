@@ -16,6 +16,7 @@ const referralCodeService = require("../../services/referralCodeService");
 const ReferralCodeRequest = require("../../models/ReferralCodeRequestModel");
 const walletUtil = require("../../utils/wallet");
 const Network       = require("../../models/NetworkModel");
+const GsubzPlan     = require("../../models/GsubzPlanModel");
 const Referral        = require("../../models/ReferralModel");
 const ReferralCommission = require("../../models/ReferralCommissionModel");
 const ReferralSettings = require("../../models/ReferralSettingsModel");
@@ -28,14 +29,16 @@ exports.createProducts = [
   authenticateAdminUser,
   async (req, res) => {
     try {
-      const [category, networks] = await Promise.all([
+      const [category, networks, gsubzPlans] = await Promise.all([
         Category.find({ is_deleted: { $ne: 1 } }).sort({ category_name: 1 }),
         Network.find({ is_deleted: { $ne: 1 } }).sort({ apiCode: 1, name: 1 }),
+        GsubzPlan.find({ is_deleted: { $ne: 1 } }).sort({ carrier: 1, name: 1 }),
       ]);
       res.render("adminview/forms/add-products", {
         layout: adminLayouts,
         category,
         networks,
+        gsubzPlans,
         countryList: allCountries(),
         query: req.query,
       });
@@ -78,7 +81,9 @@ exports.addProduct = [
         // 3, 2 and 240 for 15GB/10GB/5GB/3GB/2GB/1GB. Inheriting one id from
         // the plan record would deliver the same bundle for every size.
         productData.dataDetails = {
+          provider: req.body.provider === "GSUBZ" ? "GSUBZ" : "ODS",
           plan_id: req.body.plan_id,
+          gsubz_plan_code: (req.body.gsubz_plan_code || "").trim(),
           network: req.body.network,
           plan_type: req.body.plan_type,
           // plan_name is kept in step with plan_type: the card now leads with
@@ -210,15 +215,17 @@ exports.editProductGet = [
     try {
       const product = await Product.findById(req.params.id);
       if (!product) return res.redirect("/admin/product/view-products");
-      const [category, networks] = await Promise.all([
+      const [category, networks, gsubzPlans] = await Promise.all([
         Category.find({ is_deleted: { $ne: 1 } }).sort({ category_name: 1 }),
         Network.find({ is_deleted: { $ne: 1 } }).sort({ apiCode: 1, name: 1 }),
+        GsubzPlan.find({ is_deleted: { $ne: 1 } }).sort({ carrier: 1, name: 1 }),
       ]);
       res.render("adminview/forms/edit-product", {
         layout: adminLayouts,
         product,
         category,
         networks,
+        gsubzPlans,
         countryList: allCountries(),
         query: req.query,
       });
@@ -267,7 +274,12 @@ exports.editProductPost = [
 
         update.dataDetails = {
           ...existing,
+          provider: req.body.provider === "GSUBZ" ? "GSUBZ" : "ODS",
           plan_id: req.body.plan_id ?? existing.plan_id,
+          gsubz_plan_code:
+            req.body.gsubz_plan_code !== undefined
+              ? String(req.body.gsubz_plan_code).trim()
+              : existing.gsubz_plan_code,
           network: req.body.network || existing.network,
           plan_type: req.body.plan_type || existing.plan_type,
           plan_name: req.body.plan_name || req.body.plan_type || existing.plan_name,

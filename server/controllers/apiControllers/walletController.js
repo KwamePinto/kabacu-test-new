@@ -7,7 +7,8 @@ const Checkout = require('../../models/CheckoutModal');
 const Transaction = require('../../models/TransactionModel');
 const Conversion = require('../../models/ConversionModal');
 const SiteSettings = require('../../models/SiteSettingsModel');
-const { buyData, networkCode, userMessage } = require('../../services/ourdatastore');
+const { userMessage } = require('../../services/ourdatastore');
+const { purchaseData } = require('../../services/dataProviders');
 const { generateSignature, verifySignature } = require('../../utils/palmpay');
 const axios  = require('axios');
 const crypto = require('crypto');
@@ -114,31 +115,14 @@ exports.payWithWallet = async (req, res) => {
           walletType:    'NAIRA',
           paymentMethod: 'wallet',
           status:        'pending',
+          provider:      product.dataDetails.provider === 'GSUBZ' ? 'GSUBZ' : 'ODS',
           reference:     'PAY-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
           balanceBefore,
           balanceAfter:  balanceAfterDeduction,
           apiResponse:   { _reserved: true },
         });
 
-        try {
-          apiResponse = await Promise.race([
-            buyData({
-              network:   await networkCode(product.dataDetails.network),
-              phone,
-              data_plan: product.dataDetails.plan_id
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 60000))
-          ]);
-        } catch (err) {
-          if (err.response) {
-            console.log('API HTTP ERROR:', err.response.status, err.response.data);
-            apiResponse = { status: 'fail' };
-          } else {
-            const reason = err.message === 'Request timeout' ? 'timeout' : (err.code || err.message);
-            console.log('API NO-RESPONSE:', reason);
-            apiResponse = { status: 'pending', _timedOut: true, _reason: reason };
-          }
-        }
+        apiResponse = await purchaseData(product, phone);
 
         if (apiResponse.status === 'pending') {
           tx.apiResponse = apiResponse;

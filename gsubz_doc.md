@@ -510,20 +510,66 @@ which are terminal. Treat this as unknown and design for the worst case (see
   in `ourdatastore.js`'s `executeBuyData`, for the same reason — the ID has
   to exist locally before the call so a lost response can still be
   reconciled by that ID afterward).
-- **No `Content-Type` header appears in any example.** Every example builds
-  the POST body as a plain PHP array passed straight to
-  `CURLOPT_POSTFIELDS`, which cURL sends as
-  `multipart/form-data` by default (or `application/x-www-form-urlencoded`
-  if the array has no file fields) — **not JSON.** This is a real risk for a
-  Node/axios integration: `ourdatastore.js` sends
-  `axios.post(url, payload, { headers: { 'Content-Type': 'application/json' } })`
-  everywhere. If GSubz's server actually expects form-encoded fields and is
-  handed a raw JSON body instead, the likely failure mode is a `204
-  REQUIRED_CONTENT_NOT_SENT` — **which looks identical to a genuine "you
-  forgot a field" bug** and could burn hours of debugging before anyone
-  thinks to try form-encoding instead. **Test both encodings against
-  `/api/testpay` before writing production code, and pin down which format the
-  live API actually accepts.**
+- **Content-Type — RESOLVED by live testing against `/api/testpay/`.**
+  `application/x-www-form-urlencoded` and `multipart/form-data` both work and
+  return a fully-formed success response. **A raw JSON body does NOT work** —
+  it doesn't 400/415, it silently misreads the fields (a JSON body against
+  `/api/testpay` returned `406 INVALID_ARGUMENTS_DUPLICATE_REQUEST_ID` for a
+  brand-new, never-before-used `requestID`, meaning PHP's `$_POST` was empty
+  and the server fell back to some default/cached value). **Use
+  `application/x-www-form-urlencoded`** (`URLSearchParams`, not
+  `JSON.stringify`) for `/pay` and `/verify` — do not reuse `ourdatastore.js`'s
+  `Content-Type: application/json` pattern here.
+- **Trailing slash is mandatory on POST endpoints — also found by live
+  testing, and easy to get wrong silently.** `gsubz.com/api/testpay` (no
+  trailing slash) 301-redirects to `gsubz.com/api/testpay/`, and per the
+  `fetch`/browser redirect spec a 301 on a POST request is followed as a
+  **GET** — so an un-slashed URL doesn't error, it just silently sends the
+  wrong HTTP method and comes back `200 { code: "025",
+  description: "REQUEST_METHOD_NOT_POST" }`, which reads exactly like a
+  generic validation failure, not a URL bug. Confirmed identical on both
+  `gsubz.com` and `api.gsubz.com`. **Always call `/api/pay/` and
+  `/api/verify/` with the trailing slash already in the URL** — don't rely on
+  an HTTP client to "follow the redirect correctly," since most clients
+  (including Node's `fetch`) downgrade the method on 301/302 exactly like a
+  browser would.
+- **The sandbox pair is `/api/testpay/` + `/api/testverify/`, not
+  `/api/testverfy/`.** The "testverfy" spelling elsewhere in GSubz's own docs
+  (and earlier in this section) is itself a typo — `testverfy` 404s,
+  `testverify` (full word) works. Confirmed live: `serviceID: "test_pay"` is
+  the fixed sandbox service ID for `/testpay/` (any other serviceID against
+  the sandbox 401s with `NOT_ALLOWED_SERVICE_ID_FOR_TEST_IS_(test_pay)`), and
+  a `/testverify/` call against a `requestID` just created by `/testpay/`
+  returns the **first real observed "success" verify response** for this
+  integration (previously an open gap, see §6.2):
+  ```json
+  {
+    "code": "200",
+    "status": "TRANSACTION_SUCCESSFUL",
+    "description": "TRANSACTION_SUCCESSFUL",
+    "content": {
+      "transactionID": "2623482075",
+      "requestID": "SPIKE_...",
+      "amount": "100",
+      "phone": "08031234567",
+      "serviceID": "test_pay",
+      "email": "",
+      "status": "TRANSACTION_SUCCESSFUL",
+      "code": "200",
+      "description": "TRANSACTION_SUCCESSFUL",
+      "date": "2026-09-04T08:05:59+01:00"
+    }
+  }
+  ```
+  Two caveats before trusting this shape for the real endpoint: (1) the
+  sandbox's `content.code` is `"200"`, not the `"000"` the real `/pay`
+  example in §3.6 documents for a real successful purchase — trust `"000"`
+  as the real-endpoint success check (and treat `content.status ===
+  "TRANSACTION_SUCCESSFUL"` as a redundant confirming check, since that
+  string was identical in both the sandbox and the real documented example);
+  (2) this is still `/testverify/`, not `/verify/` — the *shape* generalizes,
+  but §6.2's checklist item (capture a REAL `/verify` response from a real
+  low-value purchase before launch) still stands.
 
 ## 6. Documentation gaps & production risks
 
@@ -709,22 +755,38 @@ actually different about GSubz:
 - [ ] Confirmed real base URL is `https://gsubz.com/api/` for every endpoint
       (§2)
 - [ ] Confirmed which GET endpoints truly need no `Authorization` header (§1)
-- [ ] Confirmed whether `/pay`/`/verify` expect form-encoded or JSON bodies,
-      tested against `/api/testpay` (§5)
+- [x] Confirmed `/pay`/`/verify` expect `application/x-www-form-urlencoded`
+      (JSON silently fails), and that POST URLs need a trailing slash or a
+      301 redirect downgrades the POST to a GET — tested live against
+      `/api/testpay/` and `/api/testverify/` (§5)
 - [ ] Built the `/pay` payload from live `/fields` per service, not from
       either mislabelled worked example (§3.6, §6.6)
 - [ ] Captured a real "still processing" `/verify` response and a real
-      success `/verify` response — not inferred from the one failure example
-      (§6.2)
+      success `/verify` response against the LIVE (not sandbox) endpoint —
+      the sandbox's `content.code: "200"` (vs. the real endpoint's
+      documented `"000"`) is not proof enough on its own (§6.2, §5)
 - [ ] Confirmed retry-with-same-`requestID` behaviour (§6.4) before any retry
       logic goes anywhere near production
 - [ ] Confirmed whether `amount` is server-validated against `plan` for
       fixed-price services (§6.7)
 - [ ] Asked GSubz directly whether an undocumented webhook/IPN exists (§6.1)
-- [ ] Serial queue + backoff in place from day one, not added after the
-      first 429 (§6.3)
-- [ ] `pending`-first, poller-reconciled, idempotency-guarded refund pipeline
-      wired in — the exact shape that already protects OurDataStore
-      purchases in this codebase (§6, §7)
+- [x] Serial queue + backoff in place from day one, not added after the
+      first 429 (§6.3) — `server/services/gsubz.js`'s `buyData` mirrors
+      `ourdatastore.js`'s queue/backoff exactly
+- [x] `pending`-first, poller-reconciled, idempotency-guarded refund pipeline
+      wired in, BUT deliberately conservative rather than "the exact shape
+      that already protects OurDataStore purchases": `transactionPoller.js`
+      flags a stuck GSubz transaction `_needsManualReview` at 30 minutes and
+      never auto-refunds it (only ODS transactions get the automatic
+      lookup-then-refund treatment) — because the two unconfirmed items
+      right above this one (real `/pay` payload, real `/verify` responses)
+      are exactly what that automatic path would need to be trustworthy.
+      `gsubz.verify()` exists and is wired to a manual "Check GSubz status"
+      admin action (flagged-transactions page) so there's still an
+      ask-before-deciding tool today. Revisit once the two items above are
+      checked off — the ODS-equivalent automatic path can then replace the
+      manual-review one.
 - [ ] Raw `/pay` and `/verify` responses logged from the first live
-      transaction onward, to build the real `content.code` table (§4)
+      transaction onward, to build the real `content.code` table (§4) —
+      partially covered: `gsubz.js`'s `executeBuyData` already logs the full
+      raw response via `logger.info('[GSUBZ PURCHASE] Response — ...')`
