@@ -188,10 +188,84 @@ async function verify(requestID) {
   return response.data;
 }
 
+
+// ── Account balance ───────────────────────────────────────
+// POST, not GET: a GET returns 405 REQUEST_METHOD_NOT_IN_POST even though
+// GSubz's docs show it as a read. Body is empty; the key carries the auth.
+async function getBalance() {
+  const response = await postForm('balance', {}, { timeout: 15000 });
+  const raw = response.data || {};
+  // Money fields come back as strings on every read endpoint.
+  return { balance: Number(raw.balance) || 0, raw };
+}
+
+/* Asks GSubz what really happened to one transaction and normalises the
+ * answer into something safe to act on.
+ *
+ * The raw response has a trap worth spelling out: a requestID GSubz has
+ * NO RECORD of still comes back with `status: "TRANSACTION_FAILED"` —
+ * only `code` distinguishes it (404 CONTENT_NOT_FOUND_API_OR_NOT_FOUND)
+ * from a purchase that genuinely failed at their end. Reading `status`
+ * alone would report "the provider says this failed" for an order that
+ * never reached them at all, which is a completely different problem with
+ * a completely different remedy. Verified live 2026-09-07.
+ *
+ * Verdicts, and what each one licenses:
+ *   delivered  GSubz confirms it went through  -> trustworthy
+ *   failed     GSubz confirms it did not       -> trustworthy
+ *   norecord   GSubz has never heard of it     -> NOT proof of non-delivery
+ *   unknown    we could not get a usable answer -> NOT proof of anything
+ *
+ * `norecord` and `unknown` must never be treated as evidence that a
+ * customer went unserved, for the same reason ourdatastore.js separates
+ * "searched and found nothing" from "could not ask".
+ */
+async function verifyTransaction(requestID) {
+  if (!requestID) {
+    return { verdict: 'unknown', reachable: false, reason: 'no requestID recorded' };
+  }
+  let raw;
+  try {
+    const response = await postForm('verify', { requestID }, { timeout: 20000 });
+    raw = response.data || {};
+  } catch (err) {
+    logger.warn(`[GSUBZ VERIFY] ${requestID}: unreachable — ${err.message}`);
+    return { verdict: 'unknown', reachable: false, reason: err.message };
+  }
+
+  const code = String(raw.code || "");
+  const status = String(raw.status || "").toUpperCase();
+  const description = String(raw.description || "");
+
+  let verdict;
+  if (code === '200' && (status === 'SUCCESS' || status === 'TRANSACTION_SUCCESSFUL')) {
+    verdict = 'delivered';
+  } else if (code === '404' || /NOT_FOUND/.test(description)) {
+    verdict = 'norecord';
+  } else if (code === '406' || /ACCESS_NOT_ALLOWED/.test(description)) {
+    // Our request was rejected outright — says nothing about the purchase.
+    verdict = 'unknown';
+  } else {
+    verdict = 'failed';
+  }
+
+  return {
+    verdict,
+    reachable: true,
+    code,
+    description,
+    transactionId: raw.transaction_id != null ? String(raw.transaction_id) : null,
+    amount: raw.amount != null ? Number(raw.amount) : null,
+    message: raw.api_response || description || null,
+    raw,
+  };
+}
 module.exports = {
   fetchPlans,
   buyData,
   verify,
+  verifyTransaction,
+  getBalance,
   findService,
   GSUBZ_CARRIER_CATEGORIES,
   GSUBZ_SERVICES,

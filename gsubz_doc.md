@@ -431,6 +431,27 @@ GSubz's actual `plan_status`-equivalent field.
 
 ### 3.8 `POST /balance`
 
+**CONFIRMED LIVE (2026-09-07) — ignore the example below, which is wrong.**
+The call that actually works is a bare POST with the Bearer key and an
+empty body, and the response is flat — no `content` wrapper, no
+`response_description`:
+
+```
+POST https://gsubz.com/api/balance/        (trailing slash)
+Authorization: Bearer <key>
+Content-Type: application/x-www-form-urlencoded
+(empty body)
+
+-> { "balance": "9379.6" }
+```
+
+A **GET** returns `405 REQUEST_METHOD_NOT_IN_POST` even though this reads
+as a plain lookup, and no body fields or Basic auth are needed. `balance`
+is a string — parse it before arithmetic. Implemented as `getBalance()` in
+`server/services/gsubz.js`.
+
+<details><summary>GSubz's own (incorrect) example, kept for reference</summary>
+
 **Request:**
 ```php
 $data = array('api' => 'ap_xxxxxxxxxxxxxxxxxxx');
@@ -462,6 +483,8 @@ $data = array('api' => 'ap_xxxxxxxxxxxxxxxxxxx');
 >
 > `balance` is a **string** (`"841"`), like every price field in this API —
 > parse before doing arithmetic.
+
+</details>
 
 ## 4. Status code reference
 
@@ -631,7 +654,62 @@ never publish it). If genuinely none exists, size the poll interval the same
 deliberate way `transactionPoller.js` did for OurDataStore (`interval: 2
 min`) — a real, considered choice — not an arbitrary number.
 
-### 6.2 `/verify` never shows a "success" or "pending" response
+### 6.2 `/verify` — RESOLVED by live testing (2026-09-07)
+
+This was the largest gap in the document. It is now closed for the
+success and not-found cases, verified against the **live** endpoint using
+real past purchases, not the sandbox.
+
+`POST https://gsubz.com/api/verify/` (trailing slash, form-encoded,
+`requestID` field, Bearer key). A **confirmed success**:
+
+```json
+{
+  "code": "200",
+  "status": "success",
+  "description": "TRANSACTION_SUCCESSFUL",
+  "transaction_id": "2230860271",
+  "amount": "285.2",
+  "api_response": "Y'ello! You have gifted 500MB to 2347031283298..."
+}
+```
+
+Note this is a **fourth** response shape, different again from `/pay`:
+`code` is the string `"200"` (not `"000"`, not a number), `status` is the
+lowercase word `"success"`, and the id is `transaction_id` (snake_case)
+where `/pay` returns `transactionID` (camelCase). Do not assume any field
+name or code carries across endpoints on this API — it repeatedly does not.
+
+⚠️ **The trap that matters most.** A `requestID` GSubz has **no record**
+of does NOT return a distinct "not found" status — it returns:
+
+```json
+{ "code": "404", "description": "CONTENT_NOT_FOUND_API_OR_NOT_FOUND",
+  "status": "TRANSACTION_FAILED" }
+```
+
+That `status: "TRANSACTION_FAILED"` is indistinguishable from a purchase
+that genuinely failed at their end **unless you read `code`**. Anything
+branching on `status` alone will conclude "the provider says this failed"
+about an order that never reached the provider at all — two problems with
+opposite remedies (refund the customer vs. investigate a lost request).
+`server/services/gsubz.js`'s `verifyTransaction()` keys off `code` for
+exactly this reason and returns four distinct verdicts:
+`delivered` / `failed` / `norecord` / `unknown`, of which only the first
+two are evidence of anything.
+
+An empty/omitted `requestID` returns `code: "406" ACCESS_NOT_ALLOWED` —
+also mapped to `unknown`, since it says nothing about any purchase.
+
+**Still unconfirmed:** what an in-flight transaction looks like. No
+"still processing" response has been observed, and it may not exist — the
+API may simply answer 404 until it settles, leaving "not found" ambiguous
+between *never happened* and *not finished yet*. This is why
+`verifyTransaction` treats `norecord` as **not** proof of non-delivery,
+and why resolving a still-pending GSubz order is left to a human
+(`transactionPoller.js`'s `handleGsubzPending`) rather than automated.
+
+### 6.2b Original open question (kept for context)
 
 Only one example exists in the entire doc, and it's a hard failure (§3.7).
 Nothing shows:
@@ -761,10 +839,13 @@ actually different about GSubz:
       `/api/testpay/` and `/api/testverify/` (§5)
 - [ ] Built the `/pay` payload from live `/fields` per service, not from
       either mislabelled worked example (§3.6, §6.6)
-- [ ] Captured a real "still processing" `/verify` response and a real
-      success `/verify` response against the LIVE (not sandbox) endpoint —
-      the sandbox's `content.code: "200"` (vs. the real endpoint's
-      documented `"000"`) is not proof enough on its own (§6.2, §5)
+- [x] Captured a real **success** `/verify` response against the LIVE
+      endpoint, and the real **not-found** response — including the trap
+      that not-found reports `status: TRANSACTION_FAILED` and is only
+      distinguishable by `code: 404` (§6.2)
+- [ ] Still unconfirmed: what an **in-flight** transaction returns from
+      `/verify`. Until that is observed, `norecord` is never treated as
+      proof of non-delivery (§6.2)
 - [ ] Confirmed retry-with-same-`requestID` behaviour (§6.4) before any retry
       logic goes anywhere near production
 - [ ] Confirmed whether `amount` is server-validated against `plan` for

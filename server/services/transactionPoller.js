@@ -127,10 +127,14 @@ async function pollPendingTransactions() {
 
 // GSubz-pending handling — deliberately does far less than the ODS branch
 // above. Below 30 minutes it just waits, same as ODS. Past 30 minutes it
-// flags the transaction for a human instead of asking a provider-specific
-// "was this delivered?" question automatically, because that question has
-// no confirmed-safe answer for GSubz yet (see the note at the call site).
-// Never auto-refunds. Idempotent — re-flags without re-logging on repeat cycles.
+// flags the transaction for a human rather than deciding for itself.
+//
+// Note this is a policy choice, not a technical limit any more: /verify is
+// now confirmed live and pollGsubzReconciliation below uses it to check
+// SETTLED transactions. What is still not automated is acting on a PENDING
+// one — marking it delivered or refunding it — because that moves money on
+// the strength of a single provider answer. Wire it up only deliberately.
+// Idempotent — re-flags without re-logging on repeat cycles.
 async function handleGsubzPending(tx, age) {
   if (age <= AUTO_REFUND_AFTER_MS) return;
   if (tx.apiResponse?._needsManualReview) return;
@@ -143,7 +147,7 @@ async function handleGsubzPending(tx, age) {
   };
   tx.markModified('apiResponse');
   await tx.save();
-  logger.warn(`[POLLER] TX ${tx._id}: GSubz pending past ${Math.round(AUTO_REFUND_AFTER_MS / 60000)}min — flagged for manual review, NOT auto-refunded (GSubz reconciliation is not wired into the automatic poller yet)`);
+  logger.warn(`[POLLER] TX ${tx._id}: GSubz pending past ${Math.round(AUTO_REFUND_AFTER_MS / 60000)}min — flagged for manual review, NOT auto-refunded (resolving a pending GSubz order is a human decision)`);
 }
 
 async function refundAndFail(tx, reason) {
@@ -282,6 +286,65 @@ async function pollShortDelivery() {
   }
 }
 
+// ── GSubz reconciliation sweep ───────────────────────────────────────────────
+// Asks GSubz to confirm our own record of each recent GSubz purchase.
+//
+// This is the safety net for the failure mode that went unnoticed with
+// OurDataStore: a purchase our side classified as failed (and refunded) that
+// the provider actually delivered and charged us for. Nothing in our own data
+// can reveal that — only the provider can — so this asks them, and flags the
+// disagreements for a human.
+//
+// It deliberately does NOT move money. The right remedy differs per case
+// (mark delivered / refund the customer / investigate a missing record), and
+// an automated guess here is exactly how the original incident happened.
+const GSUBZ_RECONCILE_INTERVAL_MS = 15 * 60 * 1000; // every 15 minutes
+const GSUBZ_RECONCILE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000; // recent orders only
+const GSUBZ_RECONCILE_BATCH       = 20; // provider calls per cycle
+
+async function pollGsubzReconciliation() {
+  const { verifyTransaction } = require('./gsubz');
+  const { _reconcile } = require('../controllers/adminControllers/gsubzController');
+
+  // Settled rows only: a still-pending transaction is the pending poller's
+  // business, and re-checking one that already agreed wastes provider calls.
+  const candidates = await Transaction.find({
+    provider: 'GSUBZ',
+    status: { $in: ['success', 'failed', 'refunded'] },
+    createdAt: { $gte: new Date(Date.now() - GSUBZ_RECONCILE_LOOKBACK_MS) },
+    $or: [
+      { 'apiResponse._gsubzVerdict': { $exists: false } },
+      // An inconclusive answer proved nothing, so it is worth asking again.
+      { 'apiResponse._gsubzVerdict': 'unknown' },
+    ],
+  }).limit(GSUBZ_RECONCILE_BATCH);
+
+  if (!candidates.length) return;
+  logger.info(`[GSUBZ RECONCILE] Checking ${candidates.length} transaction(s) against GSubz`);
+
+  for (const tx of candidates) {
+    try {
+      const check = await verifyTransaction(tx.apiResponse && tx.apiResponse.requestId);
+      const outcome = _reconcile(tx.status, check.verdict);
+
+      tx.apiResponse = {
+        ...(tx.apiResponse || {}),
+        _gsubzVerdict: check.verdict,
+        _gsubzVerifiedAt: new Date().toISOString(),
+        _gsubzVerifyCode: check.code || null,
+        _gsubzMismatch: outcome.level === 'critical',
+      };
+      tx.markModified('apiResponse');
+      await tx.save();
+
+      if (outcome.level === 'critical') {
+        logger.warn(`[GSUBZ RECONCILE] TX ${tx._id} (${tx.reference}) NEEDS REVIEW — ${outcome.label}: ours=${tx.status}, gsubz=${check.verdict}, amount=${tx.amount}`);
+      }
+    } catch (err) {
+      logger.error(`[GSUBZ RECONCILE] Error on TX ${tx._id}: ${err.message}`);
+    }
+  }
+}
 function startPoller() {
   setInterval(async () => {
     try { await pollPendingTransactions(); }
@@ -295,8 +358,16 @@ function startPoller() {
     catch (err) { logger.error(`[SHORT-DELIVERY] Unhandled error: ${err.message}`); }
   }, SHORT_DELIVERY_INTERVAL_MS);
 
+  // Provider-side cross-check for GSubz. Flags disagreements only; it never
+  // moves money (see pollGsubzReconciliation).
+  setInterval(async () => {
+    try { await pollGsubzReconciliation(); }
+    catch (err) { logger.error(`[GSUBZ RECONCILE] Unhandled error: ${err.message}`); }
+  }, GSUBZ_RECONCILE_INTERVAL_MS);
+
   logger.info('[POLLER] Transaction poller started — interval: 2 min, auto-refund after: 30 min');
+  logger.info('[GSUBZ RECONCILE] Sweep started — interval: 15 min, lookback: 7d');
   logger.info('[SHORT-DELIVERY] Sweep started — interval: 10 min, lookback: 48h');
 }
 
-module.exports = { startPoller, pollPendingTransactions, pollShortDelivery };
+module.exports = { startPoller, pollPendingTransactions, pollShortDelivery, pollGsubzReconciliation };
