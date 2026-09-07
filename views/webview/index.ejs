@@ -214,7 +214,7 @@
     <% if (arrivalProducts.length > 0) { %>
     <div class="product-grid" id="homeProductGrid">
       <% arrivalProducts.slice(0, 8).forEach(function(product) { %>
-      <div class="product-card" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>">
+      <div class="product-card" data-carrier="<%= product.carrier || '' %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>">
         <%
           /* Same structure as the data-section cards: plan type, validity,
              price, optional struck-through old price plus a cashback badge for

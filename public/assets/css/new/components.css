@@ -847,3 +847,54 @@
 }
 
 .product-card__bonus svg { width: 9px; height: 9px; flex-shrink: 0; }
+
+/* ── Carrier artwork on data cards ────────────────────────────────────────
+   Every data product wears its own network's artwork, picked from the card's
+   data-carrier attribute. That attribute is resolved server-side from the
+   plan's carrier (server/utils/carrier.js), so an MTN bundle looks like MTN
+   whether OurDataStore or GSubz fulfils it.
+
+   The PNGs are the original artwork with its white ground removed at build
+   time (scripts/convert-network-art.js), which is what makes one asset serve
+   both themes: there is no white rectangle left to clash with a dark card, so
+   only the artwork's strength changes between light and dark. */
+:root                      { --carrier-art-opacity: 1; }
+:root[data-theme="light"]  { --carrier-art-opacity: 1; }
+/* Eased right back on dark. Full-strength saturated brand colour against the
+   dark card overpowers the price and plan text sitting on it; .2 keeps the
+   network recognisable as a tint without competing with the content.
+   Chosen against the real cards in both themes, not guessed. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --carrier-art-opacity: .2; }
+}
+:root[data-theme="dark"]   { --carrier-art-opacity: .2; }
+
+.bundle-card,
+.product-card { position: relative; }
+
+.bundle-card[data-carrier]::before,
+.product-card[data-carrier]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--carrier-art, none);
+  background-repeat: no-repeat;
+  /* The wave and logo run along the bottom of the source art. Anchoring
+     there keeps them intact while the card's upper area stays clear for the
+     bundle size and validity. */
+  background-position: center bottom;
+  background-size: 100% auto;
+  opacity: var(--carrier-art-opacity);
+  pointer-events: none;
+}
+
+/* Content above the artwork. */
+.bundle-card > *,
+.product-card > * { position: relative; z-index: 1; }
+
+.bundle-card[data-carrier="mtn"],
+.product-card[data-carrier="mtn"]    { --carrier-art: url("/assets/images/Networks/mtn.png"); }
+.bundle-card[data-carrier="glo"],
+.product-card[data-carrier="glo"]    { --carrier-art: url("/assets/images/Networks/glo.png"); }
+.bundle-card[data-carrier="airtel"],
+.product-card[data-carrier="airtel"] { --carrier-art: url("/assets/images/Networks/airtel.png"); }

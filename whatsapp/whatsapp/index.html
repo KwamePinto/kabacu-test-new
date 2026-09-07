@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WhatsApp Verification</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+
+    .icon {
+      width: 64px;
+      height: 64px;
+      background: #25D366;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .icon svg { width: 36px; height: 36px; fill: #fff; }
+
+    h1 {
+      font-size: 1.5rem;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      color: #6b7280;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      display: flex;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .input-group:focus-within { border-color: #25D366; }
+
+    .input-group input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 13px 14px;
+      font-size: 1rem;
+      color: #111827;
+      background: transparent;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: #25D366;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:hover:not(:disabled) { background: #1ebe5a; }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:disabled { background: #a7f3c4; cursor: not-allowed; }
+
+    .error {
+      color: #ef4444;
+      font-size: 0.85rem;
+      margin-top: -8px;
+      margin-bottom: 12px;
+      text-align: left;
+      display: none;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="icon">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+    </svg>
+  </div>
+
+  <h1>Verify Your Number</h1>
+  <p class="subtitle">Enter your WhatsApp number with country code. We'll send you a verification code.</p>
+
+  <div class="input-group">
+    <input
+      type="tel"
+      id="phone"
+      placeholder="e.g. 917837802509"
+      maxlength="20"
+      inputmode="numeric"
+    />
+  </div>
+  <div class="error" id="error-msg">Please enter a valid phone number with country code.</div>
+
+  <button class="btn" id="send-btn" onclick="sendCode()">Send Code via WhatsApp</button>
+</div>
+
+<script>
+  const WA_API_URL = 'https://graph.facebook.com/v25.0/1156326287566495/messages';
+  const WA_TOKEN   = 'EAAg3wrzjaZAkBRyanAtUxiBUqtU1evnHFs4lt9DXMyFHcijo77qsR9rxZBoHJmCCFzO5RSHMDndfZADwvYONHIKghH5P9QA4JrRhYtbjzHO18D0pxoAHVikZCnqrd1pD6rzk5eDSc8ci09DALpfC4zrUkxKO4QTos7DYAIc7OxQX3fyDwRM0U84smz4972R3NgZDZD';
+
+  function generateCode() {
+    return String(Math.floor(10000 + Math.random() * 90000));
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('send-btn');
+    btn.disabled = loading;
+    btn.innerHTML = loading
+      ? '<span class="spinner"></span>Sending…'
+      : 'Send Code via WhatsApp';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('error-msg').style.display = 'none';
+  }
+
+  async function sendCode() {
+    hideError();
+
+    const raw = document.getElementById('phone').value.trim().replace(/\D/g, '');
+    if (raw.length < 7) {
+      showError('Please enter a valid phone number with country code (e.g. 917837802509).');
+      return;
+    }
+
+    const code = generateCode();
+    setLoading(true);
+
+    const body = {
+      messaging_product: 'whatsapp',
+      to: raw,
+      type: 'template',
+      template: {
+        name: 'bittoken_verify',
+        language: { code: 'en_US' },
+        components: [
+          {
+            type: 'body',
+            parameters: [{ type: 'text', text: code }]
+          },
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [{ type: 'text', text: code }]
+          }
+        ]
+      }
+    };
+
+    try {
+      const res = await fetch(WA_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + WA_TOKEN,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.error?.message || 'Failed to send code. Try again.';
+        showError(msg);
+        setLoading(false);
+        return;
+      }
+
+      sessionStorage.setItem('wa_code', code);
+      sessionStorage.setItem('wa_phone', raw);
+
+      window.location.href = 'confirm.html';
+
+    } catch (err) {
+      showError('Network error. Please check your connection and try again.');
+      setLoading(false);
+    }
+  }
+
+  document.getElementById('phone').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendCode();
+  });
+</script>
+
+</body>
+</html>

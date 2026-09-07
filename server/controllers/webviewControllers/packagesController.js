@@ -1,5 +1,6 @@
 ﻿const { userMessage } = require("../../services/ourdatastore");
 const { purchaseData } = require("../../services/dataProviders");
+const { loadCarrierMaps, carrierOf } = require("../../utils/carrier");
 const { notify } = require("../../services/userNotificationService");
 const Product = require("../../models/ProductsModal");
 const Checkout = require("../../models/CheckoutModal");
@@ -71,6 +72,13 @@ exports.packagesView = async (req, res) => {
     // =====================================
     // RENDER
     // =====================================
+
+    /* Carrier token per card, so each one can wear its network artwork.
+       Resolved here rather than stored on the product: the plan owns the
+       carrier, so deriving it means a corrected plan fixes every card at
+       once and nothing can go stale. */
+    const carrierMaps = await loadCarrierMaps();
+    dataProducts.forEach((p) => { p.carrier = carrierOf(p.dataDetails, carrierMaps); });
 
     res.render("webview/index", {
       dataProducts,

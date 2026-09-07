@@ -127,7 +127,7 @@
              admin now fills. Support both so existing products keep rendering. */
           var bonuses = d.bonus ? [d.bonus] : (d.extras && d.extras.length ? d.extras : []);
         %>
-        <div class="bundle-card" data-plan-type="<%= d.plan_type %>" data-name="<%= (d.plan_type + ' ' + (d.plan_name || '')).toLowerCase() %>" data-brand="<%= d.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= d.plan_type %> on <%= d.network %> for ₦<%= d.amount %>">
+        <div class="bundle-card" data-carrier="<%= provider.toLowerCase() %>" data-plan-type="<%= d.plan_type %>" data-name="<%= (d.plan_type + ' ' + (d.plan_name || '')).toLowerCase() %>" data-brand="<%= d.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= d.plan_type %> on <%= d.network %> for ₦<%= d.amount %>">
           <div class="bundle-card__body">
             <div class="bundle-card__amount"><%= d.plan_type %></div>
             <div class="bundle-card__validity"><%= d.validate_period %></div>

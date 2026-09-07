@@ -1,5 +1,6 @@
 const Product = require('../../models/ProductsModal')
 const Network = require('../../models/NetworkModel')
+const { loadCarrierMaps, carrierOf, carrierLabel } = require('../../utils/carrier')
 const Checkout = require('../../models/CheckoutModal')
 const User = require('../../models/UserModel')
 const Cart = require('../../models/CartModal')
@@ -121,25 +122,19 @@ exports.dataCategory = async (req, res) => {
       Network.find({}),
     ]);
 
-    /* Map each configured network name -> its provider's display label (MTN/GLO/Airtel/9mobile) */
-    const nameToProvider = new Map();
-    networkDocs.forEach(n => nameToProvider.set(n.name.toUpperCase(), Network.providerLabel(n.apiCode)));
-
-    /* Falls back to substring matching for products whose network name isn't a configured Network */
-    function resolveProvider(rawName) {
-      const upper = (rawName || '').toUpperCase();
-      if (nameToProvider.has(upper)) return nameToProvider.get(upper);
-      if (upper.indexOf('MTN') !== -1)    return 'MTN';
-      if (upper.indexOf('GLO') !== -1)    return 'GLO';
-      if (upper.indexOf('AIRTEL') !== -1) return 'Airtel';
-      if (upper.indexOf('9MOBILE') !== -1 || upper.indexOf('ETISALAT') !== -1) return '9mobile';
-      return 'Others';
+    /* Carrier resolution lives in server/utils/carrier.js so this page and
+       the home page agree, and so GSubz plans resolve from their own
+       catalogue rather than falling through to name-guessing. */
+    const carrierMaps = await loadCarrierMaps();
+    function resolveProvider(dataDetails) {
+      const token = carrierOf(dataDetails, carrierMaps);
+      return token ? carrierLabel(token) : 'Others';
     }
 
     /* Group every product by API provider instead of the raw network name */
     const allGrouped = {};
     all.forEach(p => {
-      const provider = resolveProvider(p.dataDetails.network);
+      const provider = resolveProvider(p.dataDetails);
       if (!allGrouped[provider]) allGrouped[provider] = [];
       allGrouped[provider].push(p);
     });
