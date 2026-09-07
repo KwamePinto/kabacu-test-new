@@ -163,6 +163,11 @@
                           A plan with that name already exists.
                           <button type="button" class="close" data-dismiss="alert">&times;</button>
                         </div>
+                        <% } else if (query.gerror == 'nocats') { %>
+                        <div class="alert alert-warning alert-dismissible fade show">
+                          GSubz has no active categories for <strong><%= query.gcarrier || 'that carrier' %></strong> on this account yet, so a plan cannot be created for it. Ask GSubz to activate it, or pick a different carrier.
+                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        </div>
                         <% } else if (query.gerror == 'invalid') { %>
                         <div class="alert alert-danger alert-dismissible fade show">
                           Pick a carrier and a category before saving.
@@ -187,7 +192,7 @@
 
                           <div class="kp-field">
                             <label class="kp-field__label">Carrier</label>
-                            <select id="gsubzCarrier" class="kp-select" onchange="onGsubzCarrierChange(this.value)">
+                            <select name="carrier" id="gsubzCarrier" class="kp-select" onchange="onGsubzCarrierChange(this.value)">
                               <% Object.keys(carrierCategories).forEach(function (carrier) { %>
                               <option value="<%= carrier %>" <%= carrier === 'MTN' ? 'selected' : '' %>><%= carrier %></option>
                               <% }) %>

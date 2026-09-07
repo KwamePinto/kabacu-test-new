@@ -54,6 +54,15 @@ exports.addGsubzPlan = [authenticateAdminUser, async (req, res) => {
     const carrier  = String(req.body.carrier || '').toUpperCase();
     const category = req.body.category || '';
 
+    // A carrier GSubz has not activated on this account has no categories to
+    // pick from at all, so the generic "pick a carrier and a category" reply
+    // would be actively misleading — the admin did pick one, it just cannot
+    // carry a plan yet.
+    const carrierCats = GSUBZ_CARRIER_CATEGORIES[carrier];
+    if (carrierCats && !carrierCats.length) {
+      return res.redirect('/admin/networks?gerror=nocats&gcarrier=' + encodeURIComponent(carrier) + '#gsubz');
+    }
+
     // serviceID is never accepted from the form — only ever looked up from
     // the registry, so an admin can't type/paste an unverified GSubz ID.
     const service = findService(carrier, category);
