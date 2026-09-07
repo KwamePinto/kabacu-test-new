@@ -1,6 +1,6 @@
 const Network     = require('../../models/NetworkModel');
 const GsubzPlan   = require('../../models/GsubzPlanModel');
-const { GSUBZ_CARRIER_CATEGORIES, findService } = require('../../services/gsubz');
+const { GSUBZ_CARRIER_CATEGORIES, findService, fetchPlans } = require('../../services/gsubz');
 const { authenticateAdminUser } = require('../../config/authMiddleware');
 const adminLayout = 'layouts/adminLayout';
 
@@ -87,5 +87,62 @@ exports.deleteGsubzPlan = [authenticateAdminUser, async (req, res) => {
     res.redirect('/admin/networks?gdeleted=1#gsubz');
   } catch (err) {
     res.redirect('/admin/networks?gerror=1#gsubz');
+  }
+}];
+
+/* Live bundle catalogue for one configured GSubz plan.
+ *
+ * The product form needs two values that decide whether a purchase works
+ * at all, and both are hostile to hand-typing (gsubz_doc.md §3.4):
+ *   value      -> sent back as `plan` on /pay; a wrong one silently
+ *                 delivers a different bundle than the product advertises
+ *   api_price  -> what /pay actually charges us, and what the amount we
+ *                 send must equal; `price` is the higher suggested resale
+ *                 figure and using it overstates cost
+ * Serving them from the provider means the admin picks "500MB - 7days"
+ * and the ids follow, rather than copying digits between two dashboards.
+ */
+function parseBundle(p) {
+  const displayName = String(p.displayName || "").trim();
+  // "500MB - 7days" -> size "500MB", validity "7days". Not every name
+  // follows it, so treat a miss as "unknown" rather than mangling it.
+  const parts = displayName.split(/s*-s*/);
+  const size = (parts[0] || "").trim();
+  const validity = parts.slice(1).join(" - ").trim();
+  const mbMatch = size.match(/([d.]+)s*(GB|MB)/i);
+  const mb = mbMatch
+    ? parseFloat(mbMatch[1]) * (mbMatch[2].toUpperCase() === "GB" ? 1024 : 1)
+    : Number.MAX_SAFE_INTEGER;
+  return {
+    value: String(p.value),
+    displayName,
+    size,
+    validity,
+    // Both are strings on the wire — parse before any arithmetic.
+    price: Number(p.price) || 0,
+    apiPrice: Number(p.api_price != null ? p.api_price : p.price) || 0,
+    _mb: mb,
+  };
+}
+
+exports.gsubzPlanBundles = [authenticateAdminUser, async (req, res) => {
+  try {
+    const plan = await GsubzPlan.findOne({
+      name: req.query.plan,
+      is_deleted: { $ne: 1 },
+    }).lean();
+    if (!plan) return res.json({ success: false, message: "That plan is no longer configured." });
+
+    const raw = await fetchPlans(plan.serviceID);
+    // GSubz returns these unsorted (10GB, 15GB, 1GB, 20GB...), so order
+    // them by actual size — the dropdown is unusable otherwise.
+    const bundles = raw.map(parseBundle).sort((a, b) => a._mb - b._mb);
+
+    res.json({ success: true, serviceID: plan.serviceID, carrier: plan.carrier, bundles });
+  } catch (err) {
+    console.error("[networksController.gsubzPlanBundles]", err.message);
+    // Never block product creation on GSubz being reachable — the form
+    // falls back to manual entry when this fails.
+    res.json({ success: false, message: "Could not reach GSubz: " + err.message });
   }
 }];

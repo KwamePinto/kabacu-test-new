@@ -25,6 +25,42 @@ const referralService = require("../../services/referralService");
 const { authenticateAdminUser } = require("../../config/authMiddleware");
 const { notify } = require("../../services/userNotificationService");
 
+/* Both provider groups in the DATA form share name="network", and only
+ * client-side JS disables the inactive one. If that JS has not run (an
+ * error earlier in the page, a cached old copy), the browser posts BOTH
+ * values and Express hands us an array — which Mongoose then refuses to
+ * cast to a String, surfacing as an unexplained "Error adding product".
+ * Resolve it server-side instead of trusting the page to have behaved. */
+async function resolveNetworkName(raw, provider) {
+  const values = [].concat(raw || []).map((v) => String(v).trim()).filter(Boolean);
+  if (values.length <= 1) return values[0] || "";
+  const Model = provider === "GSUBZ" ? GsubzPlan : Network;
+  for (const v of values) {
+    const hit = await Model.findOne({ name: v, is_deleted: { $ne: 1 } }).select("_id").lean();
+    if (hit) return v;
+  }
+  return values[values.length - 1];
+}
+
+/* Names the fields a DATA product cannot be delivered without, so the admin
+ * gets told which box to fill rather than a blanket failure. The GSubz and
+ * ODS branches need genuinely different things: ODS derives the price from
+ * the bundle id it is given, GSubz must be told the exact amount to charge
+ * and refuses a mismatch (gsubz_doc.md §3.6). */
+function dataProductProblems(body, provider, network) {
+  const problems = [];
+  if (!String(body.description || "").trim()) problems.push("Description");
+  if (!network) problems.push("Select Plan");
+  if (provider === "GSUBZ") {
+    if (!String(body.gsubz_plan_code || "").trim()) problems.push("Bundle");
+    if (!(Number(body.costPrice) > 0)) problems.push("Cost Price (must equal the GSubz price for that bundle)");
+  } else if (!String(body.plan_id || "").trim()) {
+    problems.push("Bundle ID");
+  }
+  if (!(Number(body.amount) > 0)) problems.push("Price");
+  return problems;
+}
+
 exports.createProducts = [
   authenticateAdminUser,
   async (req, res) => {
@@ -75,16 +111,27 @@ exports.addProduct = [
       }
 
       if (category === "DATA") {
+        const provider = req.body.provider === "GSUBZ" ? "GSUBZ" : "ODS";
+        const network = await resolveNetworkName(req.body.network, provider);
+
+        const problems = dataProductProblems(req.body, provider, network);
+        if (problems.length) {
+          return res.redirect(
+            "/admin/product/create-products?error=" +
+              encodeURIComponent("Fill these in before saving: " + problems.join(", ")),
+          );
+        }
+
         // plan_id MUST stay per-product. It identifies the exact bundle at the
         // provider (sent as `data_plan` on purchase), and every size under a
         // plan has its own: "CTC Monthly Special-MTN" alone spans 244, 243, 4,
         // 3, 2 and 240 for 15GB/10GB/5GB/3GB/2GB/1GB. Inheriting one id from
         // the plan record would deliver the same bundle for every size.
         productData.dataDetails = {
-          provider: req.body.provider === "GSUBZ" ? "GSUBZ" : "ODS",
-          plan_id: req.body.plan_id,
+          provider,
+          plan_id: req.body.plan_id || undefined,
           gsubz_plan_code: (req.body.gsubz_plan_code || "").trim(),
-          network: req.body.network,
+          network,
           plan_type: req.body.plan_type,
           // plan_name is kept in step with plan_type: the card now leads with
           // plan_type, but older records and search still read plan_name.
@@ -117,7 +164,16 @@ exports.addProduct = [
       res.redirect("/admin/product/view-products?added=1");
     } catch (error) {
       console.log(error);
-      res.send("Error adding product");
+      /* A bare "Error adding product" gave an admin nothing to act on —
+       * a blank Description (required on the schema) and a failed cast
+       * both looked identical. Surface the real reason. */
+      const reason =
+        error && error.errors
+          ? Object.values(error.errors).map((e) => e.message).join("; ")
+          : (error && error.message) || "Unknown error";
+      res.redirect(
+        "/admin/product/create-products?error=" + encodeURIComponent(reason),
+      );
     }
   },
 ];
@@ -272,15 +328,24 @@ exports.editProductPost = [
               : { ...product.dataDetails })
           : {};
 
+        // Same defence as addProduct: if the provider-toggle JS did not run,
+        // both plan selects post and `network` arrives as an array.
+        const editProvider = req.body.provider === "GSUBZ" ? "GSUBZ" : "ODS";
+        const editNetwork = await resolveNetworkName(req.body.network, editProvider);
+        const editBundleCode = []
+          .concat(req.body.gsubz_plan_code || [])
+          .map((v) => String(v).trim())
+          .filter(Boolean)[0];
+
         update.dataDetails = {
           ...existing,
-          provider: req.body.provider === "GSUBZ" ? "GSUBZ" : "ODS",
+          provider: editProvider,
           plan_id: req.body.plan_id ?? existing.plan_id,
           gsubz_plan_code:
             req.body.gsubz_plan_code !== undefined
-              ? String(req.body.gsubz_plan_code).trim()
+              ? (editBundleCode || "")
               : existing.gsubz_plan_code,
-          network: req.body.network || existing.network,
+          network: editNetwork || existing.network,
           plan_type: req.body.plan_type || existing.plan_type,
           plan_name: req.body.plan_name || req.body.plan_type || existing.plan_name,
           amount: req.body.amount ?? existing.amount,

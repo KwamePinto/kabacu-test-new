@@ -92,10 +92,24 @@
                       </div>
 
                       <div id="gsubzPlanGroup" style="<%= _isGsubz ? '' : 'display:none;' %>">
+                        <!-- Picker only: it has no name and is never submitted,
+                             it just writes the chosen bundle into the Plan Code
+                             box and Cost Price below, so the saved values stay
+                             in one field. -->
+                        <div class="form-group">
+                          <label>Change bundle <small class="text-muted">(optional)</small></label>
+                          <select id="gsubzBundleSelect" class="form-control">
+                            <option value="" disabled selected>Load bundles for the plan below…</option>
+                          </select>
+                          <small class="text-muted" id="gsubzBundleStatus">Pick a plan to load its live bundle list from GSubz.</small>
+                        </div>
                         <div class="form-group">
                           <label>Plan Code</label>
                           <input type="text" name="gsubz_plan_code" id="gsubzPlanCodeInput" class="form-control" value="<%= product.dataDetails?.gsubz_plan_code || '' %>">
-                          <small class="text-muted">GSubz's own code for this exact bundle size.</small>
+                          <small class="text-muted">
+                            GSubz's <code>value</code> for this exact bundle size, sent as <code>plan</code> on purchase.
+                            Cost Price must equal that bundle's GSubz price or the purchase is rejected.
+                          </small>
                         </div>
                         <div class="form-group">
                           <label>Plan</label>
@@ -331,6 +345,49 @@ if (providerSelect) {
     gsubzPlanCodeInput.disabled = !isGsubz;
   };
   providerSelect.addEventListener('change', onProviderChange);
+
+  var gsubzBundleSelect = document.getElementById('gsubzBundleSelect');
+  var gsubzBundleStatus = document.getElementById('gsubzBundleStatus');
+  var costPriceInput    = document.querySelector('input[name="costPrice"]');
+
+  function loadGsubzBundles(planName) {
+    if (!planName || !gsubzBundleSelect) return;
+    gsubzBundleSelect.innerHTML = '<option value="" disabled selected>Loading\u2026</option>';
+    gsubzBundleStatus.textContent = 'Loading bundles from GSubz\u2026';
+    fetch('/admin/networks/gsubz/plans?plan=' + encodeURIComponent(planName))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success) throw new Error(data.message || 'GSubz returned no bundles');
+        gsubzBundleSelect.innerHTML = '<option value="" disabled selected>Select bundle\u2026</option>';
+        data.bundles.forEach(function (b) {
+          var o = document.createElement('option');
+          o.value = b.value;
+          o.textContent = b.displayName + '  \u2014  we pay \u20a6' + b.apiPrice;
+          o.setAttribute('data-api-price', b.apiPrice);
+          gsubzBundleSelect.appendChild(o);
+        });
+        gsubzBundleStatus.textContent = data.bundles.length + ' live bundles for ' + data.serviceID + '. Current code: ' + (gsubzPlanCodeInput.value || 'none');
+      })
+      .catch(function (e) {
+        gsubzBundleSelect.innerHTML = '<option value="" disabled selected>Unavailable</option>';
+        gsubzBundleStatus.textContent = e.message + ' \u2014 edit the Plan Code by hand instead.';
+      });
+  }
+
+  if (gsubzNetworkSelect) {
+    gsubzNetworkSelect.addEventListener('change', function () { loadGsubzBundles(this.value); });
+    if (providerSelect.value === 'GSUBZ' && gsubzNetworkSelect.value) loadGsubzBundles(gsubzNetworkSelect.value);
+  }
+
+  if (gsubzBundleSelect) {
+    gsubzBundleSelect.addEventListener('change', function () {
+      var o = this.options[this.selectedIndex];
+      if (!o || !o.value) return;
+      gsubzPlanCodeInput.value = o.value;
+      // Cost Price is the amount sent to GSubz; a mismatch is refused.
+      if (costPriceInput) costPriceInput.value = o.getAttribute('data-api-price');
+    });
+  }
   onProviderChange();
 }
 

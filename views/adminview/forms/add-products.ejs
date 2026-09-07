@@ -17,6 +17,12 @@
                   </div>
                   <div class="card-body">
 
+                    <% if (typeof query !== 'undefined' && query.error) { %>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                      <%= query.error %>
+                      <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                    <% } %>
                     <% if (typeof query !== 'undefined' && query.success == '1') { %>
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                       Product added successfully.
@@ -100,12 +106,26 @@
                               Plan not listed? <a href="/admin/networks#gsubz" target="_blank">Manage GSubz Plans</a>
                             </small>
                           </div>
+                          <!-- The bundle carries the two values a GSubz purchase
+                               depends on: `value` becomes /pay's `plan`, and
+                               `api_price` becomes the amount charged. Both are
+                               read straight off the provider rather than typed. -->
                           <div class="form-group">
-                            <label>Plan Code <span class="text-danger">*</span></label>
-                            <input type="text" name="gsubz_plan_code" id="gsubzPlanCodeInput" class="form-control" placeholder="GSubz's plan value for this exact size">
+                            <label>Bundle <span class="text-danger">*</span></label>
+                            <select name="gsubz_plan_code" id="gsubzBundleSelect" class="form-control">
+                              <option value="" disabled selected>Choose a plan first…</option>
+                            </select>
+                            <small class="text-muted" id="gsubzBundleStatus"></small>
+                          </div>
+
+                          <!-- Manual fallback, enabled only if GSubz cannot be
+                               reached, so an outage never blocks product setup. -->
+                          <div class="form-group" id="gsubzManualWrap" style="display:none;">
+                            <label>Bundle code <small class="text-muted">(manual entry)</small></label>
+                            <input type="text" name="gsubz_plan_code" id="gsubzPlanCodeInput" class="form-control" placeholder="e.g. 179" disabled>
                             <small class="text-muted">
-                              GSubz's own code for <em>this exact bundle size</em> — look it up under the
-                              chosen plan's category on GSubz's own plan list.
+                              GSubz's <code>value</code> for this exact bundle size. Set Cost Price to that
+                              bundle's price — GSubz rejects a purchase whose amount does not match.
                             </small>
                           </div>
                         </div>
@@ -204,7 +224,7 @@
 
                       <div class="form-group">
                         <label>Description</label>
-                        <textarea name="description" class="form-control" placeholder="Enter product description..."></textarea>
+                        <textarea name="description" class="form-control" placeholder="Enter product description..." required></textarea>
                       </div>
 
                       <div class="form-group">
@@ -338,6 +358,19 @@
   var gsubzNetworkSelect  = document.getElementById('gsubzNetworkSelect');
   var gsubzPlanCodeInput  = document.getElementById('gsubzPlanCodeInput');
 
+  var gsubzBundleSelect = document.getElementById('gsubzBundleSelect');
+  var gsubzBundleStatus = document.getElementById('gsubzBundleStatus');
+  var gsubzManualWrap   = document.getElementById('gsubzManualWrap');
+  var costPriceInput    = document.querySelector('input[name="costPrice"]');
+  var amountInput       = document.querySelector('input[name="amount"]');
+  var planTypeInput     = document.querySelector('input[name="plan_type"]');
+  var validityInput     = document.querySelector('input[name="validate_period"]');
+
+  // Only one control named gsubz_plan_code may ever be enabled: the picker,
+  // or the manual box when GSubz is unreachable. Two enabled controls sharing
+  // one name post an array, which is what broke product creation before.
+  var gsubzManualMode = false;
+
   function onProviderChange() {
     var isGsubz = providerSelect.value === 'GSUBZ';
     odsPlanGroup.style.display   = isGsubz ? 'none' : 'block';
@@ -350,10 +383,67 @@
 
     gsubzNetworkSelect.disabled = !isGsubz;
     gsubzNetworkSelect.required = isGsubz;
-    gsubzPlanCodeInput.disabled = !isGsubz;
-    gsubzPlanCodeInput.required = isGsubz;
+
+    gsubzBundleSelect.disabled  = !isGsubz || gsubzManualMode;
+    gsubzBundleSelect.required  = isGsubz && !gsubzManualMode;
+    gsubzPlanCodeInput.disabled = !isGsubz || !gsubzManualMode;
+    gsubzPlanCodeInput.required = isGsubz && gsubzManualMode;
   }
   providerSelect.addEventListener('change', onProviderChange);
+
+  function setManualBundleEntry(on, message) {
+    gsubzManualMode = on;
+    gsubzManualWrap.style.display = on ? 'block' : 'none';
+    gsubzBundleStatus.textContent = message || '';
+    onProviderChange();
+  }
+
+  /* Ask GSubz what this plan's service actually sells. The two values a
+     purchase depends on come back with it, so the admin picks a bundle by
+     name instead of copying ids and prices between two dashboards. */
+  function loadGsubzBundles(planName) {
+    if (!planName) return;
+    gsubzBundleSelect.innerHTML = '<option value="" disabled selected>Loading\u2026</option>';
+    setManualBundleEntry(false, 'Loading bundles from GSubz\u2026');
+
+    fetch('/admin/networks/gsubz/plans?plan=' + encodeURIComponent(planName))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success) throw new Error(data.message || 'GSubz returned no bundles');
+        gsubzBundleSelect.innerHTML = '<option value="" disabled selected>Select bundle\u2026</option>';
+        data.bundles.forEach(function (b) {
+          var o = document.createElement('option');
+          o.value = b.value;
+          o.textContent = b.displayName + '  \u2014  we pay \u20a6' + b.apiPrice;
+          o.setAttribute('data-api-price', b.apiPrice);
+          o.setAttribute('data-price', b.price);
+          o.setAttribute('data-size', b.size);
+          o.setAttribute('data-validity', b.validity);
+          gsubzBundleSelect.appendChild(o);
+        });
+        setManualBundleEntry(false, data.bundles.length + ' live bundles for ' + data.serviceID + '.');
+      })
+      .catch(function (e) {
+        gsubzBundleSelect.innerHTML = '<option value="" disabled selected>Unavailable</option>';
+        setManualBundleEntry(true, e.message + ' \u2014 enter the bundle code manually.');
+      });
+  }
+
+  gsubzNetworkSelect.addEventListener('change', function () { loadGsubzBundles(this.value); });
+
+  /* Cost Price is not cosmetic for GSubz: it is the amount sent to /pay, and
+     GSubz rejects a purchase whose amount does not match the bundle, so it is
+     always overwritten. The customer-facing fields are only pre-filled when
+     empty, so a deliberate edit is never clobbered. */
+  gsubzBundleSelect.addEventListener('change', function () {
+    var o = this.options[this.selectedIndex];
+    if (!o || !o.value) return;
+    if (costPriceInput) costPriceInput.value = o.getAttribute('data-api-price');
+    if (planTypeInput && !planTypeInput.value) planTypeInput.value = o.getAttribute('data-size') + ' Data Plan';
+    if (validityInput && !validityInput.value) validityInput.value = o.getAttribute('data-validity');
+    if (amountInput && !amountInput.value) amountInput.value = o.getAttribute('data-price');
+  });
+
   onProviderChange();
 
   var imageInput      = document.getElementById('imageInput');
