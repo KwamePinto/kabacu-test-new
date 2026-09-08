@@ -241,7 +241,11 @@
           <span class="product-card__cashback"><span class="js-currency-symbol">₦</span><%= hCashback %> cashback</span>
           <% } %>
           <% if (hBonuses.length) { %>
-          <span class="product-card__bonus"><i data-lucide="gift"></i><%= hBonuses[0] %></span>
+          <div class="product-card__extras">
+            <% hBonuses.forEach(function(b) { %>
+            <span class="product-card__bonus"><i data-lucide="gift"></i><%= b %></span>
+            <% }) %>
+          </div>
           <% } %>
           <% if (hd.network) { %>
           <div class="product-card__meta">
@@ -249,10 +253,6 @@
           </div>
           <% } %>
         </div>
-        <!-- Carrier artwork. A band in the card's flow, not a background, so
-             the text above never covers it — CSS hides it for carriers that
-             have no artwork. -->
-        <div class="product-card__art" aria-hidden="true"></div>
         <% if (user) { %>
         <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
           <i data-lucide="plus"></i>

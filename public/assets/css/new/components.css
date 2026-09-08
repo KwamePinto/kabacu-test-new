@@ -213,11 +213,20 @@
 .iti__search-input::placeholder { color: #9aa1ac; }
 .iti__country.iti__highlight { background-color: #f4f5f7; }
 
-/* ── Product Card (home page) ────────────────────────────────────────────
-   Deliberately styled to match .bundle-card on the data-bundles page
-   (data-category.css) point for point — same sizing, same centered layout,
-   same floating RP badge — so a shopper reads one consistent card design
-   across the site rather than two that happen to sell the same thing. */
+/* ── Data product card ───────────────────────────────────────────────────
+   One card, two pages: .product-card on the home page and .bundle-card on
+   the data-bundles page. Every rule below styles both, because they are
+   meant to be the same card and keeping two parallel copies did not work —
+   they drifted on the RP badge, the cashback pill and the plan-name row, and
+   the RP badge silently stopped floating on one page. data-category.css now
+   holds only what is genuinely specific to that page (the whole card is the
+   buy target there, so it takes a pointer and a focus ring); the home card's
+   "+" button is the only piece unique to this side.
+
+   Card height is set by aspect-ratio rather than content, so the carrier
+   artwork behind it has room to be seen in full — see the artwork section
+   further down. */
+.bundle-card,
 .product-card {
   position: relative;
   background: var(--surface);
@@ -226,24 +235,30 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Slightly wider than tall. The artwork is a square frame anchored to the
+     bottom at full card width, so this is what decides how much of it fits:
+     at 5/6 of the width the wave and the big faint logo above it both show.
+     Content longer than this still grows the card — the ratio is a floor,
+     not a cap. */
+  aspect-ratio: 6 / 5;
   transition: box-shadow .2s, transform .2s;
 }
 
+.bundle-card:hover,
 .product-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
+.bundle-card__body,
 .product-card__body {
+  /* Top padding clears the RP badge floating in the corner. */
   padding: 32px 14px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Centred as a group, not stacked from the top. Cards in a row stretch to
-     the tallest one, so without this a card with no cashback or bonus pill
-     sits high and leaves a hole above the artwork. */
-  justify-content: center;
   text-align: center;
   flex: 1;
 }
 
+.bundle-card__amount,
 .product-card__name {
   font-size: 17px;
   font-weight: 800;
@@ -256,9 +271,11 @@
 }
 
 @media (min-width: 640px) {
+  .bundle-card__amount,
   .product-card__name { font-size: 22px; }
 }
 
+.bundle-card__validity,
 .product-card__brand {
   font-size: 12px;
   font-weight: 600;
@@ -267,6 +284,7 @@
   margin-bottom: 12px;
 }
 
+.bundle-card__pricing,
 .product-card__pricing {
   display: flex;
   align-items: baseline;
@@ -275,6 +293,7 @@
   gap: 6px;
 }
 
+.bundle-card__price,
 .product-card__price {
   font-size: 15px;
   font-weight: 800;
@@ -283,9 +302,11 @@
 }
 
 @media (min-width: 640px) {
+  .bundle-card__price,
   .product-card__price { font-size: 18px; }
 }
 
+.bundle-card__price-old,
 .product-card__price-old {
   font-size: 11px;
   font-weight: 400;
@@ -294,9 +315,10 @@
   text-decoration: line-through;
 }
 
-/* Plan's own name (e.g. "CTC Awoof"), pinned to the bottom of the body so it
-   sits just above the carrier artwork rather than fighting the price for
-   space above it. */
+/* The plan's own name (e.g. "CTC Awoof"), last line of the body. Free text
+   that can run long ("CTC Weekly Special-MTN"), so it truncates rather than
+   wrapping the card taller. */
+.bundle-card__meta,
 .product-card__meta {
   display: flex;
   align-items: center;
@@ -305,6 +327,7 @@
   width: 100%;
 }
 
+.bundle-card__network,
 .product-card__network {
   font-size: 11px;
   font-weight: 600;
@@ -316,7 +339,12 @@
 }
 
 /* RP badge — floats over the top-right corner, out of the card's flow, so it
-   never competes with the centered content for width. */
+   never competes with the centered content for width.
+   The child combinator is deliberate: it has to outrank the
+   ".card > * { position: relative }" rule in the artwork section below. It
+   also means the badge must be a direct child of the card — nesting it in
+   the body is what once dropped it back into the text flow. */
+.bundle-card > .bundle-card__rp,
 .product-card > .product-card__rp {
   position: absolute;
   top: 8px;
@@ -334,10 +362,12 @@
   z-index: 1;
 }
 
+.bundle-card__rp svg,
 .product-card__rp svg { width: 11px; height: 11px; }
 
-/* Buy "+" button — over the artwork band's bottom-right corner, balancing
-   the carrier logo baked into the band's bottom-left. */
+/* Buy "+" button — home page only; the data-bundles card is clickable in
+   full instead. Sits over the artwork's bottom-right, opposite the carrier
+   logo in the artwork's bottom-left. */
 .product-card > .product-card__buy {
   position: absolute;
   right: 10px;
@@ -883,12 +913,10 @@
   .ann-popup__dot { transition: none; }
 }
 
-/* ── Data card: cashback + bonus (shared by .product-card and .bundle-card) ─
+/* ── Cashback + bonus pills ──────────────────────────────────────────────
    Cashback is the saving against the struck-through old price — display
-   only, never credited. Both chips sit centered under the price, the same
-   compact pill on both pages (the data-bundles page used to render its
-   bonus as a full-width footer bar; this is the one place the two designs
-   genuinely differed, so it moved to match this instead). */
+   only, never credited. Both pills sit centered under the price on both
+   pages. */
 .product-card__cashback,
 .bundle-card__cashback {
   display: inline-block;
@@ -919,11 +947,10 @@
   white-space: nowrap;
 }
 
-.product-card__bonus { margin-top: 6px; }
-
-/* .bundle-card__extras is the wrapper — a bundle can carry more than one
-   perk, each its own chip, so the wrapper only needs to lay them out. */
-.bundle-card__extras {
+/* The wrapper — a plan can carry more than one perk, each its own chip, so
+   this only has to lay them out. */
+.bundle-card__extras,
+.product-card__extras {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -945,11 +972,11 @@
    both themes: there is no white rectangle left to clash with a dark card, so
    only the artwork's strength changes between light and dark.
 
-   The art is a real element in the card's flow rather than a background
-   behind everything. That is what stops the two from fighting: the card's
-   text occupies the space above the band and the band renders its asset
-   whole, so the artwork is never covered by a price and never cropped to
-   fit. */
+   The whole frame is the card's background, which is what makes the big
+   faint logo ghosted through the middle of the art part of the design. It
+   was briefly cropped to just the wave and given its own strip in the
+   card's flow; that removed the ghost logo entirely and made every card
+   taller than it needed to be, so it is a background again. */
 :root                      { --carrier-art-opacity: 1; }
 :root[data-theme="light"]  { --carrier-art-opacity: 1; }
 /* Eased right back on dark, and reviewed on the real cards in both themes
@@ -967,33 +994,26 @@
 .bundle-card,
 .product-card { position: relative; }
 
-.bundle-card__art,
-.product-card__art {
-  /* Hidden by default: only the carriers with artwork below get a band, so a
-     9mobile or unrecognised plan shows a plain card instead of empty space. */
-  display: none;
-  width: 100%;
-  /* Matches the assets built by scripts/convert-network-art.js, which pads
-     every carrier to one common band shape so all three cards show the same
-     strip height. Keep the two in step — the script prints the ratio it used
-     on every run, and a mismatch here would letterbox or crop the art. */
-  aspect-ratio: 600 / 275;
+/* A layer of its own rather than a background on the card, only so the
+   artwork can carry its own opacity without fading the text with it. */
+.bundle-card[data-carrier]::before,
+.product-card[data-carrier]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background-image: var(--carrier-art, none);
   background-repeat: no-repeat;
-  /* Full width at the asset's natural height: the whole band is shown, never
-     cropped and never stretched. */
+  /* Full card width, natural height, pinned to the bottom. The source frame
+     is square, so at the card's 6/5 ratio this shows all of the wave, the
+     carrier logo beside it and the faint logo above — only empty ground at
+     the very top falls outside the card. "cover" is deliberately not used:
+     on a card taller than it is wide it scales to the height instead and
+     crops the sides, which cuts the carrier logo off the bottom-left. */
   background-position: center bottom;
   background-size: 100% auto;
   opacity: var(--carrier-art-opacity);
   pointer-events: none;
 }
-
-.bundle-card[data-carrier="mtn"] .bundle-card__art,
-.bundle-card[data-carrier="glo"] .bundle-card__art,
-.bundle-card[data-carrier="airtel"] .bundle-card__art,
-.product-card[data-carrier="mtn"] .product-card__art,
-.product-card[data-carrier="glo"] .product-card__art,
-.product-card[data-carrier="airtel"] .product-card__art { display: block; }
 
 /* Content above the artwork. */
 .bundle-card > *,

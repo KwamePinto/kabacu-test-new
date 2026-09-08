@@ -197,157 +197,22 @@
 @media (min-width: 640px)  { .bundle-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
 @media (min-width: 1024px) { .bundle-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
 
-/* Bundle card — single-column, entirely clickable */
-.bundle-card {
-  position: relative;
-  background: var(--surface);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: box-shadow .2s, transform .2s;
-}
+/* Bundle card — the data-bundles page's data product card.
+   How it LOOKS is not defined here. It is the same card as the home page's
+   .product-card, and both are styled by shared selectors in components.css
+   — see the "Data product card" section there. Keeping a parallel copy in
+   this file is what let the two drift apart: this page ended up with a
+   different cashback pill, a bigger plan size and an RP badge that had
+   quietly fallen out of the corner and back into the text.
 
-.bundle-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+   Only what is genuinely specific to this page belongs here: unlike the home
+   card, which has a "+" button, the whole card is the buy target. */
+.bundle-card { cursor: pointer; }
 
 .bundle-card:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-
-.bundle-card__body {
-  padding: 32px 14px 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* Centred as a group — see .product-card__body in components.css, which
-     this deliberately mirrors. */
-  justify-content: center;
-  text-align: center;
-  flex: 1;
-}
-
-.bundle-card__amount {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-@media (min-width: 640px) {
-  .bundle-card__amount { font-size: 24px; }
-}
-
-.bundle-card__validity {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-top: 3px;
-  margin-bottom: 12px;
-}
-
-.bundle-card__pricing {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.bundle-card__price {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-@media (min-width: 640px) {
-  .bundle-card__price { font-size: 18px; }
-}
-
-.bundle-card__price-old {
-  font-size: 11px;
-  color: var(--error);
-  text-decoration: line-through;
-  font-weight: 400;
-}
-
-/* Cashback sits on its own line beneath the pricing row. Display only — it
-   reports the saving against the struck-through old price, nothing is paid. */
-.bundle-card__cashback {
-  align-self: center;
-  margin-top: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--success);
-  background: var(--primary-light);
-  padding: 2px 7px;
-  border-radius: var(--r-pill);
-  white-space: nowrap;
-}
-
-.bundle-card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 10px;
-  width: 100%;
-}
-
-@media (max-width: 639px) {
-  .bundle-card__meta {
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .bundle-card__network { width: 100%; }
-}
-
-/* Raw network names are free text and can run long ("CTC Weekly Special-MTN"),
-   so this reads as a plain truncating label rather than a tight uppercase pill. */
-.bundle-card__network {
-  flex: 1;
-  min-width: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-}
-
-/* Selector scoped to a direct child, not just the class, so this wins over
-   components.css's ".bundle-card > * { position: relative }" on specificity
-   rather than by accident of file load order. */
-.bundle-card > .bundle-card__rp {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--orange);
-  background: var(--surface);
-  padding: 3px 6px;
-  border-radius: var(--r-pill);
-  box-shadow: var(--shadow-sm);
-  z-index: 1;
-}
-
-.bundle-card__rp svg { width: 11px; height: 11px; }
-
-/* Bonus perk — only rendered when a bundle has one. Both the wrapper
-   (.bundle-card__extras) and the chip itself (.bundle-card__extras-chip) are
-   defined in components.css now, styled together with .product-card__bonus
-   so both pages' cards render the same pill. This used to be a full-width
-   footer bar here, which was the one place the two card designs genuinely
-   disagreed. */
 
 /* Network panel */
 .network-panel        { display: none; }

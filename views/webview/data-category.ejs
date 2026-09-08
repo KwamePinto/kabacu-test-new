@@ -128,6 +128,13 @@
           var bonuses = d.bonus ? [d.bonus] : (d.extras && d.extras.length ? d.extras : []);
         %>
         <div class="bundle-card" data-carrier="<%= provider.toLowerCase() %>" data-plan-type="<%= d.plan_type %>" data-name="<%= (d.plan_type + ' ' + (d.plan_name || '')).toLowerCase() %>" data-brand="<%= d.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= d.plan_type %> on <%= d.network %> for ₦<%= d.amount %>">
+          <!-- Direct child of the card, not of the body: the badge floats in
+               the top-right corner, and the CSS that positions it is scoped
+               to a direct child (see components.css). -->
+          <span class="bundle-card__rp">
+            <i data-lucide="star"></i>
+            <%= product.reward_point %> RP
+          </span>
           <div class="bundle-card__body">
             <div class="bundle-card__amount"><%= d.plan_type %></div>
             <div class="bundle-card__validity"><%= d.validate_period %></div>
@@ -152,14 +159,8 @@
             <% } %>
             <div class="bundle-card__meta">
               <span class="bundle-card__network"><%= d.network %></span>
-              <span class="bundle-card__rp">
-                <i data-lucide="star"></i>
-                <%= product.reward_point %> RP
-              </span>
             </div>
           </div>
-          <!-- Carrier artwork — see .bundle-card__art in components.css. -->
-          <div class="bundle-card__art" aria-hidden="true"></div>
         </div>
         <% }) %>
       </div>
