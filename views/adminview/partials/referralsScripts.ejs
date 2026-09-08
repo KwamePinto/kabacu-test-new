@@ -232,7 +232,7 @@ async function loadCodeRequests(status) {
       // Settled rows show who decided and why, not buttons.
       var action = status === 'pending'
         ? '<button class="kp-btn kp-btn--sm kp-btn--primary" onclick="approveCodeRequest(\'' +
-            r._id + '\',\'' + r.code + '\',\'' + (r.price || 0) + '\')">Approve</button> ' +
+            r._id + '\',\'' + r.code + '\',\'' + (r.price || 0) + '\',\'' + (r.priceDisplay || '') + '\')">Approve</button> ' +
           '<button class="kp-btn kp-btn--sm kp-btn--danger" onclick="rejectCodeRequest(\'' +
             r._id + '\',\'' + r.code + '\')">Reject</button>'
         : '<span class="kp-mute" style="font-size:12.5px;">' +
@@ -245,7 +245,7 @@ async function loadCodeRequests(status) {
         '<td><span class="kp-code">' + r.code + '</span></td>' +
         '<td><span class="kp-pill ' + (r.type === 'custom' ? 'kp-pill--warn' : 'kp-pill--info') + '">' +
           (r.type === 'custom' ? 'custom' : 'reserved') + '</span></td>' +
-        '<td class="kp-table__num">' + Number(r.price || 0).toLocaleString() + '</td>' +
+        '<td class="kp-table__num">' + (r.priceDisplay || Number(r.price || 0).toLocaleString()) + '</td>' +
         '<td class="kp-table__num">' + (r.rewardBonusPercent || 0) + '%</td>' +
         '<td class="kp-table__num">' + (r.commissionBonusPercent || 0) + '%</td>' +
         '<td class="kp-table__act">' + action + '</td>' +
@@ -256,14 +256,19 @@ async function loadCodeRequests(status) {
   }
 }
 
-async function approveCodeRequest(id, code, price) {
+async function approveCodeRequest(id, code, price, priceLabel) {
   var priced = Number(price) > 0;
+  // Falls back to a bare number only if an older cached page passed nothing —
+  // the server always sends a currency-labelled string now (see priceLabel
+  // in referralCodeService.js: BTT/USDT as a suffix, a custom code's own
+  // market currency as a prefix).
+  var label = priceLabel || Number(price).toLocaleString();
   var ask = await Swal.fire({
     icon: 'question',
     title: 'Issue ' + code + '?',
     html: priced
       // Spelled out because this click is what takes the money.
-      ? '<p style="font-size:14px;">' + Number(price).toLocaleString() +
+      ? '<p style="font-size:14px;">' + label +
         ' will be charged to their wallet now, and the code becomes theirs.</p>' +
         '<p style="font-size:13px;color:#8b919c;">If their balance is short the request stays waiting — no partial charge.</p>'
       : '<p style="font-size:14px;">The code becomes theirs. Nothing to charge.</p>',

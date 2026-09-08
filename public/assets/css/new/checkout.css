@@ -32,12 +32,28 @@
 .checkout-item__img {
   width: 80px; height: 80px;
   border-radius: var(--r-md);
+  /* Falls back to a plain tint — 9mobile has no artwork yet (see
+     server/utils/carrier.js), and this is what a 9mobile line item shows
+     instead of nothing. */
   background: var(--primary-light);
   flex-shrink: 0;
   overflow: hidden;
 }
 
-.checkout-item__img img { width: 100%; height: 100%; object-fit: cover; }
+/* A data product has no image of its own — the [data-carrier] attribute
+   (see checkout.ejs) picks the same --carrier-art variable the product cards
+   use, set in components.css. Zoomed to 200% and anchored to the bottom:
+   the source frame is a full square with the wave in only its bottom
+   quarter-to-third, so shown at its natural size in an 80px thumbnail the
+   wave would be a thin, barely-there sliver — this crops in on just that
+   band so the thumbnail actually reads as a colour at a glance. */
+.checkout-item__img[data-carrier] {
+  background-image: var(--carrier-art, none);
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: 200% auto;
+}
+
 .checkout-item__details { flex: 1; }
 
 .checkout-item__network {

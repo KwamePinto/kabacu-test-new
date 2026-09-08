@@ -7,7 +7,7 @@ const ReferralCodeRequest = require('../models/ReferralCodeRequestModel');
 const SpecialCode = require('../models/SpecialReferralCodeModel');
 const ReferralSettings = require('../models/ReferralSettingsModel');
 const walletUtil = require('../utils/wallet');
-const { toCode, DEFAULT_COUNTRY } = require('../utils/country');
+const { toCode, DEFAULT_COUNTRY, currencyFor } = require('../utils/country');
 
 /**
  * Everything about owning a referral code: what a code may look like, who owns
@@ -310,6 +310,30 @@ function pricingFrom(settings) {
 }
 
 /**
+ * How a price reads to a person, given what it is actually charged in.
+ *
+ * A special code's currency is a flat crypto balance (BTT/USDT) and reads as
+ * a suffix, matching every other BTT/USDT amount already on the site
+ * ("5 BTT"). A custom code has no currency of its own — it is charged from
+ * the buyer's own market wallet (see requestCode below) — and reads with
+ * that market's symbol as a prefix instead, matching every Naira/Cedi/etc
+ * amount elsewhere ("₦299"). Without this split, a custom code's price
+ * rendered as a bare, unit-less number everywhere it appeared: harmless
+ * while every market used the same currency, genuinely ambiguous once more
+ * than one does.
+ *
+ * Takes anything carrying { currency, walletCountry } — a ReferralCodeRequest
+ * document/lean object, or a plain { walletCountry } for a price that has no
+ * request yet (the settings page, before anyone has bought one).
+ */
+function priceLabel(price, { currency, walletCountry } = {}) {
+  const amount = Number(price || 0).toLocaleString();
+  if (currency) return `${amount} ${currency}`;
+  const { symbol } = currencyFor(walletCountry);
+  return symbol ? `${symbol}${amount}` : amount;
+}
+
+/**
  * What a pool code costs right now, and what it costs it in.
  *
  * A code's own price and currency travel together — a code priced in USDT
@@ -428,11 +452,12 @@ async function requestCode(userId, { type, code, specialId } = {}) {
     // so it reads a different field than a custom code, which stays priced in
     // whatever the requester's market wallet holds.
     const balance = currency ? flatBalance(wallet, currency) : walletUtil.getBalance(wallet, market);
-    const unit = currency ? ` ${currency}` : '';
+    const priceStr = priceLabel(price, { currency, walletCountry: market });
+    const balanceStr = priceLabel(balance, { currency, walletCountry: market });
     if (balance < price) {
       return {
         success: false,
-        message: `This code costs ${price.toLocaleString()}${unit}. Your wallet has ${balance.toLocaleString()}${unit} — top up first.`,
+        message: `This code costs ${priceStr}. Your wallet has ${balanceStr} — top up first.`,
       };
     }
   }
@@ -547,10 +572,9 @@ async function approveRequest(requestId, { reviewer = 'admin', auto = false } = 
       await ReferralCodeRequest.updateOne({ _id: request._id }, { $set: { charged: false } });
       const wallet = await Wallet.findOne({ user: request.user }).lean();
       const balance = readBalance(wallet);
-      const unit = request.currency ? ` ${request.currency}` : '';
       return {
         success: false,
-        message: `Not enough in their wallet: ${balance.toLocaleString()}${unit} against a price of ${request.price.toLocaleString()}${unit}. The request is still pending.`,
+        message: `Not enough in their wallet: ${priceLabel(balance, request)} against a price of ${priceLabel(request.price, request)}. The request is still pending.`,
       };
     }
 
@@ -595,7 +619,7 @@ async function approveRequest(requestId, { reviewer = 'admin', auto = false } = 
 
   return {
     success: true,
-    message: `${request.code} issued.` + (request.price > 0 ? ` ${request.price.toLocaleString()} charged.` : ''),
+    message: `${request.code} issued.` + (request.price > 0 ? ` ${priceLabel(request.price, request)} charged.` : ''),
     request,
   };
 }
@@ -719,6 +743,7 @@ module.exports = {
   issueCode,
   historyFor,
   pricingFrom,
+  priceLabel,
   specialPriceFor,
   bonusesForCode,
   requestCode,

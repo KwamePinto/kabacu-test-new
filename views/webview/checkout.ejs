@@ -22,9 +22,10 @@
 
       <!-- Item row -->
       <div class="checkout-item">
-        <div class="checkout-item__img">
-          <img src="<%= checkout.product.images[0] %>" alt="<%= checkout.product.dataDetails.plan_type %>">
-        </div>
+        <!-- No product image — a data product does not have one. This wears
+             the carrier's own artwork instead, same asset and resolution as
+             the product cards (server/utils/carrier.js). -->
+        <div class="checkout-item__img" data-carrier="<%= checkout.product.carrier || '' %>" aria-hidden="true"></div>
         <div class="checkout-item__details">
           <div class="checkout-item__network"><%= checkout.product.dataDetails.network %></div>
           <div class="checkout-item__name">

@@ -210,6 +210,15 @@ exports.checkoutPage = async (req, res) => {
       });
     }
 
+    // Data products carry no image of their own — the checkout thumbnail
+    // wears the carrier's artwork instead (see the product cards, which
+    // resolve the same way). Mongoose lets a non-schema field ride along on
+    // the populated document like this; it never gets saved.
+    if (checkout.product) {
+      const carrierMaps = await loadCarrierMaps();
+      checkout.product.carrier = carrierOf(checkout.product.dataDetails, carrierMaps);
+    }
+
     res.render("webview/checkout", { user, checkout, walletBalance, checkoutCurrency });
   } catch (error) {
     console.log("ERROR:", error);
@@ -1834,6 +1843,11 @@ exports.referralsPage = async (req, res) => {
     // this also covers anyone created since.
     const referralCode = await referralService.ensureReferralCode(userId);
 
+    // A custom code has no currency of its own — see priceLabel's own comment
+    // in referralCodeService.js — so pricing it for this viewer needs their
+    // own market.
+    const viewerWalletCountry = (await User.findById(userId).select('walletCountry').lean())?.walletCountry;
+
     const [referralSettings, myReferral, myReferrals] = await Promise.all([
       ReferralSettings.getSettings(),
       Referral.findOne({ referred: userId }).populate('referrer', 'username'),
@@ -1946,8 +1960,18 @@ exports.referralsPage = async (req, res) => {
       ReferralCodeRequest.find({ user: userId, status: { $ne: 'pending' } })
         .sort({ createdAt: -1 }).limit(5).lean(),
     ]);
+    if (pendingRequest) {
+      pendingRequest.priceDisplay = referralCodeService.priceLabel(pendingRequest.price, pendingRequest);
+    }
 
     const codePricing = referralCodeService.pricingFrom(referralSettings);
+    // Special is always BTT/USDT and already carries its own currency
+    // (cp.special.currency in the template). Custom has none until priced for
+    // this specific viewer's market.
+    codePricing.custom.priceDisplay = referralCodeService.priceLabel(
+      codePricing.custom.price,
+      { walletCountry: viewerWalletCountry },
+    );
 
     // Commission ledger: every individual payout, most recent first. Capped
     // rather than paginated — plenty for "reveal the list" on this page, and

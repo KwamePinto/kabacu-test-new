@@ -227,9 +227,15 @@
           var hCashback = hasDisc ? (hd.oldPrice - hd.amount) : 0;
           var hBonuses = hd.bonus ? [hd.bonus] : (hd.extras && hd.extras.length ? hd.extras : []);
         %>
-        <span class="product-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
         <div class="product-card__body">
-          <h4 class="product-card__name"><%= hd.plan_type %></h4>
+          <!-- RP shares a row with the name below 640px, so it costs no
+               vertical space of its own — see .product-card__title in
+               components.css. Above 640px the same span is pulled out to
+               float over the corner instead. -->
+          <div class="product-card__title">
+            <span class="product-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
+            <h4 class="product-card__name"><%= hd.plan_type %></h4>
+          </div>
           <p class="product-card__brand"><%= hd.validate_period %></p>
           <div class="product-card__pricing">
             <span class="product-card__price"><span class="js-currency-symbol">₦</span><%= hd.amount %></span>

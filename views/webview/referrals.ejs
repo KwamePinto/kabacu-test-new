@@ -79,7 +79,7 @@
         We check every code before it goes live.
         <% if (pReq.price > 0) { %>
           <strong>Nothing has been charged yet</strong> — the
-          <%= pReq.price.toLocaleString() %><%= pReq.currency ? ' ' + pReq.currency : '' %> is taken only once it is approved.
+          <%= pReq.priceDisplay %> is taken only once it is approved.
         <% } %>
         <%
           var _pb = [];
@@ -143,7 +143,7 @@
           <span class="code-choice__icon"><i data-lucide="pencil"></i></span>
           <span class="code-choice__name">Make your own</span>
           <span class="code-choice__meta">
-            <% if (cp.custom.price > 0) { %><%= cp.custom.price.toLocaleString() %><% } else { %>Free<% } %>
+            <% if (cp.custom.price > 0) { %><%= cp.custom.priceDisplay %><% } else { %>Free<% } %>
             <% if (cp.custom.rewardBonusPercent > 0) { %> · +<%= cp.custom.rewardBonusPercent %>% rewards<% } %>
             <% if (cp.custom.commissionBonusPercent > 0) { %> · +<%= cp.custom.commissionBonusPercent %>% commission<% } %>
           </span>
@@ -186,7 +186,7 @@
           <p class="referral-card__hint">
             <%= cp.custom.minLength %>–<%= cp.custom.maxLength %> characters, letters and numbers only.
             <% if (cp.custom.price > 0) { %>
-              Costs <strong><%= cp.custom.price.toLocaleString() %></strong>, charged only after approval.
+              Costs <strong><%= cp.custom.priceDisplay %></strong>, charged only after approval.
             <% } %>
             Every code is checked by a person before it goes live.
           </p>

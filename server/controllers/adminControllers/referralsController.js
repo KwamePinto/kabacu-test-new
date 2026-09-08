@@ -48,6 +48,12 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     const requestStats = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
     requestCounts.forEach(c => { if (c._id in requestStats) requestStats[c._id] = c.n; });
 
+    // A custom request has no currency of its own — it is charged from the
+    // requester's own market wallet — so its label is derived from
+    // walletCountry rather than shown as a bare number. See priceLabel's own
+    // comment for why a special (BTT/USDT) request does not need this.
+    codeRequests.forEach((r) => { r.priceDisplay = referralCodeService.priceLabel(r.price, r); });
+
     const codeStats = { system: 0, special: 0, custom: 0 };
     codeKindCounts.forEach(c => { if (c._id in codeStats) codeStats[c._id] = c.n; });
 
@@ -480,6 +486,9 @@ exports.listCodeRequests = [authenticateAdminUser, async (req, res) => {
       .populate('user', 'username email phone_number country walletCountry')
       .lean();
 
+    // See the matching comment in viewPanel above.
+    requests.forEach((r) => { r.priceDisplay = referralCodeService.priceLabel(r.price, r); });
+
     res.json({
       success: true,
       status,
@@ -504,7 +513,7 @@ exports.approveCodeRequest = [authenticateAdminUser, async (req, res) => {
           type: 'success',
           text: `Your referral code ${result.request.code} is now active.` +
                 (result.request.price > 0
-                  ? ` ${result.request.price.toLocaleString()} was charged to your wallet.`
+                  ? ` ${referralCodeService.priceLabel(result.request.price, result.request)} was charged to your wallet.`
                   : ''),
           link: '/referrals',
         });

@@ -573,12 +573,12 @@
                               </td>
                               <td><span class="kp-code"><%= r.code %></span></td>
                               <td><span class="kp-pill <%= r.type === 'custom' ? 'kp-pill--warn' : 'kp-pill--info' %>"><%= r.type === 'custom' ? 'custom' : 'reserved' %></span></td>
-                              <td class="kp-table__num"><%= (r.price || 0).toLocaleString() %></td>
+                              <td class="kp-table__num"><%= r.priceDisplay %></td>
                               <td class="kp-table__num"><%= r.rewardBonusPercent || 0 %>%</td>
                               <td class="kp-table__num"><%= r.commissionBonusPercent || 0 %>%</td>
                               <td class="kp-table__act">
                                 <button class="kp-btn kp-btn--sm kp-btn--primary"
-                                        onclick="approveCodeRequest('<%= r._id %>', '<%= r.code %>', '<%= (r.price || 0) %>')">Approve</button>
+                                        onclick="approveCodeRequest('<%= r._id %>', '<%= r.code %>', '<%= (r.price || 0) %>', '<%= r.priceDisplay %>')">Approve</button>
                                 <button class="kp-btn kp-btn--sm kp-btn--danger"
                                         onclick="rejectCodeRequest('<%= r._id %>', '<%= r.code %>')">Reject</button>
                               </td>
