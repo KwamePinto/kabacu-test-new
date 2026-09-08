@@ -249,6 +249,10 @@
           </div>
           <% } %>
         </div>
+        <!-- Carrier artwork. A band in the card's flow, not a background, so
+             the text above never covers it — CSS hides it for carriers that
+             have no artwork. -->
+        <div class="product-card__art" aria-hidden="true"></div>
         <% if (user) { %>
         <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
           <i data-lucide="plus"></i>

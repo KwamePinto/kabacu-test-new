@@ -17,7 +17,11 @@
                 { id: 'ods',   label: 'OurDataStore', icon: 'wifi' },
                 { id: 'gsubz', label: 'GSubz',         icon: 'zap' },
               ];
-              var providerColors = { 1: '#fbbf24', 2: '#22c55e', 3: '#ef4444', 4: '#3b82f6' };
+              /* Carrier list (code, label, colour) comes from
+                 server/utils/carrier.js via the controller. It used to be
+                 written out here with GLO and Airtel swapped. */
+              var carrierByCode = {};
+              odsCarriers.forEach(function (c) { carrierByCode[c.code] = c; });
             %>
 
             <div class="kp-panel__head">
@@ -81,10 +85,9 @@
                             <label class="kp-field__label">Carrier</label>
                             <select name="apiCode" class="kp-select" required>
                               <option value="" disabled selected>Select carrier…</option>
-                              <option value="1">MTN</option>
-                              <option value="2">GLO</option>
-                              <option value="3">Airtel</option>
-                              <option value="4">9mobile</option>
+                              <% odsCarriers.forEach(function (c) { %>
+                              <option value="<%= c.code %>"><%= c.label %></option>
+                              <% }) %>
                             </select>
                             <p class="kp-row__hint">The network this plan routes through on OurDataStore.</p>
                           </div>
@@ -115,8 +118,9 @@
                               <tr>
                                 <td><span class="kp-strong"><%= net.name %></span></td>
                                 <td>
-                                  <span class="kp-pill" style="background:<%= providerColors[net.apiCode] %>20;color:<%= providerColors[net.apiCode] %>;">
-                                    <%= providerLabels[net.apiCode] %>
+                                  <% var _c = carrierByCode[net.apiCode]; %>
+                                  <span class="kp-pill" style="background:<%= _c ? _c.color : '#94a3b8' %>20;color:<%= _c ? _c.color : '#94a3b8' %>;">
+                                    <%= _c ? _c.label : 'Unknown (' + net.apiCode + ')' %>
                                   </span>
                                 </td>
                                 <td><span class="kp-code"><%= net.apiCode %></span></td>

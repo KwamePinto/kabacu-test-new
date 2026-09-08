@@ -33,6 +33,24 @@
  * a dark card those read dark instead of white. That is a fair price for art
  * that needs no second asset per theme, and at card scale it reads as detail.
  *
+ * Cropping to the wave band
+ * -------------------------
+ * The source frames are square, and only their bottom quarter-to-third holds
+ * real artwork — the wave and the carrier logo. The rest is empty ground,
+ * plus (on MTN and Glo) a large pale wordmark ghosted through the middle.
+ * Kept whole, a card had to either show the art at card-width — where that
+ * ghost mark sat behind the price — or crop it in CSS, which cut the wave.
+ *
+ * So each frame is trimmed to where its own artwork actually starts, then
+ * padded back up with transparency to one common band shape. That yields a
+ * short, wide asset per carrier, all the same proportions, which the card
+ * renders whole at full width: nothing covering the content, nothing cut off,
+ * and one consistent strip height whichever carrier a card belongs to.
+ *
+ * The trim point is measured from the alpha channel rather than hardcoded, so
+ * replacement source art re-measures itself instead of silently losing its
+ * wave.
+ *
  * Re-run after changing the source art:  node scripts/convert-network-art.js
  */
 const fs = require('fs');
@@ -57,6 +75,21 @@ const ALPHA_MAX = 70;
 // Cards render this art small, so the full 1254px is wasted bytes.
 const OUTPUT_WIDTH = 600;
 
+// A row counts as real artwork once this many of its pixels are near-opaque.
+// Both thresholds sit above the faint ghost wordmarks — which peak well under
+// SOLID_ALPHA and never cover much of a row — so together they separate
+// "the wave starts here" from "there is a faint wash over this row".
+const SOLID_ALPHA = 140;
+const SOLID_ROW_FRACTION = 0.02;
+
+// Room kept above the detected start of the artwork, as a fraction of frame
+// height, so an anti-aliased leading edge is never clipped.
+const TRIM_MARGIN = 0.02;
+
+// Height added to the common band beyond the deepest carrier's own needs, so
+// the tallest wave also gets a little clear space above it.
+const BAND_MARGIN = 0.05;
+
 /** Distance of a pixel from pure white: 0 (white) .. ~441 (black). */
 function whiteDistance(data, i, ch) {
   const r = data[i * ch], g = data[i * ch + 1], b = data[i * ch + 2];
@@ -64,7 +97,22 @@ function whiteDistance(data, i, ch) {
 }
 
 
+/** Topmost row holding real artwork, as a fraction of the frame height. */
+function findContentTop(rgba, w, h) {
+  for (let y = 0; y < h; y++) {
+    let solid = 0;
+    for (let x = 0; x < w; x++) {
+      if (rgba[(y * w + x) * 4 + 3] >= SOLID_ALPHA) solid++;
+    }
+    if (solid > w * SOLID_ROW_FRACTION) return y / h;
+  }
+  return 0;   // nothing solid found — keep the whole frame rather than guess
+}
+
 (async () => {
+  /* Pass 1: build the alpha for every carrier and measure where its artwork
+     starts. The band shape cannot be picked until all three are known. */
+  const built = [];
   for (const c of CARRIERS) {
     const file = path.join(DIR, c.source);
     if (!fs.existsSync(file)) { console.log('SKIP ' + c.source + ' (missing)'); continue; }
@@ -88,9 +136,40 @@ function whiteDistance(data, i, ch) {
       rgba[i * 4 + 3] = a;
     }
 
-    const out = path.join(DIR, c.key + '.png');
-    await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
-      .resize(OUTPUT_WIDTH)
+    const contentTop = Math.max(0, findContentTop(rgba, w, h) - TRIM_MARGIN);
+    built.push({ key: c.key, file, rgba, w, h, cleared, contentTop });
+    console.log(
+      c.key.padEnd(7) + 'artwork starts ' + (contentTop * 100).toFixed(1) + '% down' +
+      '  (keeping the bottom ' + ((1 - contentTop) * 100).toFixed(1) + '%)',
+    );
+  }
+  if (!built.length) return;
+
+  /* One band shape for every carrier, set by whichever needs the most room.
+     Without this each card would show a different strip height. */
+  const deepest = Math.max(...built.map((b) => 1 - b.contentTop));
+  const band = Math.min(1, deepest + BAND_MARGIN);
+  const targetH = Math.round(OUTPUT_WIDTH * band);
+  console.log(
+    '\ncommon band ' + OUTPUT_WIDTH + 'x' + targetH +
+    ' (' + (band * 100).toFixed(1) + '% of width) — .product-card__art in' +
+    ' components.css must use this same aspect-ratio\n',
+  );
+
+  /* Pass 2: crop each frame to its own artwork, then pad the top back up to
+     the common band with transparency. */
+  for (const b of built) {
+    const top = Math.round(b.contentTop * b.h);
+    const cropped = await sharp(b.rgba, { raw: { width: b.w, height: b.h, channels: 4 } })
+      .extract({ left: 0, top, width: b.w, height: b.h - top })
+      .resize({ width: OUTPUT_WIDTH })
+      .png()
+      .toBuffer({ resolveWithObject: true });
+
+    const padTop = Math.max(0, targetH - cropped.info.height);
+    const out = path.join(DIR, b.key + '.png');
+    await sharp(cropped.data)
+      .extend({ top: padTop, background: { r: 0, g: 0, b: 0, alpha: 0 } })
       // Palette PNG: this art is broad flat washes plus one gradient, which
       // quantises almost losslessly, and it came out both smaller than WebP
       // (25-52 KB vs 33-47 KB) and safe in every WebView. Full-colour PNG was
@@ -98,11 +177,14 @@ function whiteDistance(data, i, ch) {
       .png({ compressionLevel: 9, palette: true, quality: 82 })
       .toFile(out);
 
+    const meta = await sharp(out).metadata();
     console.log(
-      c.key.padEnd(7) +
+      b.key.padEnd(7) +
+      (meta.width + 'x' + meta.height).padEnd(10) +
       (fs.statSync(out).size / 1024).toFixed(1) + ' KB' +
-      '  (source ' + (fs.statSync(file).size / 1024).toFixed(1) + ' KB)' +
-      '  fully transparent: ' + ((cleared / (w * h)) * 100).toFixed(1) + '% of pixels',
+      '  (source ' + (fs.statSync(b.file).size / 1024).toFixed(1) + ' KB)' +
+      '  transparent top pad ' + padTop + 'px' +
+      '  white cleared ' + ((b.cleared / (b.w * b.h)) * 100).toFixed(1) + '%',
     );
   }
 })().catch((e) => { console.error(e); process.exit(1); });

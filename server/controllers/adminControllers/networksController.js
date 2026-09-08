@@ -2,9 +2,14 @@ const Network     = require('../../models/NetworkModel');
 const GsubzPlan   = require('../../models/GsubzPlanModel');
 const { GSUBZ_CARRIER_CATEGORIES, findService, fetchPlans } = require('../../services/gsubz');
 const { authenticateAdminUser } = require('../../config/authMiddleware');
+const { odsApiCodes } = require('../../utils/carrier');
 const adminLayout = 'layouts/adminLayout';
 
-const PROVIDER_LABELS = { 1: 'MTN', 2: 'GLO', 3: 'Airtel', 4: '9mobile' };
+/* Taken from server/utils/carrier.js rather than written out again — this
+   file used to keep its own copy with GLO and Airtel swapped, so the Add
+   form taught admins the wrong code and the table mislabelled existing
+   plans. The code decides which network a purchase is actually sent to. */
+const ODS_CARRIERS = odsApiCodes();
 
 exports.viewNetworks = [authenticateAdminUser, async (req, res) => {
   const [networks, gsubzPlans] = await Promise.all([
@@ -15,7 +20,7 @@ exports.viewNetworks = [authenticateAdminUser, async (req, res) => {
     layout: adminLayout,
     networks,
     gsubzPlans,
-    providerLabels: PROVIDER_LABELS,
+    odsCarriers: ODS_CARRIERS,
     carrierCategories: GSUBZ_CARRIER_CATEGORIES,
     query: req.query,
   });

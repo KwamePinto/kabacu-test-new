@@ -6,7 +6,7 @@
  * Special-MTN" for OurDataStore, "MTN SME Special" for GSubz — and the
  * carrier has to be looked up from whichever catalogue owns that name:
  *
- *   provider ODS   -> NetworkModel.apiCode   (1 MTN / 2 GLO / 3 Airtel / 4 9mobile)
+ *   provider ODS   -> NetworkModel.apiCode   (1 MTN / 2 Airtel / 3 GLO / 4 9mobile)
  *   provider GSUBZ -> GsubzPlanModel.carrier (already stores the carrier)
  *
  * Consulting only the ODS catalogue — which is what the data-category page
@@ -16,15 +16,35 @@
  * and gives the product card the token it needs to pick its carrier artwork.
  */
 const CARRIERS = {
-  mtn:       { label: 'MTN',     art: '/assets/images/Networks/mtn.png' },
-  glo:       { label: 'GLO',     art: '/assets/images/Networks/glo.png' },
-  airtel:    { label: 'Airtel',  art: '/assets/images/Networks/airtel.png' },
+  mtn:       { label: 'MTN',     art: '/assets/images/Networks/mtn.png',    color: '#fbbf24' },
+  airtel:    { label: 'Airtel',  art: '/assets/images/Networks/airtel.png', color: '#ef4444' },
+  glo:       { label: 'GLO',     art: '/assets/images/Networks/glo.png',    color: '#22c55e' },
   // No artwork for 9mobile yet — the source folder has no 9mobile image, so
   // cards fall back to the plain background rather than showing nothing.
-  '9mobile': { label: '9mobile', art: null },
+  '9mobile': { label: '9mobile', art: null,                                 color: '#3b82f6' },
 };
 
-const BY_API_CODE = { 1: 'mtn', 2: 'glo', 3: 'airtel', 4: '9mobile' };
+/**
+ * OurDataStore's own network codes — the single source of truth for this
+ * mapping. Anything that needs it imports from here instead of keeping a
+ * copy: it used to be written out in four places and two of them had 2 and 3
+ * the wrong way round, which is what put Glo plans on Airtel cards.
+ *
+ * Verified live against GET ourdatastore.com/api/website/app/network, which
+ * returns plan_id 1=MTN, 2=AIRTEL, 3=GLO, 4=9MOBILE; ourdatastore.js's
+ * networkCode() fallback agrees. These codes decide which network a purchase
+ * is actually sent to, so re-check that endpoint before changing them.
+ */
+const BY_API_CODE = { 1: 'mtn', 2: 'airtel', 3: 'glo', 4: '9mobile' };
+
+/** The same mapping as a list, for admin pickers: [{ code, token, label, color }]. */
+const odsApiCodes = () =>
+  Object.entries(BY_API_CODE).map(([code, token]) => ({
+    code: Number(code),
+    token,
+    label: CARRIERS[token].label,
+    color: CARRIERS[token].color,
+  }));
 
 // Both catalogues are tiny (tens of rows) and change only when an admin edits
 // them, so one short-lived cache spares every product listing two queries.
@@ -90,4 +110,12 @@ function carrierOf(dataDetails, maps) {
 const carrierLabel = (token) => (CARRIERS[token] ? CARRIERS[token].label : 'Others');
 const carrierArt = (token) => (CARRIERS[token] ? CARRIERS[token].art : null);
 
-module.exports = { CARRIERS, loadCarrierMaps, carrierOf, carrierLabel, carrierArt };
+module.exports = {
+  CARRIERS,
+  BY_API_CODE,
+  odsApiCodes,
+  loadCarrierMaps,
+  carrierOf,
+  carrierLabel,
+  carrierArt,
+};

@@ -140,6 +140,16 @@
             <% if (hasDiscount) { %>
             <div class="bundle-card__cashback"><span class="js-currency-symbol">₦</span><%= cashback %> cashback</div>
             <% } %>
+            <% if (bonuses.length) { %>
+            <div class="bundle-card__extras">
+              <% bonuses.forEach(function(b) { %>
+              <span class="bundle-card__extras-chip">
+                <i data-lucide="gift"></i>
+                <%= b %>
+              </span>
+              <% }) %>
+            </div>
+            <% } %>
             <div class="bundle-card__meta">
               <span class="bundle-card__network"><%= d.network %></span>
               <span class="bundle-card__rp">
@@ -148,16 +158,8 @@
               </span>
             </div>
           </div>
-          <% if (bonuses.length) { %>
-          <div class="bundle-card__extras">
-            <% bonuses.forEach(function(b) { %>
-            <span class="bundle-card__extras-chip">
-              <i data-lucide="gift"></i>
-              <%= b %>
-            </span>
-            <% }) %>
-          </div>
-          <% } %>
+          <!-- Carrier artwork — see .bundle-card__art in components.css. -->
+          <div class="bundle-card__art" aria-hidden="true"></div>
         </div>
         <% }) %>
       </div>
