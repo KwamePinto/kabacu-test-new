@@ -236,19 +236,24 @@
   display: flex;
   flex-direction: column;
   /* The artwork is a square frame anchored to the bottom at full card width,
-     so this ratio is what decides how much of it fits — content longer than
-     it still grows the card, the ratio is a floor, not a cap. Taller on
-     mobile than the 5/6 used from 640px up: the RP badge floats over the
-     corner at every width (see .product-card__rp), so a narrow card needs
-     the same top clearance for it a wide one does, proportionally more of
-     the card. */
-  aspect-ratio: 21 / 20;
+     so its rendered height always equals the card's WIDTH — never its
+     height — which is what makes this ratio the actual lever for how much
+     clear space sits above the wave: taller card, same width, same artwork
+     size, more room above it. Sized against Airtel specifically, not an
+     average — its wave starts a full 13-15 points higher up the source
+     image than MTN's or Glo's (measured off the real assets, not guessed),
+     so a height that clears MTN comfortably still let Airtel's wave run
+     into the plan-name row. Content longer than this still grows the card —
+     the ratio is a floor, not a cap. Taller below 640px than above it: the
+     RP badge's clearance at top and the artwork's footprint at bottom both
+     cost proportionally more of a narrower card. */
+  aspect-ratio: 5 / 6;
   transition: box-shadow .2s, transform .2s;
 }
 
 @media (min-width: 640px) {
   .bundle-card,
-  .product-card { aspect-ratio: 6 / 5; }
+  .product-card { aspect-ratio: 25 / 24; }
 }
 
 .bundle-card:hover,
@@ -1057,11 +1062,12 @@
   background-image: var(--carrier-art, none);
   background-repeat: no-repeat;
   /* Full card width, natural height, pinned to the bottom. The source frame
-     is square, so at the card's 6/5 ratio this shows all of the wave, the
-     carrier logo beside it and the faint logo above — only empty ground at
-     the very top falls outside the card. "cover" is deliberately not used:
-     on a card taller than it is wide it scales to the height instead and
-     crops the sides, which cuts the carrier logo off the bottom-left. */
+     is square, so it always renders at a height equal to the card's own
+     width — the card's aspect-ratio (further up this file) is what decides
+     how much empty ground above the wave that leaves inside the card versus
+     falling outside it. "cover" is deliberately not used: on a card taller
+     than it is wide it scales to the height instead and crops the sides,
+     which cuts the carrier logo off the bottom-left. */
   background-position: center bottom;
   background-size: 100% auto;
   opacity: var(--carrier-art-opacity);
