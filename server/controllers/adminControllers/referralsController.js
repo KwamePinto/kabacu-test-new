@@ -172,7 +172,8 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
     const spCurrency = ['BTT', 'USDT'].includes(req.body.specialCurrency) ? req.body.specialCurrency : 'BTT';
     const spReward   = pct(req.body.specialRewardBonus);
     const spComm     = pct(req.body.specialCommissionBonus);
-    const cuPrice   = Math.max(0, Number(req.body.customPrice) || 0);
+    const cuPrice    = Math.max(0, Number(req.body.customPrice) || 0);
+    const cuCurrency = ['BTT', 'USDT'].includes(req.body.customCurrency) ? req.body.customCurrency : 'BTT';
     const cuReward  = pct(req.body.customRewardBonus);
     const cuComm    = pct(req.body.customCommissionBonus);
     const cuMin     = Math.max(3, Math.min(32, Number(req.body.customMinLength) || 4));
@@ -202,6 +203,7 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
       },
       custom: {
         price: cuPrice,
+        currency: cuCurrency,
         rewardBonusPercent: cuReward,
         commissionBonusPercent: cuComm,
         minLength: cuMin,

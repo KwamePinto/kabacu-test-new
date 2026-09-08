@@ -301,6 +301,7 @@ function pricingFrom(settings) {
     },
     custom: {
       price:                  cu.price || 0,
+      currency:               cu.currency || 'BTT',
       rewardBonusPercent:     cu.rewardBonusPercent || 0,
       commissionBonusPercent: cu.commissionBonusPercent || 0,
       minLength:              cu.minLength || 4,
@@ -312,15 +313,17 @@ function pricingFrom(settings) {
 /**
  * How a price reads to a person, given what it is actually charged in.
  *
- * A special code's currency is a flat crypto balance (BTT/USDT) and reads as
- * a suffix, matching every other BTT/USDT amount already on the site
- * ("5 BTT"). A custom code has no currency of its own — it is charged from
- * the buyer's own market wallet (see requestCode below) — and reads with
- * that market's symbol as a prefix instead, matching every Naira/Cedi/etc
- * amount elsewhere ("₦299"). Without this split, a custom code's price
- * rendered as a bare, unit-less number everywhere it appeared: harmless
- * while every market used the same currency, genuinely ambiguous once more
- * than one does.
+ * Both special and custom carry an admin-set currency — a flat crypto
+ * balance, BTT or USDT — and read as a suffix, matching every other
+ * BTT/USDT amount on the site ("5 BTT"). That was not always true for
+ * custom: it used to have no currency of its own and was charged from
+ * whichever market wallet the buyer happened to be in, so its price read as
+ * a bare, unit-less number everywhere it appeared — harmless while every
+ * market used the same currency, actively misleading once it did not (the
+ * number an admin typed was not what anyone actually paid). The market-symbol
+ * prefix ("₦299") is what that used to look like, and still applies to any
+ * request placed before this change — see requestCode and approveRequest,
+ * which fall back to it only when a stored request has no currency.
  *
  * Takes anything carrying { currency, walletCountry } — a ReferralCodeRequest
  * document/lean object, or a plain { walletCountry } for a price that has no
@@ -410,7 +413,10 @@ async function requestCode(userId, { type, code, specialId } = {}) {
 
   let wanted;
   let price;
-  let currency = null; // set only for 'special' — 'custom' stays market-priced
+  // Admin-set for both kinds now — a custom code used to have none here and
+  // fell through to the requester's market wallet below (walletCountry is
+  // still recorded on the request either way, just no longer what prices it).
+  let currency = null;
   let bonuses;
   let specialDoc = null;
 
@@ -437,6 +443,7 @@ async function requestCode(userId, { type, code, specialId } = {}) {
     if (!check.ok) return { success: false, message: check.message };
 
     price = pricing.custom.price;
+    currency = pricing.custom.currency;
     bonuses = {
       reward:     pricing.custom.rewardBonusPercent,
       commission: pricing.custom.commissionBonusPercent,
@@ -448,9 +455,11 @@ async function requestCode(userId, { type, code, specialId } = {}) {
   // Advisory affordability check. Approval re-checks atomically.
   if (price > 0) {
     const wallet = await Wallet.findOne({ user: userId }).lean();
-    // A special code is priced in BTT/USDT — a flat balance, not a market one —
-    // so it reads a different field than a custom code, which stays priced in
-    // whatever the requester's market wallet holds.
+    // Both kinds are priced in BTT/USDT now — a flat balance, not a market
+    // one. The market branch only still fires for settings saved before
+    // custom had a currency of its own, which pricing.custom.currency's
+    // schema default (see ReferralSettingsModel) means should not happen
+    // going forward.
     const balance = currency ? flatBalance(wallet, currency) : walletUtil.getBalance(wallet, market);
     const priceStr = priceLabel(price, { currency, walletCountry: market });
     const balanceStr = priceLabel(balance, { currency, walletCountry: market });
@@ -553,11 +562,12 @@ async function approveRequest(requestId, { reviewer = 'admin', auto = false } = 
     /* Conditional debit: the balance test and the decrement are one operation,
        so a wallet can never be driven negative by a concurrent purchase.
 
-       A special-code request carries its own currency and is charged against
-       that flat balance (BTT/USDT) directly — it is not a market purchase, so
-       it does not go through walletUtil's country-wallet routing. A custom
-       code has no currency recorded and keeps charging the requester's market
-       wallet, exactly as before. */
+       Both kinds carry their own admin-set currency and are charged against
+       that flat balance (BTT/USDT) directly — neither is a market purchase,
+       so neither goes through walletUtil's country-wallet routing. The
+       market fallback below only still fires for a request placed before
+       custom codes had a currency of their own; every new one has `currency`
+       set the same way special always has. */
     const path = request.currency ? `balances.${request.currency}` : walletUtil.balancePath(market);
     const readBalance = (doc) => (request.currency ? flatBalance(doc, request.currency) : walletUtil.getBalance(doc, market));
 

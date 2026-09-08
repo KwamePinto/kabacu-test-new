@@ -148,7 +148,16 @@ const referralSettingsSchema = new mongoose.Schema({
     },
 
     custom: {
-      price:                  { type: Number, default: 0, min: 0 },
+      price: { type: Number, default: 0, min: 0 },
+
+      // What a custom code is actually bought with — admin-set, the same as
+      // special. It used to have none: a custom code was priced here but
+      // charged from whichever market wallet the buyer happened to be in, so
+      // the number an admin typed never actually told anyone what it cost.
+      // Flat like special's — BTT and USDT are not per-country, so this
+      // never touches the country-market wallet machinery either.
+      currency: { type: String, enum: ['BTT', 'USDT'], default: 'BTT' },
+
       rewardBonusPercent:     { type: Number, default: 0, min: 0, max: 500 },
       commissionBonusPercent: { type: Number, default: 0, min: 0, max: 500 },
 

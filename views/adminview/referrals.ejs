@@ -478,6 +478,18 @@
                         </div>
                         <div class="kp-row">
                           <div class="kp-row__main">
+                            <span class="kp-row__label">Currency</span>
+                            <p class="kp-row__hint">What the price above is charged in.</p>
+                          </div>
+                          <div class="kp-row__ctrl">
+                            <select id="pc-cu-currency" class="kp-select">
+                              <option value="BTT"  <%= pcc.currency !== 'USDT' ? 'selected' : '' %>>BTT</option>
+                              <option value="USDT" <%= pcc.currency === 'USDT' ? 'selected' : '' %>>USDT</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="kp-row">
+                          <div class="kp-row__main">
                             <span class="kp-row__label">Reward bonus</span>
                             <p class="kp-row__hint">On the one-off reward.</p>
                           </div>

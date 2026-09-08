@@ -1843,11 +1843,6 @@ exports.referralsPage = async (req, res) => {
     // this also covers anyone created since.
     const referralCode = await referralService.ensureReferralCode(userId);
 
-    // A custom code has no currency of its own — see priceLabel's own comment
-    // in referralCodeService.js — so pricing it for this viewer needs their
-    // own market.
-    const viewerWalletCountry = (await User.findById(userId).select('walletCountry').lean())?.walletCountry;
-
     const [referralSettings, myReferral, myReferrals] = await Promise.all([
       ReferralSettings.getSettings(),
       Referral.findOne({ referred: userId }).populate('referrer', 'username'),
@@ -1965,12 +1960,12 @@ exports.referralsPage = async (req, res) => {
     }
 
     const codePricing = referralCodeService.pricingFrom(referralSettings);
-    // Special is always BTT/USDT and already carries its own currency
-    // (cp.special.currency in the template). Custom has none until priced for
-    // this specific viewer's market.
+    // Both kinds are admin-set BTT/USDT now (cp.special.currency and
+    // cp.custom.currency), so this is the same label everywhere else on the
+    // site a BTT/USDT amount shows — no viewer-specific market to look up.
     codePricing.custom.priceDisplay = referralCodeService.priceLabel(
       codePricing.custom.price,
-      { walletCountry: viewerWalletCountry },
+      { currency: codePricing.custom.currency },
     );
 
     // Commission ledger: every individual payout, most recent first. Capped

@@ -235,13 +235,19 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* Slightly wider than tall. The artwork is a square frame anchored to the
-     bottom at full card width, so this is what decides how much of it fits:
-     at 5/6 of the width the wave and the big faint logo above it both show.
-     Content longer than this still grows the card — the ratio is a floor,
-     not a cap. */
-  aspect-ratio: 6 / 5;
+  /* The artwork is a square frame anchored to the bottom at full card width,
+     so this ratio is what decides how much of it fits — content longer than
+     it still grows the card, the ratio is a floor, not a cap. Taller on
+     mobile than the 5/6 used from 640px up: at 2-column width the title row
+     (RP badge + name, sharing a line below 640px — see .product-card__title)
+     needs a bit more room than the tighter desktop card does. */
+  aspect-ratio: 11 / 10;
   transition: box-shadow .2s, transform .2s;
+}
+
+@media (min-width: 640px) {
+  .bundle-card,
+  .product-card { aspect-ratio: 6 / 5; }
 }
 
 .bundle-card:hover,
@@ -275,7 +281,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  /* Tight on purpose: the name no longer stretches to fill the row (see
+     .product-card__name below), so RP and name sit together as one compact,
+     genuinely centered group — the smaller the gap between them, the closer
+     the name's own centre sits to the card's. */
+  gap: 3px;
   width: 100%;
 }
 
@@ -294,18 +304,23 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  /* Shares the title row with the RP badge below 640px: shrinks to make
-     room for it rather than forcing the row wider than the card. */
-  flex: 1;
+  /* Shares the title row with the RP badge below 640px. Deliberately not
+     flex:1 — growing to fill the row was what pushed the *visible* name text
+     off-centre: it made the name's box start right after the RP badge and
+     stretch to the row's far edge, so the text centred inside a box that
+     itself was not centred on the card. flex:0 1 auto instead sizes the name
+     to its own content (shrinking only if it must — the RP badge already
+     refuses to shrink, so it always keeps its full size), which is what lets
+     the whole RP+name group act as one compact unit that `justify-content:
+     center` on the row centers as a whole. */
+  flex: 0 1 auto;
   min-width: 0;
 }
 
 @media (min-width: 640px) {
-  .bundle-card__amount,
-  .product-card__name { flex: initial; min-width: initial; }
-}
-
-@media (min-width: 640px) {
+  /* No reset for flex/min-width needed here: the title row itself becomes
+     display:block above, so this stops being a flex item at all and those
+     properties simply stop applying. */
   .bundle-card__amount,
   .product-card__name { font-size: 22px; }
 }
