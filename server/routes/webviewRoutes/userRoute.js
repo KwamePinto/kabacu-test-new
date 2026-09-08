@@ -3,6 +3,7 @@ const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
 const getUser = require('../../controllers/webviewControllers/userController');
+const verification = require('../../controllers/webviewControllers/verificationController');
 const { authenticateUser, optionalUser } = require('../../config/authMiddleware');
 const UserNotification = require('../../models/UserNotificationModel');
 
@@ -48,6 +49,27 @@ const resendLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/* Each WhatsApp template message costs money, so this is capped per IP as
+   well as per account (see checkSendAllowance in services/whatsapp.js).
+   The per-account counters live on the user document and survive a
+   restart; this one is the blunt instrument against one machine cycling
+   through accounts. */
+const whatsappSendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1 hour
+  max: 10,
+  message: 'Too many verification codes requested. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const whatsappVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many attempts. Please wait 15 minutes before trying again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ── Auth routes ───────────────────────────────────────────────────────────────
 
 router.get('/login', getUser.login);
@@ -65,6 +87,11 @@ router.post('/reset-password', passwordLimiter, getUser.resetPasswordPost);
 router.get('/verify-otp', getUser.verifyOTP);
 router.post('/verify-otp', otpLimiter, getUser.verifyOTPPost);
 router.post('/resend-otp', resendLimiter, getUser.resendOTP);
+
+// ── WhatsApp verification ───────────────────────────────────────────────────
+router.get('/verify-whatsapp', verification.verifyWhatsappPage);
+router.post('/whatsapp/send', whatsappSendLimiter, verification.sendWhatsappCode);
+router.post('/whatsapp/verify', whatsappVerifyLimiter, verification.verifyWhatsappCode);
 
 // ── Forgot password flow ──────────────────────────────────────────────────────
 

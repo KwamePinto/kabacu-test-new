@@ -1,0 +1,196 @@
+<script>
+  const successMsg = <%- JSON.stringify(success_msg) %>;
+  const errorMsg   = <%- JSON.stringify(error_msg) %>;
+  if (successMsg && successMsg.length > 0) Swal.fire({ icon: 'success', text: successMsg[0] });
+  if (errorMsg && errorMsg.length > 0) Swal.fire({ icon: 'error', text: errorMsg[0] });
+</script>
+
+<section class="auth-page">
+  <div class="auth-card">
+    <div class="auth-card__logo">
+      <img src="/assets/images/new.PNG" alt="Kabacu">
+    </div>
+
+    <% if (verified) { %>
+      <!-- Already done: no form, just confirmation and a way onward. -->
+      <h1 class="auth-card__title">WhatsApp verified</h1>
+      <p class="auth-card__sub">
+        <strong><%= currentNumber %></strong> is verified and saved as a beneficiary,
+        so you can buy data for it in one tap.
+      </p>
+      <a href="/signup-bonus" class="btn btn--primary btn--full btn--lg" style="margin-top:15px;">
+        View bonus progress
+      </a>
+      <div class="auth-divider"><span>or</span></div>
+      <a href="/" class="btn btn--outline btn--full">Continue shopping</a>
+
+    <% } else if (!configured) { %>
+      <h1 class="auth-card__title">Not available yet</h1>
+      <p class="auth-card__sub">
+        WhatsApp verification isn't switched on yet. Nothing is lost — you can come
+        back to this from your signup bonus page once it is.
+      </p>
+      <a href="/signup-bonus" class="btn btn--primary btn--full">Back to bonus progress</a>
+      <div class="auth-divider"><span>or</span></div>
+      <a href="/" class="btn btn--outline btn--full">Continue shopping</a>
+
+    <% } else { %>
+      <h1 class="auth-card__title">Verify your WhatsApp</h1>
+      <p class="auth-card__sub" id="waSubtitle">
+        We'll message a 6-digit code to your WhatsApp. The number is then saved as a
+        beneficiary, so buying data for it later is one tap — and it counts towards
+        your signup bonus.
+      </p>
+
+      <!-- Step 1: the number -->
+      <div id="waStepPhone" <%= pending ? 'hidden' : '' %>>
+        <div class="form-group">
+          <label class="form-label" for="waPhone">WhatsApp number</label>
+          <div class="phone-field">
+            <select class="phone-field__code" id="waCountryCode" aria-label="Country code">
+              <option value="+234">🇳🇬 +234</option>
+            </select>
+            <input type="tel" id="waPhone" class="phone-field__num" placeholder="803 123 4567"
+                   maxlength="11" inputmode="numeric" autocomplete="tel-national"
+                   value="<%= currentNumber %>">
+          </div>
+          <small class="form-hint" id="waPhoneError" style="display:none;color:var(--error);"></small>
+          <small class="form-hint">
+            Use the number that has WhatsApp on it. Each number can only be verified on
+            one account.
+          </small>
+        </div>
+
+        <button type="button" id="waSendBtn" class="btn btn--primary btn--full btn--lg">
+          Send code on WhatsApp
+        </button>
+      </div>
+
+      <!-- Step 2: the code -->
+      <div id="waStepCode" <%= pending ? '' : 'hidden' %>>
+        <div class="form-group">
+          <label class="form-label" style="text-align:center;display:block;margin-bottom:15px;">
+            Enter the 6-digit code
+          </label>
+          <div class="input-wrapper" style="display:flex;justify-content:center;align-items:center;">
+            <input type="text" id="waCode" class="form-input" placeholder="------"
+                   pattern="[0-9]{6}" maxlength="6" inputmode="numeric"
+                   style="text-align:center;letter-spacing:12px;font-size:1.5rem;font-weight:bold;width:100%;max-width:280px;padding:12px;">
+          </div>
+          <small class="form-hint" id="waCodeError" style="display:none;color:var(--error);"></small>
+        </div>
+
+        <button type="button" id="waVerifyBtn" class="btn btn--primary btn--full btn--lg">
+          Verify number
+        </button>
+
+        <div style="text-align:center;margin-top:20px;display:flex;gap:16px;justify-content:center;">
+          <button type="button" id="waResendBtn" class="btn btn--link"
+                  style="color:var(--primary);font-size:14px;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;font-weight:500;">
+            Resend code
+          </button>
+          <button type="button" id="waChangeBtn" class="btn btn--link"
+                  style="color:var(--text-sub);font-size:14px;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;font-weight:500;">
+            Use a different number
+          </button>
+        </div>
+      </div>
+
+      <div class="auth-divider"><span>Not now?</span></div>
+      <a href="/" class="btn btn--outline btn--full">Skip for now</a>
+      <p class="auth-card__sub" style="margin-top:10px;font-size:12.5px;">
+        You can finish this any time from
+        <a href="/signup-bonus" style="color:var(--primary);">your signup bonus page</a>.
+      </p>
+    <% } %>
+  </div>
+</section>
+
+<% if (!verified && configured) { %>
+<script>
+(function () {
+  var CSRF = '<%= csrfToken %>';
+  var stepPhone = document.getElementById('waStepPhone');
+  var stepCode  = document.getElementById('waStepCode');
+  var phone     = document.getElementById('waPhone');
+  var code      = document.getElementById('waCode');
+  var sendBtn   = document.getElementById('waSendBtn');
+  var verifyBtn = document.getElementById('waVerifyBtn');
+  var resendBtn = document.getElementById('waResendBtn');
+  var changeBtn = document.getElementById('waChangeBtn');
+  var phoneErr  = document.getElementById('waPhoneError');
+  var codeErr   = document.getElementById('waCodeError');
+
+  function showErr(el, msg) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+  function busy(btn, on, label) {
+    btn.disabled = on;
+    if (on) { btn.dataset.label = btn.textContent; btn.textContent = label; }
+    else if (btn.dataset.label) { btn.textContent = btn.dataset.label; }
+  }
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json(); });
+  }
+
+  phone.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+    showErr(phoneErr, '');
+  });
+  code.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+    showErr(codeErr, '');
+  });
+
+  function send(btn) {
+    showErr(phoneErr, '');
+    var val = phone.value.replace(/\D/g, '');
+    if (val.length < 10) { showErr(phoneErr, 'Enter your full number, e.g. 0803 123 4567.'); return; }
+
+    busy(btn, true, 'Sending…');
+    post('/user/whatsapp/send', { phone: val })
+      .then(function (d) {
+        if (!d.success) { showErr(btn === sendBtn ? phoneErr : codeErr, d.message); return; }
+        stepPhone.hidden = true;
+        stepCode.hidden = false;
+        code.focus();
+        Swal.fire({ icon: 'success', text: d.message, timer: 2600, showConfirmButton: false });
+      })
+      .catch(function () { showErr(phoneErr, 'Network error. Please try again.'); })
+      .finally(function () { busy(btn, false); });
+  }
+
+  sendBtn.addEventListener('click', function () { send(sendBtn); });
+  resendBtn.addEventListener('click', function () { send(resendBtn); });
+
+  changeBtn.addEventListener('click', function () {
+    stepCode.hidden = true;
+    stepPhone.hidden = false;
+    showErr(codeErr, '');
+    phone.focus();
+  });
+
+  verifyBtn.addEventListener('click', function () {
+    showErr(codeErr, '');
+    var val = code.value.replace(/\D/g, '');
+    if (val.length !== 6) { showErr(codeErr, 'Enter all 6 digits.'); return; }
+
+    busy(verifyBtn, true, 'Verifying…');
+    post('/user/whatsapp/verify', { code: val })
+      .then(function (d) {
+        if (!d.success) { showErr(codeErr, d.message); return; }
+        Swal.fire({ icon: 'success', title: 'Verified', text: d.message })
+          .then(function () { window.location.href = '/signup-bonus'; });
+      })
+      .catch(function () { showErr(codeErr, 'Network error. Please try again.'); })
+      .finally(function () { busy(verifyBtn, false); });
+  });
+
+  code.addEventListener('keydown', function (e) { if (e.key === 'Enter') verifyBtn.click(); });
+  phone.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendBtn.click(); });
+})();
+</script>
+<% } %>

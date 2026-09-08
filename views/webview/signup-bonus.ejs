@@ -1,0 +1,294 @@
+<script>
+  const successMsg = <%- JSON.stringify(success_msg) %>;
+  const errorMsg   = <%- JSON.stringify(error_msg) %>;
+  if (successMsg && successMsg.length > 0) Swal.fire({ icon: 'success', text: successMsg[0] });
+  if (errorMsg && errorMsg.length > 0) Swal.fire({ icon: 'error', text: errorMsg[0] });
+</script>
+
+<%
+  var p = progress;
+  function rewardLabel(type, amount) {
+    if (type === 'rewardpoint') return amount + ' RP';
+    if (type === 'money') return '₦' + Number(amount).toLocaleString();
+    return amount + ' ' + (type || '');
+  }
+  var reward = rewardLabel(p.reward.type, p.reward.amount);
+  var doneCount = p.objectives.filter(function (o) { return o.done; }).length;
+%>
+
+<section class="history-page">
+  <div class="container">
+    <div style="margin-top:24px;">
+      <a href="/user-profile" class="btn btn--outline">
+        <i data-lucide="arrow-left"></i>
+        Back to Profile
+      </a>
+    </div>
+
+    <div class="page-hero">
+      <h1 class="page-hero__title">
+        <i data-lucide="gift"></i>
+        Signup Bonus
+      </h1>
+      <p class="page-hero__sub">
+        <% if (!p.active) { %>
+          This promotion isn't running at the moment.
+        <% } else if (p.claimed) { %>
+          You claimed your bonus — nothing left to do here.
+        <% } else { %>
+          Finish the steps below to unlock <strong><%= reward %></strong>
+        <% } %>
+      </p>
+    </div>
+
+    <% if (!p.active) { %>
+      <div class="referral-card">
+        <p class="referral-card__label">Not currently available</p>
+        <p class="referral-card__hint">
+          The signup bonus is switched off right now. Anything you've already completed
+          still counts if it comes back — nothing here expires.
+        </p>
+      </div>
+
+    <% } else { %>
+
+      <!-- ── Progress ─────────────────────────────────────────────────── -->
+      <div class="referral-card">
+        <div class="bonus-progress__head">
+          <div>
+            <p class="referral-card__label" style="margin-bottom:2px;">Your progress</p>
+            <p class="referral-card__hint" style="margin:0;">
+              <%= doneCount %> of <%= p.objectives.length %> steps done
+            </p>
+          </div>
+          <span class="bonus-progress__pct"><%= p.percent %>%</span>
+        </div>
+
+        <div class="bonus-progress__track" role="progressbar"
+             aria-valuenow="<%= p.percent %>" aria-valuemin="0" aria-valuemax="100"
+             aria-label="Signup bonus progress">
+          <div class="bonus-progress__fill" style="width: <%= p.percent %>%;"></div>
+        </div>
+      </div>
+
+      <!-- ── Steps ────────────────────────────────────────────────────── -->
+      <div class="acct-section">
+        <h3 class="acct-section__title">What you need to do</h3>
+
+        <div class="bonus-steps">
+          <% p.objectives.forEach(function (o) { %>
+            <div class="bonus-step <%= o.done ? 'bonus-step--done' : '' %>">
+
+              <div class="bonus-step__main">
+                <p class="bonus-step__title">
+                  <%= o.title %>
+                  <% if (o.target) { %>
+                    <span class="bonus-step__count">(<%= o.count %>/<%= o.target %>)</span>
+                  <% } %>
+                </p>
+                <p class="bonus-step__detail"><%= o.detail %></p>
+                <% if (o.key === 'whatsapp' && o.done && o.value) { %>
+                  <p class="bonus-step__detail" style="color:var(--success);">
+                    Verified: <%= o.value %> — saved as a beneficiary.
+                  </p>
+                <% } %>
+              </div>
+
+              <div class="bonus-step__action">
+                <% if (o.done) { %>
+                  <!-- Completed steps always collapse to the same tick, whatever
+                       control got them there. -->
+                  <span class="bonus-check bonus-check--on" aria-label="Completed">
+                    <i data-lucide="check"></i>
+                  </span>
+
+                <% } else if (o.action === 'verify') { %>
+                  <a href="<%= o.href %>" class="btn btn--primary btn--sm">Verify</a>
+
+                <% } else if (o.action === 'code') { %>
+                  <button type="button" class="btn btn--outline btn--sm bonus-copy"
+                          data-code="<%= o.code || '' %>"
+                          <%= o.code ? '' : 'disabled' %>>
+                    <i data-lucide="copy"></i>
+                    <span>Copy code</span>
+                  </button>
+
+                <% } else { %>
+                  <!-- Nothing the user can press: this one depends on other
+                       people acting, so it stays an empty box. -->
+                  <span class="bonus-check" aria-label="Not yet completed"></span>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <!-- ── Claim ────────────────────────────────────────────────────── -->
+      <div class="referral-card">
+        <% if (p.claimed) { %>
+          <p class="referral-card__label">Bonus claimed</p>
+          <p class="referral-card__hint">
+            <strong><%= reward %></strong> was added to your account<%
+              if (p.claimedAt) { %> on <%= new Date(p.claimedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) %><% }
+            %>. The signup bonus can only be claimed once per account.
+          </p>
+        <% } else { %>
+          <p class="referral-card__label">Claim your bonus</p>
+          <p class="referral-card__hint">
+            <% if (p.eligible) { %>
+              Everything's done — press the button and <strong><%= reward %></strong> goes
+              straight into your account.
+            <% } else { %>
+              The button unlocks once every step above is ticked. Still to do:
+              <strong><%= p.outstanding.join(', ') %></strong>.
+            <% } %>
+          </p>
+          <button type="button" id="claimBtn"
+                  class="btn btn--primary btn--full btn--lg"
+                  style="margin-top:12px;"
+                  <%= p.eligible ? '' : 'disabled' %>>
+            <i data-lucide="gift"></i>
+            Claim <%= reward %>
+          </button>
+        <% } %>
+      </div>
+
+    <% } %>
+  </div>
+</section>
+
+<style>
+  /* Page-specific pieces. Everything else reuses profile.css / components.css. */
+  .bonus-progress__head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; margin-bottom: 12px;
+  }
+  .bonus-progress__pct {
+    font-size: 26px; font-weight: 800; color: var(--primary);
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .bonus-progress__track {
+    height: 10px; border-radius: 999px; background: var(--input-bg); overflow: hidden;
+  }
+  .bonus-progress__fill {
+    height: 100%; border-radius: 999px; background: var(--primary);
+    transition: width .4s ease;
+  }
+
+  .bonus-steps { display: flex; flex-direction: column; gap: 10px; }
+
+  .bonus-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md);
+    background: var(--surface);
+  }
+  /* A done step recedes rather than shouts — attention belongs on what's left. */
+  .bonus-step--done { border-color: var(--primary); background: var(--primary-light); }
+
+  .bonus-step__main { flex: 1; min-width: 0; }
+  .bonus-step__title {
+    margin: 0 0 4px; font-size: 14.5px; font-weight: 700; color: var(--text);
+  }
+  .bonus-step__count {
+    margin-left: 4px; font-weight: 700; color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .bonus-step__detail {
+    margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-sub);
+  }
+
+  .bonus-step__action { flex-shrink: 0; display: flex; align-items: center; }
+
+  .bonus-check {
+    width: 26px; height: 26px; border-radius: 7px;
+    border: 2px solid var(--border); background: var(--surface);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .bonus-check--on { border-color: var(--primary); background: var(--primary); color: #fff; }
+  .bonus-check--on i { width: 16px; height: 16px; }
+
+  .bonus-copy.is-copied { border-color: var(--primary); color: var(--primary); }
+
+  @media (max-width: 520px) {
+    .bonus-step { flex-direction: column; }
+    .bonus-step__action { width: 100%; }
+    .bonus-step__action .btn { width: 100%; }
+  }
+</style>
+
+<script>
+(function () {
+  var CSRF = '<%= csrfToken %>';
+
+  /* Copy the referral link, not the bare code — the same thing the referrals
+     page shares, so a pasted invite actually pre-fills the code on signup. */
+  document.querySelectorAll('.bonus-copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.dataset.code;
+      if (!code) return;
+      var link = window.location.origin + '/user/signup?ref=' + encodeURIComponent(code);
+
+      var done = function () {
+        var label = btn.querySelector('span');
+        var original = label.textContent;
+        label.textContent = 'Copied';
+        btn.classList.add('is-copied');
+        setTimeout(function () {
+          label.textContent = original;
+          btn.classList.remove('is-copied');
+        }, 1600);
+      };
+
+      /* The clipboard API needs a secure context, so keep a plain-HTTP path. */
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = link;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); }
+        catch (e) { Swal.fire({ icon: 'info', title: 'Your code', text: code }); }
+        document.body.removeChild(ta);
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(link).then(done).catch(fallback);
+      } else { fallback(); }
+    });
+  });
+
+  var claimBtn = document.getElementById('claimBtn');
+  if (claimBtn) {
+    claimBtn.addEventListener('click', function () {
+      claimBtn.disabled = true;
+      var original = claimBtn.innerHTML;
+      claimBtn.textContent = 'Claiming…';
+
+      fetch('/signup-bonus/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.success) {
+            Swal.fire({ icon: 'error', title: 'Not yet', text: d.message });
+            claimBtn.disabled = false;
+            claimBtn.innerHTML = original;
+            return;
+          }
+          Swal.fire({ icon: 'success', title: 'Bonus claimed', text: d.message })
+            .then(function () { window.location.reload(); });
+        })
+        .catch(function () {
+          Swal.fire({ icon: 'error', text: 'Network error. Please try again.' });
+          claimBtn.disabled = false;
+          claimBtn.innerHTML = original;
+        });
+    });
+  }
+
+  if (window.lucide) lucide.createIcons();
+})();
+</script>

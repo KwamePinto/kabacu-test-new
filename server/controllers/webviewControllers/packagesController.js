@@ -1805,6 +1805,13 @@ exports.userProfile = async (req, res) => {
       Referral.countDocuments({ referrer: userId, status: 'rewarded' }),
     ]);
 
+    /* The row shows a percentage, so it reads the same progress object the
+       bonus page does rather than forming a second opinion about what is
+       outstanding. A failure here just hides the row. */
+    const signupBonus = await referralService
+      .signupBonusProgress(userId)
+      .catch(() => null);
+
     res.render("webview/profile", {
       user,
       recentOrders,
@@ -1812,6 +1819,7 @@ exports.userProfile = async (req, res) => {
       totalTopups,
       referralsCount,
       referralsRewarded,
+      signupBonus,
     });
   } catch (error) {
     console.log(error);

@@ -230,8 +230,10 @@
                     <div class="kp-card__head"><h2 class="kp-card__title">Signup bonus</h2></div>
                     <div class="kp-card__body">
                       <p class="kp-note" style="margin-top:14px;">
-                        Paid at email verification, not at signup, and to <strong>every</strong> new
-                        user — not only those who arrived on a code.
+                        <strong>Claimed</strong> by the user from their signup-bonus page once every
+                        requirement below is met — it is no longer paid automatically at email
+                        verification. Applies to <strong>every</strong> new user, not only those who
+                        arrived on a code, and each account can claim once.
                       </p>
                       <div class="kp-row">
                         <div class="kp-row__main"><span class="kp-row__label">Promotion</span></div>
@@ -260,6 +262,56 @@
                         <div class="kp-row__ctrl">
                           <input type="number" id="sb-amount" class="kp-input kp-input--num" min="0" step="any"
                                  value="<%= sb.amount || '' %>" placeholder="0">
+                        </div>
+                      </div>
+
+                      <div class="kp-hr"></div>
+                      <p class="kp-note">
+                        What the user must finish before the claim button unlocks. Switch all three
+                        off and the bonus would pay instantly to anyone who registers, so at least
+                        one has to stay on.
+                      </p>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Require email verification</span>
+                          <p class="kp-row__hint">Cheap to satisfy alone — throwaway inboxes are free.</p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="sb-req-email" <%= sb.requireEmailVerification !== false ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Require WhatsApp verification</span>
+                          <p class="kp-row__hint">
+                            One account per number, so this is the requirement that actually costs a
+                            farmer something. The verified number is also saved as a beneficiary.
+                          </p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="sb-req-whatsapp" <%= sb.requireWhatsappVerification !== false ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
+                          <span class="kp-row__label">Referrals required</span>
+                          <p class="kp-row__hint">
+                            How many people they must refer <em>and</em> who must each verify their own
+                            email and WhatsApp. The user sees both counts separately. 0 removes this.
+                          </p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <input type="number" id="sb-req-referrals" class="kp-input kp-input--num" min="0" step="1"
+                                 value="<%= sb.requiredReferrals || 0 %>">
                         </div>
                       </div>
                     </div>

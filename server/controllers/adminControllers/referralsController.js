@@ -105,7 +105,32 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
       return res.json({ success: false, message: 'Set a signup bonus amount above zero, or switch the promotion off.' });
     }
 
-    update.signupBonus = { isActive: sbActive, rewardType: sbType, amount: sbAmount };
+    /* Requirements the user must meet before the bonus can be claimed.
+       NOTE: signupBonus is written with $set as a whole object, so every
+       field has to be listed here — anything omitted is silently reset to
+       its schema default on the next save. */
+    const sbRequireEmail = req.body.signupBonusRequireEmail !== false && req.body.signupBonusRequireEmail !== "false";
+    const sbRequireWhatsapp = req.body.signupBonusRequireWhatsapp !== false && req.body.signupBonusRequireWhatsapp !== "false";
+    const sbRequiredReferrals = Math.max(0, Math.floor(Number(req.body.signupBonusRequiredReferrals) || 0));
+
+    /* A promotion nobody can complete is worse than one that is switched
+       off, because the progress page would show a bar that can never
+       fill. */
+    if (sbActive && !sbRequireEmail && !sbRequireWhatsapp && sbRequiredReferrals === 0) {
+      return res.json({
+        success: false,
+        message: 'Keep at least one signup-bonus requirement, or switch the promotion off — otherwise it pays out to everyone instantly.',
+      });
+    }
+
+    update.signupBonus = {
+      isActive: sbActive,
+      rewardType: sbType,
+      amount: sbAmount,
+      requireEmailVerification: sbRequireEmail,
+      requireWhatsappVerification: sbRequireWhatsapp,
+      requiredReferrals: sbRequiredReferrals,
+    };
 
     // ── Ongoing referral commission ─────────────────────────────────────
     // No reward-type choice — commission is always a percentage of what the

@@ -55,6 +55,27 @@
     <h3 class="acct-section__title">Account Activity</h3>
     <div class="acct-links">
 
+      <%
+        /* Placed first: on a new account it is the one row with something
+           outstanding on it, and burying that under order history is how a
+           promotion goes unnoticed. Hidden entirely when the promotion is off. */
+        var sbp = locals.signupBonus || null;
+      %>
+      <% if (sbp && sbp.active) { %>
+      <a href="/signup-bonus" class="acct-link">
+        <div class="acct-link__icon">
+          <i data-lucide="badge-check"></i>
+        </div>
+        <div class="acct-link__body">
+          <span class="acct-link__label">Signup Bonus</span>
+          <span class="acct-link__sub">
+            <% if (sbp.claimed) { %>Claimed<% } else if (sbp.eligible) { %>Ready to claim<% } else { %><%= sbp.percent %>% complete<% } %>
+          </span>
+        </div>
+        <i data-lucide="chevron-right" class="acct-link__arrow"></i>
+      </a>
+      <% } %>
+
       <a href="/referrals" class="acct-link">
         <div class="acct-link__icon">
           <i data-lucide="gift"></i>

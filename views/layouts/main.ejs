@@ -155,6 +155,48 @@
     </div>
     <% } %>
 
+    <!-- Setup reminder — verification is optional, so this is the only thing
+         that brings it back up. Dismissible, and never shown once the bonus
+         has been claimed. -->
+    <% if (!locals.hideHeader && locals.setupBanner) { %>
+    <div class="setup-strip" id="setupStrip">
+      <div class="container setup-strip__inner">
+        <i data-lucide="shield-check" class="setup-strip__icon"></i>
+        <span class="setup-strip__text">
+          <% if (setupBanner.rewardLabel) { %>
+            Finish setting up your account to claim <strong><%= setupBanner.rewardLabel %></strong>
+          <% } else { %>
+            Verify your account so you can reset your password if you ever lose it
+          <% } %>
+          <span class="setup-strip__todo">
+            <% if (setupBanner.needEmail && setupBanner.needWhatsapp) { %>email and WhatsApp still to verify<%
+               } else if (setupBanner.needEmail) { %>email still to verify<%
+               } else { %>WhatsApp still to verify<% } %>
+          </span>
+        </span>
+        <a href="<%= setupBanner.href %>" class="setup-strip__cta">Finish</a>
+        <button type="button" class="setup-strip__close" id="setupStripClose" aria-label="Dismiss">&times;</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var strip = document.getElementById("setupStrip");
+        var close = document.getElementById("setupStripClose");
+        if (!strip || !close) return;
+        close.addEventListener("click", function () {
+          strip.remove();
+          /* Persisted rather than kept in this tab: the point of dismissing is
+             not to see it again, and a per-tab flag would bring it straight
+             back on the next page load. */
+          fetch("/setup-banner/dismiss", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": "<%= csrfToken %>" }
+          }).catch(function () {});
+        });
+      })();
+    </script>
+    <% } %>
+
     <%- body %>
   </main>
 

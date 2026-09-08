@@ -90,11 +90,53 @@ forgotPasswordTokenExpires: Date,
        moved to BTT/USDT — see the same note on ReferralModel.rewardType. */
     signupBonusType:    { type: String, enum: ['money', 'rewardpoint', 'BTT', 'USDT', null], default: null },
     signupBonusAmount:  { type: Number, default: 0 },
+
+    // ── WhatsApp verification ────────────────────────────────────────────
+    // The number in E.164 digits, no plus ("2348012345678"), which is the
+    // form the WhatsApp Cloud API wants. `phone_number` above is the free-
+    // text one collected at signup and is NOT trusted — this field only
+    // ever holds a number that answered a code.
+    //
+    // Unique and sparse on purpose: this is the anti-farming lever for the
+    // signup bonus. Email costs nothing to obtain in bulk, so without
+    // one-account-per-number the referral requirement can be satisfied by
+    // one person with one phone and the promotion pays out indefinitely.
+    // Sparse so the many accounts with no number at all do not collide.
+    whatsappNumber:      { type: String, unique: true, sparse: true, trim: true, default: undefined },
+
+    // The local 11-digit form ("08012345678") kept alongside, because that
+    // is what beneficiaries and the data-purchase inputs use throughout
+    // the app. Derived, never entered.
+    whatsappLocalNumber: { type: String, trim: true, default: null },
+
+    whatsappVerifiedAt:  { type: Date, default: null },
+
+    // Hashed, unlike the email OTP which is stored in the clear. This code
+    // gates a cash bonus, so a leaked database read should not hand out
+    // working codes.
+    whatsappToken:        { type: String, default: null },
+    whatsappTokenExpires: { type: Date, default: null },
+
+    // Rate limiting lives on the document rather than in memory so it
+    // survives a restart and holds across multiple app instances. Each
+    // template message costs money, so an unthrottled resend is a bill.
+    whatsappSendCount:   { type: Number, default: 0 },
+    whatsappLastSentAt:  { type: Date, default: null },
+    whatsappTries:       { type: Number, default: 0 },
+
+    // Set when the user dismisses the "finish setting up" banner. Purely
+    // cosmetic — it never affects eligibility.
+    setupBannerDismissedAt: { type: Date, default: null },
 })
 
 userSchema.index({ createdAt: -1 });
 userSchema.index({ isVerified: 1 });
 userSchema.index({ referredBy: 1 });
+/* The signup-bonus page counts, per referrer, how many referred users have
+   finished BOTH verifications. That query filters on referredBy plus both
+   verification states, so it gets its own compound index rather than
+   scanning every referred user each time the page is opened. */
+userSchema.index({ referredBy: 1, isVerified: 1, whatsappVerifiedAt: 1 });
 
 /**
  * Account age. The schema has never had timestamps, so createdAt does not

@@ -3,6 +3,7 @@ const router = express.Router()
 
 const { authenticateUser } = require('../../config/authMiddleware');
 const getPackages = require('../../controllers/webviewControllers/packagesController')
+const verification = require('../../controllers/webviewControllers/verificationController');
 
 router.get('/',getPackages.packagesView)
 
@@ -57,6 +58,12 @@ router.get('/user-profile', authenticateUser, getPackages.userProfile);
 router.post('/edit-user-profile', authenticateUser, getPackages.editUserProfile);
 
 router.get('/referrals', authenticateUser, getPackages.referralsPage);
+
+/* Signup bonus progress. Sits beside referrals because that is where the
+   user already goes to find their code, and the bonus now depends on it. */
+router.get('/signup-bonus', verification.signupBonusPage);
+router.post('/signup-bonus/claim', verification.claimSignupBonus);
+router.post('/setup-banner/dismiss', verification.dismissSetupBanner);
 
 /* Buying a better referral code. Nothing here moves money — a request is
    reviewed first, and approval is what charges. */

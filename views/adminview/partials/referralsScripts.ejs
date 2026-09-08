@@ -39,6 +39,9 @@ async function saveSettings() {
     signupBonusActive: onOff('sb-active'),
     signupBonusType:   document.getElementById('sb-type').value,
     signupBonusAmount: document.getElementById('sb-amount').value,
+    signupBonusRequireEmail:      onOff('sb-req-email'),
+    signupBonusRequireWhatsapp:   onOff('sb-req-whatsapp'),
+    signupBonusRequiredReferrals: document.getElementById('sb-req-referrals').value,
 
     commissionActive:  onOff('rc-active'),
     commissionPercent: document.getElementById('rc-percent').value,

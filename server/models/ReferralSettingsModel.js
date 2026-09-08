@@ -35,9 +35,12 @@ const referralSettingsSchema = new mongoose.Schema({
   // A promotion the admin can switch on and off at will. It applies to EVERY
   // new user, not only those who arrived via a referral code.
   //
-  // Paid at email verification rather than at signup: signing up is free and
-  // unlimited, so crediting before verification lets one person farm the bonus
-  // with throwaway addresses. Requiring a working inbox puts a real cost on it.
+  // CLAIMED by the user from /signup-bonus once every requirement below is
+  // met — not paid automatically. It used to pay itself at email
+  // verification, on the reasoning that a working inbox put a real cost on
+  // farming it. Inboxes turned out to be cheap, so the cost now sits in a
+  // verified WhatsApp number (one per account) plus referred users who each
+  // verify too, which is far harder to manufacture at scale.
   signupBonus: {
     isActive: { type: Boolean, default: false },
 
@@ -49,6 +52,22 @@ const referralSettingsSchema = new mongoose.Schema({
     rewardType: { type: String, enum: ['rewardpoint', 'BTT', 'USDT'], default: 'rewardpoint' },
 
     amount: { type: Number, default: 0, min: 0 },
+
+    // ── What the user has to do to earn it ───────────────────────────
+    // The bonus is no longer paid automatically at email verification.
+    // It is CLAIMED, once every requirement below is met, from the
+    // progress page at /signup-bonus.
+    //
+    // Each requirement can be switched off, so the admin can run the old
+    // email-only promotion by turning the other two off and setting
+    // requiredReferrals to 0.
+    requireEmailVerification:    { type: Boolean, default: true },
+    requireWhatsappVerification: { type: Boolean, default: true },
+
+    // How many people the user must refer, and who must each finish both
+    // of their own verifications before they count. 0 removes the
+    // requirement entirely.
+    requiredReferrals: { type: Number, default: 0, min: 0 },
   },
 
   // ── Ongoing referral commission ───────────────────────────────────────────

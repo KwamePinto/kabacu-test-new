@@ -126,6 +126,10 @@ app.use(require('./server/middleware/countryMiddleware'));
 // ── Games feature toggle available to every view ──────────────────────────────
 app.use(require('./server/middleware/gamesMiddleware'));
 
+/* Reminds a signed-in user to finish verifying, now that verification is
+   optional and nothing else would ever bring it up again. */
+app.use(require('./server/middleware/setupBannerMiddleware'));
+
 // ── Web routes ────────────────────────────────────────────────────────────────
 app.use('/', require('./server/routes/webviewRoutes/packagesRoute'));
 app.use('/user', require('./server/routes/webviewRoutes/userRoute'));

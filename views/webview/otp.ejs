@@ -14,6 +14,19 @@
     <h1 class="auth-card__title">Verify OTP</h1>
     <p class="auth-card__sub">An OTP has been sent to <strong><%= email %></strong></p>
 
+    <%
+      /* Signed in already? Then this step is genuinely optional and gets a
+         skip. Arriving without a session means they came from signup or a
+         login attempt on an unverified account, and skipping would leave
+         them nowhere — so the skip is hidden and the page reads as before. */
+      var canSkip = Boolean(locals.user);
+    %>
+
+    <p class="auth-card__sub" style="margin-top:-6px;">
+      Verifying your email is how you reset a forgotten password — and it counts
+      towards your signup bonus.
+    </p>
+
     <form action="/user/verify-otp" method="post" class="auth-form">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="form-group">
@@ -35,7 +48,18 @@
       </form>
     </div>
 
+    <% if (canSkip) { %>
+    <div class="auth-divider"><span>Not now?</span></div>
+    <a href="/" class="btn btn--outline btn--full">
+      Skip for now
+    </a>
+    <p class="auth-card__sub" style="margin-top:10px; font-size:12.5px;">
+      You can finish this any time from
+      <a href="/signup-bonus" style="color:var(--primary);">your signup bonus page</a>.
+    </p>
+    <% } else { %>
     <div class="auth-divider"><span>Back to signup?</span></div>
     <a href="/user/signup" class="btn btn--outline btn--full">Register Again</a>
+    <% } %>
   </div>
 </section>

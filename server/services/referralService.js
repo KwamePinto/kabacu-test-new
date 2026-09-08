@@ -259,14 +259,17 @@ async function handlePurchase(userId, { amount = 0, transactionId = null } = {})
 }
 
 /**
- * Pays the signup-bonus promotion, if it is switched on.
+ * Credits the signup bonus. This is the payout half only — it assumes the
+ * caller has already established that the user has earned it. Use
+ * claimSignupBonus() for anything user-facing; that is the one that checks.
  *
- * Called at EMAIL VERIFICATION, not at signup — creating an account is free and
- * unlimited, so paying before a working inbox is proven makes the promotion
- * trivially farmable. Applies to every verified user, referred or not.
+ * It used to be called automatically at email verification, on the theory
+ * that proving a working inbox put a real cost on farming. Inboxes are
+ * cheap, so the requirements moved to signupBonusProgress() below and the
+ * payout is now claimed rather than granted.
  *
- * Idempotent: the paid-at stamp is claimed with a conditional update, so a
- * retried or replayed verification cannot pay twice.
+ * Idempotent: the paid-at stamp is taken with a conditional update, so a
+ * replayed or concurrent claim cannot pay twice.
  */
 async function grantSignupBonus(userId) {
   try {
@@ -437,8 +440,160 @@ async function handleCommission(referredUserId, { amount = 0, market, transactio
   }
 }
 
+/**
+ * Everything the signup-bonus page needs, and the single source of truth for
+ * whether the bonus has been earned.
+ *
+ * Deliberately one function rather than a boolean helper plus separate view
+ * data: the page and the claim endpoint must never disagree about what is
+ * outstanding, and the surest way to guarantee that is to have them read the
+ * same object.
+ *
+ * Each requirement can be switched off by the admin, and a disabled one is
+ * omitted from the list entirely rather than shown as already done — a
+ * ticked box for something the user never did reads as a bug.
+ */
+async function signupBonusProgress(userId) {
+  const settings = await ReferralSettings.getSettings();
+  const bonus = settings.signupBonus || {};
+  const user = await User.findById(userId)
+    .select('isVerified whatsappVerifiedAt whatsappNumber whatsappLocalNumber referralCode signupBonusPaidAt signupBonusType signupBonusAmount')
+    .lean();
+
+  if (!user) return null;
+
+  const active = Boolean(bonus.isActive) && Number(bonus.amount) > 0;
+  const target = Math.max(0, Number(bonus.requiredReferrals) || 0);
+
+  // Two different counts, because they are two different achievements: the
+  // user controls whether people sign up on their code, but not whether
+  // those people then verify. Showing only the second would look broken
+  // while invitations sit unverified.
+  let referredCount = 0;
+  let referredVerifiedCount = 0;
+  if (target > 0) {
+    [referredCount, referredVerifiedCount] = await Promise.all([
+      User.countDocuments({ referredBy: userId }),
+      User.countDocuments({
+        referredBy: userId,
+        isVerified: true,
+        whatsappVerifiedAt: { $ne: null },
+      }),
+    ]);
+  }
+
+  const objectives = [];
+
+  if (bonus.requireEmailVerification !== false) {
+    objectives.push({
+      key: 'email',
+      title: 'Verify your email address',
+      detail: 'We send a 6-digit code to the address you signed up with. This is also how you reset a forgotten password, so it is worth doing even without the bonus.',
+      action: 'verify',
+      href: '/user/verify-otp',
+      done: Boolean(user.isVerified),
+      progress: user.isVerified ? 1 : 0,
+    });
+  }
+
+  if (bonus.requireWhatsappVerification !== false) {
+    objectives.push({
+      key: 'whatsapp',
+      title: 'Verify your WhatsApp number',
+      detail: 'We send a code to your WhatsApp. Once verified, the number is saved as a beneficiary so buying data for it is one tap.',
+      action: 'verify',
+      href: '/user/verify-whatsapp',
+      done: Boolean(user.whatsappVerifiedAt),
+      progress: user.whatsappVerifiedAt ? 1 : 0,
+      value: user.whatsappLocalNumber || null,
+    });
+  }
+
+  if (target > 0) {
+    objectives.push({
+      key: 'refer',
+      title: `Refer ${target} ${target === 1 ? "person" : "people"}`,
+      detail: 'Share your referral code. Anyone who signs up with it counts here.',
+      action: 'code',
+      code: user.referralCode || null,
+      count: Math.min(referredCount, target),
+      target,
+      done: referredCount >= target,
+      progress: Math.min(1, target ? referredCount / target : 1),
+    });
+
+    objectives.push({
+      key: 'referVerified',
+      title: `${target} of your referrals verify their account`,
+      detail: 'Each person you referred must verify both their email and their WhatsApp number. You cannot do this part for them — nudge them if it stalls.',
+      action: 'count',
+      count: Math.min(referredVerifiedCount, target),
+      target,
+      done: referredVerifiedCount >= target,
+      progress: Math.min(1, target ? referredVerifiedCount / target : 1),
+    });
+  }
+
+  // Fractional rather than done/not-done, so "2 of 3 referred" moves the bar
+  // instead of looking like no progress at all.
+  const percent = objectives.length
+    ? Math.round((objectives.reduce((n, o) => n + o.progress, 0) / objectives.length) * 100)
+    : 100;
+
+  const claimed = Boolean(user.signupBonusPaidAt);
+  const eligible = active && !claimed && objectives.every((o) => o.done);
+
+  return {
+    active,
+    claimed,
+    claimedAt: user.signupBonusPaidAt || null,
+    reward: {
+      type: claimed ? user.signupBonusType : bonus.rewardType,
+      amount: claimed ? user.signupBonusAmount : Number(bonus.amount) || 0,
+    },
+    referralCode: user.referralCode || null,
+    objectives,
+    percent,
+    eligible,
+    outstanding: objectives.filter((o) => !o.done).map((o) => o.title),
+  };
+}
+
+/**
+ * The user-facing claim. Re-checks every requirement server-side before
+ * paying, because the button that calls this is in a page the user controls.
+ */
+async function claimSignupBonus(userId) {
+  const progress = await signupBonusProgress(userId);
+  if (!progress) return { success: false, message: 'Account not found.' };
+
+  if (progress.claimed) {
+    return { success: false, message: 'You have already claimed this bonus.' };
+  }
+  if (!progress.active) {
+    return { success: false, message: 'The signup bonus promotion is not running at the moment.' };
+  }
+  if (!progress.eligible) {
+    return {
+      success: false,
+      message: 'Not yet — still to do: ' + progress.outstanding.join(', ') + '.',
+      progress,
+    };
+  }
+
+  const granted = await grantSignupBonus(userId);
+  if (!granted) {
+    // grantSignupBonus returns null when the latch was already taken, which
+    // here means two claims raced and the other one won.
+    return { success: false, message: 'This bonus has already been claimed.' };
+  }
+
+  return { success: true, reward: granted };
+}
 module.exports = {
   grantSignupBonus,
+  signupBonusProgress,
+  claimSignupBonus,
   handleCommission,
   ensureReferralCode,
   applyReferralCode,

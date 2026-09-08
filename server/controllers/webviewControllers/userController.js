@@ -150,12 +150,16 @@ exports.loginPost = async (req,res)=>{
         }
 
         // =====================================
-        // CHECK IF EMAIL IS VERIFIED
+        // EMAIL VERIFICATION IS NO LONGER A GATE
         // =====================================
+        // Verification used to block login outright, which made it
+        // effectively compulsory — there was nowhere to go until it was
+        // done. It is now optional and only gates the signup bonus, so an
+        // unverified user signs in normally and is nudged by the setup
+        // banner instead. `pendingVerificationEmail` is still set so the
+        // OTP page works if they choose to go there.
         if (user.isVerified === false) {
             req.session.pendingVerificationEmail = email;
-            req.flash('error', 'Your email is not verified yet. Please enter the OTP code sent to your email.');
-            return res.redirect('/user/verify-otp');
         }
 
         // =====================================
@@ -706,7 +710,28 @@ async (req, res) => {
         // separate 'error' flash here would compete with — or silently lose
         // to — the OTP email failure flash above rather than both being seen.
 
-        let successMessage = 'Registration successful! Please enter the OTP code sent to your email.';
+        /* Sign the new user in immediately.
+
+       Previously no cookie was issued at signup and login refused
+       unverified accounts, so the OTP screen was a wall: the only way into
+       the app was through it. Verification is now optional, which only
+       means anything if there is a session to skip ahead with. */
+    try {
+      const signupToken = generateUserToken(newUser);
+      res.cookie('user_token', signupToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    } catch (tokenErr) {
+      /* Without a cookie the user simply lands on the OTP page and can log
+         in manually afterwards — the old behaviour, and better than failing
+         a registration that already succeeded. */
+      console.error('SIGNUP TOKEN ERROR:', tokenErr.message || tokenErr);
+    }
+
+    let successMessage = 'Registration successful! Please enter the OTP code sent to your email.';
         if (referralOutcome) {
             successMessage += referralOutcome.success
                 ? ' Referral code applied.'
@@ -863,22 +888,19 @@ exports.verifyOTPPost = async (req, res) => {
 
     delete req.session.pendingVerificationEmail;
 
-    // Signup-bonus promotion. Paid here rather than at signup so a working
-    // inbox is proven first — otherwise the bonus can be farmed with throwaway
-    // addresses. Idempotent, and never blocks verification if it fails.
-    const bonus = await referralService.grantSignupBonus(user._id);
-    if (bonus) {
-      /* Explicit per type rather than an else-falls-to-RP ternary: that
-         ternary predates BTT/USDT and only ever distinguished 'money' from
-         everything else, so a BTT or USDT bonus would have been announced to
-         the user as "RP" — the right number, the wrong unit entirely. */
-      let label;
-      if (bonus.type === 'BTT' || bonus.type === 'USDT') label = `${bonus.amount} ${bonus.type}`;
-      else if (bonus.type === 'money') label = `₦${bonus.amount.toLocaleString()}`;
-      else label = `${bonus.amount} RP`;
+    /* The signup bonus is no longer paid here. Email verification is only
+       one of several requirements now, and the payout is claimed by the
+       user from /signup-bonus once they are all met — see
+       referralService.signupBonusProgress. Paying on this step alone would
+       hand out the bonus for the cheapest requirement of the set. */
 
-      req.flash('success', `Email verified! Your ${label} signup bonus has been added. Please log in.`);
-      return res.redirect('/user/login');
+    /* Where they go next depends on whether they already have a session.
+       Signup now issues one, so the usual case is a signed-in user who came
+       from the setup banner or the bonus page; sending them to a login form
+       they do not need would be a dead end. */
+    if (req.user) {
+      req.flash('success', 'Email verified. Next: verify your WhatsApp number.');
+      return res.redirect('/user/verify-whatsapp');
     }
 
     req.flash('success', 'Email verified successfully! Please log in.');
