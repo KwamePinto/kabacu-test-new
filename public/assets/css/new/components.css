@@ -238,10 +238,11 @@
   /* The artwork is a square frame anchored to the bottom at full card width,
      so this ratio is what decides how much of it fits — content longer than
      it still grows the card, the ratio is a floor, not a cap. Taller on
-     mobile than the 5/6 used from 640px up: at 2-column width the title row
-     (RP badge + name, sharing a line below 640px — see .product-card__title)
-     needs a bit more room than the tighter desktop card does. */
-  aspect-ratio: 11 / 10;
+     mobile than the 5/6 used from 640px up: the RP badge floats over the
+     corner at every width (see .product-card__rp), so a narrow card needs
+     the same top clearance for it a wide one does, proportionally more of
+     the card. */
+  aspect-ratio: 21 / 20;
   transition: box-shadow .2s, transform .2s;
 }
 
@@ -255,8 +256,10 @@
 
 .bundle-card__body,
 .product-card__body {
-  /* Tight on mobile — see the 640px override below for why. */
-  padding: 10px 10px 8px;
+  /* Top padding clears the RP badge, which floats over the corner at every
+     width — see .product-card__rp. Side/bottom padding stay tighter below
+     640px purely for width, nothing to do with the badge. */
+  padding: 32px 10px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -265,34 +268,22 @@
 }
 
 @media (min-width: 640px) {
-  /* Top padding clears the RP badge, which floats over the corner at this
-     width and up — see .product-card__title just below. */
   .bundle-card__body,
   .product-card__body { padding: 32px 14px 14px; }
 }
 
-/* Name shares a row with the RP badge below 640px (both live inside the
-   body — see the templates), and the row is what centers them together.
-   At 640px and up the RP badge is pulled out of this row entirely and floats
-   over the card's corner instead, exactly as it always has; the row then
-   holds only the name and collapses to fit it. */
+/* The RP badge lives inside this row in the markup (see the templates), but
+   floats over the card's corner at every width (position:absolute — see
+   .product-card__rp), so it takes no part in this row's own layout: the row
+   holds only the name, which is what makes the name center on the card
+   rather than on a row it happens to share with something else. This row
+   used to be a flex container that laid the two out side by side on mobile
+   specifically to save vertical space; that was cheaper on height but never
+   truly centered the name once the badge had any width or gap at all next to
+   it, so it went back to matching how the badge has always behaved from
+   640px up. */
 .bundle-card__title,
-.product-card__title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Tight on purpose: the name no longer stretches to fill the row (see
-     .product-card__name below), so RP and name sit together as one compact,
-     genuinely centered group — the smaller the gap between them, the closer
-     the name's own centre sits to the card's. */
-  gap: 3px;
-  width: 100%;
-}
-
-@media (min-width: 640px) {
-  .bundle-card__title,
-  .product-card__title { display: block; }
-}
+.product-card__title { display: block; }
 
 .bundle-card__amount,
 .product-card__name {
@@ -304,23 +295,9 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  /* Shares the title row with the RP badge below 640px. Deliberately not
-     flex:1 — growing to fill the row was what pushed the *visible* name text
-     off-centre: it made the name's box start right after the RP badge and
-     stretch to the row's far edge, so the text centred inside a box that
-     itself was not centred on the card. flex:0 1 auto instead sizes the name
-     to its own content (shrinking only if it must — the RP badge already
-     refuses to shrink, so it always keeps its full size), which is what lets
-     the whole RP+name group act as one compact unit that `justify-content:
-     center` on the row centers as a whole. */
-  flex: 0 1 auto;
-  min-width: 0;
 }
 
 @media (min-width: 640px) {
-  /* No reset for flex/min-width needed here: the title row itself becomes
-     display:block above, so this stops being a flex item at all and those
-     properties simply stop applying. */
   .bundle-card__amount,
   .product-card__name { font-size: 22px; }
 }
@@ -398,25 +375,30 @@
   white-space: nowrap;
 }
 
-/* RP badge. Below 640px it is a plain inline chip sharing the title row with
-   the name (see the templates and .product-card__title above) — narrow
-   cards do not have the width to both float a badge over the corner AND fit
-   the rest of the content without the two overlapping. At 640px and up it
-   reverts to floating over the top-right corner, same as always; nothing
-   about the template changes between the two, only this rule. */
 .bundle-card__rp,
 .product-card__rp {
+  /* Floats over the card's top-right corner at every width — this used to
+     only kick in from 640px up, with a plain inline chip sharing a row with
+     the name below that. The chip saved height, but the name it shared a
+     row with never quite centered once anything of any width sat next to
+     it, so the badge is back to its original corner position everywhere;
+     the card gained a little height instead (see the aspect-ratio above) to
+     give it room. */
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
   font-size: 9px;
   font-weight: 600;
   color: var(--orange);
-  background: var(--primary-light);
+  background: var(--surface);
   padding: 2px 5px;
   border-radius: var(--r-pill);
+  box-shadow: var(--shadow-sm);
   white-space: nowrap;
+  z-index: 1;
 }
 
 .bundle-card__rp svg,
@@ -425,15 +407,11 @@
 @media (min-width: 640px) {
   .bundle-card__rp,
   .product-card__rp {
-    position: absolute;
     top: 8px;
     right: 8px;
     gap: 4px;
     font-size: 10px;
-    background: var(--surface);
     padding: 3px 6px;
-    box-shadow: var(--shadow-sm);
-    z-index: 1;
   }
 
   .bundle-card__rp svg,

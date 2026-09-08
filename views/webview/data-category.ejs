@@ -129,10 +129,10 @@
         %>
         <div class="bundle-card" data-carrier="<%= provider.toLowerCase() %>" data-plan-type="<%= d.plan_type %>" data-name="<%= (d.plan_type + ' ' + (d.plan_name || '')).toLowerCase() %>" data-brand="<%= d.network.toLowerCase() %>" data-id="<%= product._id %>" data-network="<%= provider %>" <% if (!user) { %>data-requires-login="true" <% } %> role="button" tabindex="0" aria-label="Buy <%= d.plan_type %> on <%= d.network %> for ₦<%= d.amount %>">
           <div class="bundle-card__body">
-            <!-- RP shares a row with the plan size below 640px, so it costs
-                 no vertical space of its own — see .bundle-card__title in
-                 components.css. Above 640px the same span is pulled out to
-                 float over the corner instead. -->
+            <!-- RP sits in the markup next to the plan size, but floats over
+                 the card's corner at every width (position:absolute in
+                 components.css) — the title row it lives in ends up holding
+                 only the plan size, which is what centers it on the card. -->
             <div class="bundle-card__title">
               <span class="bundle-card__rp">
                 <i data-lucide="star"></i>
