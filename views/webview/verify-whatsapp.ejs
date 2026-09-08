@@ -46,20 +46,31 @@
       <div id="waStepPhone" <%= pending ? 'hidden' : '' %>>
         <div class="form-group">
           <label class="form-label" for="waPhone">WhatsApp number</label>
+          <%
+            var _def = countries.filter(function (c) { return c.code === defaultCountry; })[0]
+                    || { code: 'NG', dial: '+234', name: 'Nigeria' };
+          %>
           <div class="phone-field">
-            <select class="phone-field__code" id="waCountryCode" aria-label="Country">
-              <% countries.forEach(function (c) { %>
-              <option value="<%= c.code %>" data-dial="<%= c.dial %>" <%= c.code === defaultCountry ? 'selected' : '' %>><%= c.dial %> <%= c.name %></option>
-              <% }) %>
-            </select>
+            <!-- A button rather than a select: a select sizes itself to its
+                 widest option, and 245 country names made it wide enough to
+                 crush the number input beside it. This shows the dial code
+                 only and opens the site's searchable country picker, which a
+                 245-entry list needs to be usable anyway. -->
+            <button type="button" class="phone-field__dial" id="waDialBtn"
+                    aria-haspopup="dialog">
+              <span class="phone-field__flag" id="waDialFlag" aria-hidden="true"></span>
+              <span id="waDialCode"><%= _def.dial %></span>
+              <i data-lucide="chevron-down" class="phone-field__caret"></i>
+            </button>
+            <input type="hidden" id="waCountryCode" value="<%= _def.code %>">
             <input type="tel" id="waPhone" class="phone-field__num" placeholder="803 123 4567"
                    maxlength="18" inputmode="tel" autocomplete="tel"
                    value="<%= currentNumber %>">
           </div>
           <small class="form-hint" id="waPhoneError" style="display:none;color:var(--error);"></small>
           <small class="form-hint">
-            Use the number that has WhatsApp on it, in local form — the country above
-            supplies the code. Each number can only be verified on one account.
+            Use the number that has WhatsApp on it, in local form — the country code
+            beside it is added for you. Each number can only be verified on one account.
           </small>
         </div>
 
@@ -107,6 +118,25 @@
     <% } %>
   </div>
 </section>
+
+<% if (!verified && configured) { %>
+<!-- Same country-picker component the header uses (see header.ejs), so the
+     search, rows and flags behave identically in both places. -->
+<div class="modal-overlay" id="waCountryModal">
+  <div class="modal-box country-modal-box">
+    <button type="button" class="modal-close" id="waCountryClose" aria-label="Close">
+      <i data-lucide="x"></i>
+    </button>
+    <div class="modal-box__header"><span class="modal-title">Select country</span></div>
+    <div class="input-wrapper" style="margin-bottom:14px;">
+      <i data-lucide="search"></i>
+      <input type="text" id="waCountrySearch" class="form-input"
+             placeholder="Search country or code..." autocomplete="off">
+    </div>
+    <div class="country-list" id="waCountryList"></div>
+  </div>
+</div>
+<% } %>
 
 <% if (!verified && configured) { %>
 <script>
@@ -199,6 +229,89 @@
 
   code.addEventListener('keydown', function (e) { if (e.key === 'Enter') verifyBtn.click(); });
   phone.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendBtn.click(); });
+
+  /* ── Country picker ────────────────────────────────────
+     The hidden input is what send() reads, so the posted `country` is
+     unchanged from when this was a select. */
+  var COUNTRIES = <%- JSON.stringify(countries) %>;
+  var ccInput  = document.getElementById('waCountryCode');
+  var dialBtn  = document.getElementById('waDialBtn');
+  var dialFlag = document.getElementById('waDialFlag');
+  var dialCode = document.getElementById('waDialCode');
+  var ccModal  = document.getElementById('waCountryModal');
+  var ccSearch = document.getElementById('waCountrySearch');
+  var ccList   = document.getElementById('waCountryList');
+
+  // An ISO code becomes its flag by shifting each letter into the
+  // regional-indicator block, so no flag images are needed.
+  function flagEmoji(cc) {
+    if (!cc || cc.length !== 2) return '';
+    return String.fromCodePoint.apply(null, cc.toUpperCase().split('').map(function (ch) {
+      return 0x1f1e6 + (ch.charCodeAt(0) - 65);
+    }));
+  }
+
+  function paintTrigger() {
+    var c = COUNTRIES.filter(function (x) { return x.code === ccInput.value; })[0];
+    if (!c) return;
+    dialFlag.textContent = flagEmoji(c.code);
+    dialCode.textContent = c.dial;
+    dialBtn.setAttribute('aria-label', 'Country: ' + c.name + ' ' + c.dial + '. Change');
+  }
+
+  function renderCountries(filter) {
+    // Strip a leading + so both "+233" and "233" find Ghana.
+    var q = (filter || '').trim().toLowerCase().replace(/^\+/, '');
+    var items = COUNTRIES.filter(function (c) {
+      if (!q) return true;
+      return c.name.toLowerCase().indexOf(q) !== -1 ||
+             c.dial.replace('+', '').indexOf(q) === 0;
+    });
+
+    if (!items.length) {
+      ccList.innerHTML = '<div class="country-row__empty">No countries found</div>';
+      return;
+    }
+
+    ccList.innerHTML = items.map(function (c) {
+      return '<button type="button" class="country-row' + (c.code === ccInput.value ? ' active' : '') + '" data-code="' + c.code + '">' +
+        '<span class="country-row__flag">' + flagEmoji(c.code) + '</span>' +
+        '<span class="country-row__name">' + c.name + '</span>' +
+        '<span class="country-row__dial">' + c.dial + '</span>' +
+        '<i data-lucide="check" class="country-row__check"></i>' +
+      '</button>';
+    }).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function closePicker() { ccModal.classList.remove('open'); }
+
+  dialBtn.addEventListener('click', function () {
+    ccModal.classList.add('open');
+    ccSearch.value = '';
+    renderCountries('');
+    ccSearch.focus();
+  });
+
+  document.getElementById('waCountryClose').addEventListener('click', closePicker);
+  ccModal.addEventListener('click', function (e) { if (e.target === ccModal) closePicker(); });
+  ccSearch.addEventListener('input', function () { renderCountries(this.value); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && ccModal.classList.contains('open')) closePicker();
+  });
+
+  ccList.addEventListener('click', function (e) {
+    var row = e.target.closest('.country-row');
+    if (!row) return;
+    ccInput.value = row.dataset.code;
+    paintTrigger();
+    closePicker();
+    phone.focus();
+  });
+
+  paintTrigger();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 })();
 </script>
 <% } %>

@@ -134,6 +134,48 @@
   -webkit-appearance: none;
 }
 
+/* Compact country trigger, for a phone field whose country list is long.
+   .phone-field__code above cannot serve there: a select sizes itself to its
+   widest option, so a full country list leaves almost no room for the
+   number. This shows just the dial code and opens the searchable picker. */
+.phone-field__dial {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 100%;
+  padding: 0 9px 0 11px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(0,0,0,.1);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.phone-field__dial:hover { background: rgba(0,0,0,.03); }
+
+.phone-field__flag { font-size: 16px; line-height: 1; }
+
+.phone-field__caret {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+/* Dial code trails the country name in the picker rows. */
+.country-row__dial {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .phone-field__num {
   flex: 1;
   height: 100%;
