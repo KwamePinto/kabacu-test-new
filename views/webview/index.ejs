@@ -216,44 +216,48 @@
       <% arrivalProducts.slice(0, 8).forEach(function(product) { %>
       <div class="product-card" data-carrier="<%= product.carrier || '' %>" data-name="<%= (product.dataDetails.plan_type + ' ' + product.dataDetails.plan_name).toLowerCase() %>" data-brand="<%= product.dataDetails.network.toLowerCase() %>">
         <%
-          /* Same structure as the data-section cards: plan type, validity,
-             price, optional struck-through old price plus a cashback badge for
-             the difference (display only), optional bonus chip. */
+          /* Same card as the data-bundles page (data-category.ejs): plan
+             size, validity, price, optional struck-through old price with a
+             cashback pill for the saving (display only), optional bonus
+             pill, then the plan's own name sitting just above the carrier
+             artwork. RP floats over the corner and the buy button over the
+             artwork, both out of this flow. */
           var hd = product.dataDetails;
           var hasDisc = hd.oldPrice && hd.oldPrice > hd.amount;
           var hCashback = hasDisc ? (hd.oldPrice - hd.amount) : 0;
           var hBonuses = hd.bonus ? [hd.bonus] : (hd.extras && hd.extras.length ? hd.extras : []);
         %>
+        <span class="product-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
         <div class="product-card__body">
-          <h4 class="product-card__name" style="min-height: 35px; font-size: medium;"><%= hd.plan_type %></h4>
+          <h4 class="product-card__name"><%= hd.plan_type %></h4>
           <p class="product-card__brand"><%= hd.validate_period %></p>
+          <div class="product-card__pricing">
+            <span class="product-card__price"><span class="js-currency-symbol">₦</span><%= hd.amount %></span>
+            <% if (hasDisc) { %>
+            <span class="product-card__price-old"><span class="js-currency-symbol">₦</span><%= hd.oldPrice %></span>
+            <% } %>
+          </div>
+          <% if (hasDisc) { %>
+          <span class="product-card__cashback"><span class="js-currency-symbol">₦</span><%= hCashback %> cashback</span>
+          <% } %>
           <% if (hBonuses.length) { %>
           <span class="product-card__bonus"><i data-lucide="gift"></i><%= hBonuses[0] %></span>
           <% } %>
-          <div class="product-card__footer">
-            <div class="product-card__price-col">
-              <span class="product-card__rp"><i data-lucide="star"></i><%= product.reward_point %> RP</span>
-              <div class="product-card__price-row">
-                <span class="product-card__price"><span class="js-currency-symbol">₦</span><%= hd.amount %></span>
-                <% if (hasDisc) { %>
-                <span class="product-card__price-old"><span class="js-currency-symbol">₦</span><%= hd.oldPrice %></span>
-                <% } %>
-              </div>
-              <% if (hasDisc) { %>
-              <span class="product-card__cashback"><span class="js-currency-symbol">₦</span><%= hCashback %> cashback</span>
-              <% } %>
-            </div>
-            <% if (user) { %>
-            <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
-              <i data-lucide="plus"></i>
-            </button>
-            <% } else { %>
-            <a href="/user/login" class="product-card__buy" aria-label="Login to buy">
-              <i data-lucide="plus"></i>
-            </a>
-            <% } %>
+          <% if (hd.network) { %>
+          <div class="product-card__meta">
+            <span class="product-card__network"><%= hd.network %></span>
           </div>
+          <% } %>
         </div>
+        <% if (user) { %>
+        <button class="product-card__buy buy-btn" data-id="<%= product._id %>" data-network="<%= product.dataDetails.network %>" aria-label="Buy">
+          <i data-lucide="plus"></i>
+        </button>
+        <% } else { %>
+        <a href="/user/login" class="product-card__buy" aria-label="Login to buy">
+          <i data-lucide="plus"></i>
+        </a>
+        <% } %>
       </div>
       <% }) %>
     </div>

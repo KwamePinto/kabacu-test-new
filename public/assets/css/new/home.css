@@ -145,14 +145,17 @@
 }
 
 /* ── Product grid ────────────────────────────────────────── */
+/* Same column counts and gaps as .bundle-grid (data-category.css) — the
+   cards are now the same size on both pages, so the grid that holds them
+   should step up the same way. */
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 12px;
 }
 
-@media (min-width: 640px)  { .product-grid { gap: 12px; } }
-@media (min-width: 1024px) { .product-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; } }
+@media (min-width: 640px)  { .product-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+@media (min-width: 1024px) { .product-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
 
 /* ── Mobile category circles (WhatsApp status style) ─────── */
 .mobile-cats {
@@ -656,8 +659,8 @@
   }
   .sec-title { font-size: 22px; }
 
-  /* ── Product grid — 4 columns ───────────────────────────── */
-  .product-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  /* Product grid already steps to 4 columns above at this same 1024px
+     breakpoint — nothing further to override here. */
 
   /* ── Cat strips — grid instead of scroll ─────────────────── */
   .cat-strip { margin-top: 48px; }

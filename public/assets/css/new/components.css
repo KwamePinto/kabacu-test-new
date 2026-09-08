@@ -213,8 +213,13 @@
 .iti__search-input::placeholder { color: #9aa1ac; }
 .iti__country.iti__highlight { background-color: #f4f5f7; }
 
-/* ── Product Card ────────────────────────────────────────── */
+/* ── Product Card (home page) ────────────────────────────────────────────
+   Deliberately styled to match .bundle-card on the data-bundles page
+   (data-category.css) point for point — same sizing, same centered layout,
+   same floating RP badge — so a shopper reads one consistent card design
+   across the site rather than two that happen to sell the same thing. */
 .product-card {
+  position: relative;
   background: var(--surface);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
@@ -226,47 +231,43 @@
 
 .product-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
-/* Text body */
 .product-card__body {
-  padding: 10px 12px 12px;
+  padding: 32px 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  text-align: center;
   flex: 1;
 }
 
 .product-card__name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text);
-  line-height: 1.3;
+  line-height: 1.2;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+@media (min-width: 640px) {
+  .product-card__name { font-size: 22px; }
+}
+
 .product-card__brand {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
+  margin-top: 2px;
+  margin-bottom: 10px;
 }
 
-.product-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-
-.product-card__price-col {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.product-card__price-row {
+.product-card__pricing {
   display: flex;
   align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -277,61 +278,79 @@
   color: var(--text);
 }
 
+@media (min-width: 640px) {
+  .product-card__price { font-size: 18px; }
+}
+
 .product-card__price-old {
   font-size: 11px;
   font-weight: 400;
   line-height: 1.1;
-  color: #f63232;
+  color: var(--error);
   text-decoration: line-through;
 }
 
-/* Buy "+" button — bottom-right of card body */
-.product-card__buy {
-  width: 30px; height: 30px;
+/* Plan's own name (e.g. "CTC Awoof"), pinned to the bottom of the body so it
+   sits just above the carrier artwork rather than fighting the price for
+   space above it. */
+.product-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  padding: 10px 38px 0;
+  width: 100%;
+}
+
+.product-card__network {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* RP badge — floats over the top-right corner, out of the card's flow, so it
+   never competes with the centered content for width. */
+.product-card > .product-card__rp {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--orange);
+  background: var(--surface);
+  padding: 3px 6px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
+}
+
+.product-card__rp svg { width: 11px; height: 11px; }
+
+/* Buy "+" button — floats over the carrier artwork's bottom-right corner. */
+.product-card > .product-card__buy {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 32px; height: 32px;
   border-radius: 50%;
   background: var(--primary);
   color: var(--white);
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
   transition: opacity .15s;
   text-decoration: none;
+  z-index: 1;
 }
 
 .product-card__buy:hover { opacity: .85; }
 .product-card__buy svg   { width: 15px; height: 15px; }
-
-/* Legacy support */
-.product-card__network {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-
-.product-card__rp {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--orange);
-}
-
-.product-card__rp svg { width: 10px; height: 10px; }
-
-/* ── Compact card sizing for 2-col mobile grid ───────────── */
-@media (max-width: 639px) {
-  .product-card__body    { padding: 6px 7px 8px; gap: 2px; }
-  .product-card__name    { font-size: 10px; min-height: unset !important; }
-  .product-card__brand   { font-size: 9px; }
-  .product-card__footer  { margin-top: 5px; }
-  .product-card__price     { font-size: 13px; }
-  .product-card__price-old { font-size: 9px; }
-  .product-card__buy     { width: 24px; height: 24px; }
-  .product-card__buy svg { width: 12px; height: 12px; }
-}
 
 /* ── General Card ────────────────────────────────────────── */
 .card {
@@ -856,39 +875,56 @@
   .ann-popup__dot { transition: none; }
 }
 
-/* ── Data card: cashback + bonus (home page) ─────────────── */
-/* Mirrors the data-section card so both read identically. Cashback is the
-   saving against the struck-through old price — display only, never credited. */
-.product-card__cashback {
+/* ── Data card: cashback + bonus (shared by .product-card and .bundle-card) ─
+   Cashback is the saving against the struck-through old price — display
+   only, never credited. Both chips sit centered under the price, the same
+   compact pill on both pages (the data-bundles page used to render its
+   bonus as a full-width footer bar; this is the one place the two designs
+   genuinely differed, so it moved to match this instead). */
+.product-card__cashback,
+.bundle-card__cashback {
   display: inline-block;
-  margin-top: 3px;
-  font-size: 9px;
+  margin-top: 6px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--success);
   background: var(--primary-light);
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: var(--r-pill);
   white-space: nowrap;
 }
 
-.product-card__bonus {
+.product-card__bonus,
+.bundle-card__extras-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 9px;
+  gap: 4px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--primary);
   background: var(--primary-light);
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: var(--r-pill);
-  align-self: flex-start;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.product-card__bonus svg { width: 9px; height: 9px; flex-shrink: 0; }
+.product-card__bonus { margin-top: 6px; }
+
+/* .bundle-card__extras is the wrapper — a bundle can carry more than one
+   perk, each its own chip, so the wrapper only needs to lay them out. */
+.bundle-card__extras {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.product-card__bonus svg,
+.bundle-card__extras-chip svg { width: 10px; height: 10px; flex-shrink: 0; }
 
 /* ── Carrier artwork on data cards ────────────────────────────────────────
    Every data product wears its own network's artwork, picked from the card's
@@ -918,12 +954,23 @@
 .product-card[data-carrier]::before {
   content: "";
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Only a band at the foot of the card, not the whole thing. The source art
+     is a full-bleed square with the wave in its bottom third and a large
+     pale wordmark ghosted through the middle; covering the full card let
+     that ghost mark sit behind the price and plan name, which is the "covers
+     too much" the artwork was trimmed back from. Clamped so very short and
+     very tall cards both still show a real slice of the wave, not a sliver
+     or an oversized flood. */
+  height: 40%;
+  min-height: 64px;
+  max-height: 128px;
   background-image: var(--carrier-art, none);
   background-repeat: no-repeat;
   /* The wave and logo run along the bottom of the source art. Anchoring
-     there keeps them intact while the card's upper area stays clear for the
-     bundle size and validity. */
+     there keeps them intact while only the band above is cropped away. */
   background-position: center bottom;
   background-size: 100% auto;
   opacity: var(--carrier-art-opacity);

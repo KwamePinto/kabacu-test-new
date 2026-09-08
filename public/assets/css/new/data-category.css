@@ -318,7 +318,10 @@
   text-align: center;
 }
 
-.bundle-card__rp {
+/* Selector scoped to a direct child, not just the class, so this wins over
+   components.css's ".bundle-card > * { position: relative }" on specificity
+   rather than by accident of file load order. */
+.bundle-card > .bundle-card__rp {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -337,27 +340,12 @@
 
 .bundle-card__rp svg { width: 11px; height: 11px; }
 
-/* Extras footer — only rendered when a bundle has bonus perks */
-.bundle-card__extras {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 10px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-  background: var(--primary-light);
-}
-
-.bundle-card__extras-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.bundle-card__extras-chip svg { width: 11px; height: 11px; }
+/* Bonus perk — only rendered when a bundle has one. Both the wrapper
+   (.bundle-card__extras) and the chip itself (.bundle-card__extras-chip) are
+   defined in components.css now, styled together with .product-card__bonus
+   so both pages' cards render the same pill. This used to be a full-width
+   footer bar here, which was the one place the two card designs genuinely
+   disagreed. */
 
 /* Network panel */
 .network-panel        { display: none; }
