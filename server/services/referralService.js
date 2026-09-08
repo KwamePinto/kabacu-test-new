@@ -500,7 +500,7 @@ async function signupBonusProgress(userId) {
     objectives.push({
       key: 'whatsapp',
       title: 'Verify your WhatsApp number',
-      detail: 'We send a code to your WhatsApp. Once verified, the number is saved as a beneficiary so buying data for it is one tap.',
+      detail: 'We send a code to your WhatsApp. A Nigerian number is also saved as a beneficiary, so buying data for it later is one tap.',
       action: 'verify',
       href: '/user/verify-whatsapp',
       done: Boolean(user.whatsappVerifiedAt),

@@ -18,6 +18,10 @@
  *                             'bittoken_verify' template
  */
 const axios = require('axios');
+const { parsePhoneNumberFromString, getCountries, getCountryCallingCode } = require('libphonenumber-js/max');
+const isoCountries = require('i18n-iso-countries');
+
+isoCountries.registerLocale(require('i18n-iso-countries/langs/en.json'));
 const crypto = require('crypto');
 const logger = require('../config/logger');
 
@@ -36,30 +40,75 @@ function isConfigured() {
 }
 
 /**
- * Normalises whatever the user typed into the two forms the app needs.
+ * Normalises whatever the user typed into the forms the app needs.
  *
- * The codebase is inconsistent about phone format — beneficiaries and the
- * data-purchase inputs use the local 11-digit "0801..." form, while the
- * checkout edit modal writes "+234801...". WhatsApp needs international
- * digits with no plus. Rather than inherit that mess, both forms are derived
- * once here and stored, so nothing downstream has to guess.
+ * This started as a hand-written Nigerian parser, which quietly locked out
+ * every other market: Ghana is live with real users, and there are also
+ * accounts across Ethiopia, Benin, South Africa, Togo and Zambia. None of
+ * them could have verified, so none of them could ever have claimed the
+ * bonus. WhatsApp itself has no such limit — the Cloud API takes any E.164
+ * number — so the restriction was entirely self-inflicted.
  *
- * Returns null when the input cannot be read as a Nigerian mobile number.
+ * Hand-rolling numbering rules for 245 countries is not maintainable, so
+ * this defers to libphonenumber (the /max build, which carries the number-
+ * type metadata the default build omits — without it a landline or a
+ * 15-digit typo both pass as valid).
+ *
+ * `defaultCountry` is an ISO code used to read numbers typed in local form
+ * ("0803..."), which is how people actually type their own number. An
+ * explicit +country prefix always wins over it.
+ *
+ * Returns null when the number cannot be a real mobile line.
  */
-function normalizeNigerian(raw) {
-  const digits = String(raw || '').replace(/\D/g, '');
-  if (!digits) return null;
+function normalizePhone(raw, defaultCountry) {
+  const input = String(raw || "").trim();
+  if (!input) return null;
 
-  let national;                     // 10 digits, no leading zero
-  if (digits.startsWith('234') && digits.length === 13) national = digits.slice(3);
-  else if (digits.startsWith('0') && digits.length === 11) national = digits.slice(1);
-  else if (digits.length === 10) national = digits;
-  else return null;
+  const parsed = parsePhoneNumberFromString(
+    input,
+    defaultCountry ? String(defaultCountry).toUpperCase() : undefined,
+  );
+  if (!parsed || !parsed.isValid()) return null;
 
-  // Nigerian mobile prefixes all start 70/80/81/90/91 after the leading zero.
-  if (!/^[789][01]\d{8}$/.test(national)) return null;
+  /* Permissive about type on purpose. Plenty of numbering plans cannot tell
+     mobile from fixed line (FIXED_LINE_OR_MOBILE), and WhatsApp is the real
+     arbiter anyway — it either delivers or returns an error we surface. So
+     only the types a person could not receive a WhatsApp message on are
+     turned away. */
+  const type = parsed.getType();
+  if (['TOLL_FREE', 'PREMIUM_RATE', 'SHARED_COST', 'FIXED_LINE'].includes(type)) return null;
 
-  return { e164: '234' + national, local: '0' + national, national };
+  const country = parsed.country || null;
+
+  /* The local form only means something where we sell data, and every data
+     product is Nigerian (both providers are). So it is derived for Nigeria
+     and left null elsewhere, which is what stops a Ghanaian number being
+     saved as a beneficiary nobody could buy a bundle for. */
+  const local = country === 'NG' ? '0' + parsed.nationalNumber : null;
+
+  return {
+    e164: parsed.number.replace(/^\+/, ""),   // Cloud API wants digits, no plus
+    e164Pretty: parsed.formatInternational(),
+    national: String(parsed.nationalNumber),
+    local,
+    country,
+    type: type || null,
+  };
+}
+
+/**
+ * Dial-code list for the number field, so a user can pick their own country
+ * instead of being assumed Nigerian. Built once at load — it never changes.
+ */
+function countryDialList() {
+  return getCountries()
+    .map((code) => ({
+      code,
+      name: isoCountries.getName(code, 'en') || code,
+      dial: '+' + getCountryCallingCode(code),
+    }))
+    .filter((c) => c.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const hashCode = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
@@ -145,7 +194,8 @@ function checkSendAllowance(user) {
 
 module.exports = {
   isConfigured,
-  normalizeNigerian,
+  normalizePhone,
+  countryDialList,
   hashCode,
   generateCode,
   sendCode,

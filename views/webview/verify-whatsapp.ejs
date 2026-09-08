@@ -15,8 +15,8 @@
       <!-- Already done: no form, just confirmation and a way onward. -->
       <h1 class="auth-card__title">WhatsApp verified</h1>
       <p class="auth-card__sub">
-        <strong><%= currentNumber %></strong> is verified and saved as a beneficiary,
-        so you can buy data for it in one tap.
+        <strong><%= currentNumber %></strong> is verified<% if (isBeneficiary) { %> and saved as a
+        beneficiary, so you can buy data for it in one tap<% } %>.
       </p>
       <a href="/signup-bonus" class="btn btn--primary btn--full btn--lg" style="margin-top:15px;">
         View bonus progress
@@ -37,9 +37,9 @@
     <% } else { %>
       <h1 class="auth-card__title">Verify your WhatsApp</h1>
       <p class="auth-card__sub" id="waSubtitle">
-        We'll message a 6-digit code to your WhatsApp. The number is then saved as a
-        beneficiary, so buying data for it later is one tap — and it counts towards
-        your signup bonus.
+        We'll message a 6-digit code to your WhatsApp. It counts towards your signup
+        bonus, and a Nigerian number is also saved as a beneficiary so buying data
+        for it later is one tap.
       </p>
 
       <!-- Step 1: the number -->
@@ -47,17 +47,19 @@
         <div class="form-group">
           <label class="form-label" for="waPhone">WhatsApp number</label>
           <div class="phone-field">
-            <select class="phone-field__code" id="waCountryCode" aria-label="Country code">
-              <option value="+234">🇳🇬 +234</option>
+            <select class="phone-field__code" id="waCountryCode" aria-label="Country">
+              <% countries.forEach(function (c) { %>
+              <option value="<%= c.code %>" data-dial="<%= c.dial %>" <%= c.code === defaultCountry ? 'selected' : '' %>><%= c.dial %> <%= c.name %></option>
+              <% }) %>
             </select>
             <input type="tel" id="waPhone" class="phone-field__num" placeholder="803 123 4567"
-                   maxlength="11" inputmode="numeric" autocomplete="tel-national"
+                   maxlength="18" inputmode="tel" autocomplete="tel"
                    value="<%= currentNumber %>">
           </div>
           <small class="form-hint" id="waPhoneError" style="display:none;color:var(--error);"></small>
           <small class="form-hint">
-            Use the number that has WhatsApp on it. Each number can only be verified on
-            one account.
+            Use the number that has WhatsApp on it, in local form — the country above
+            supplies the code. Each number can only be verified on one account.
           </small>
         </div>
 
@@ -136,8 +138,11 @@
     }).then(function (r) { return r.json(); });
   }
 
+  /* Digits, spaces and a leading + only. Stripping the + would throw away
+     the one part of a pasted international number that identifies its
+     country, leaving it to be misread as the picker's country. */
   phone.addEventListener('input', function () {
-    this.value = this.value.replace(/\D/g, '');
+    this.value = this.value.replace(/[^\d+\s]/g, '').replace(/(?!^)\+/g, '');
     showErr(phoneErr, '');
   });
   code.addEventListener('input', function () {
@@ -147,11 +152,14 @@
 
   function send(btn) {
     showErr(phoneErr, '');
-    var val = phone.value.replace(/\D/g, '');
-    if (val.length < 10) { showErr(phoneErr, 'Enter your full number, e.g. 0803 123 4567.'); return; }
+    var val = phone.value.trim();
+    /* Only an emptiness check here. A per-country length rule belongs in
+       libphonenumber on the server, not in a guess duplicated in the page. */
+    if (val.replace(/\D/g, '').length < 6) { showErr(phoneErr, 'Enter your WhatsApp number.'); return; }
 
+    var country = document.getElementById('waCountryCode').value;
     busy(btn, true, 'Sending…');
-    post('/user/whatsapp/send', { phone: val })
+    post('/user/whatsapp/send', { phone: val, country: country })
       .then(function (d) {
         if (!d.success) { showErr(btn === sendBtn ? phoneErr : codeErr, d.message); return; }
         stepPhone.hidden = true;
