@@ -254,7 +254,22 @@
            claimed   = paid out, read from each Referral's own frozen snapshot
            unclaimed = still owed, projected from the current reward settings
          Data rewards grant a package rather than an amount, so that card
-         counts bundles instead of summing a value. */
+         counts bundles instead of summing a value.
+
+         Shown as "Unlocked"/"Locked" rather than "Claimed"/"Unclaimed":
+         users read "unclaimed" as money waiting behind a button they could
+         not find, and asked support where the claim button was. Nothing is
+         ever claimed here — a referral reward is paid into the wallet the
+         moment it qualifies (see referralService.handlePurchase), so the
+         honest framing is that it is locked until the person they referred
+         buys something. The info button on each card says exactly that. */
+
+      var _minBuy = Number(referralSettings && referralSettings.minPurchaseAmount) || 0;
+      var _lockedInfo =
+        'Unlocked rewards are already in your wallet — there is nothing to claim.\n\n' +
+        'Locked rewards are yours but not paid out yet. A referral reward unlocks the moment the person you referred makes their first purchase' +
+        (_minBuy > 0 ? ' of \u20a6' + _minBuy.toLocaleString() + ' or more' : '') +
+        '. It is paid into your wallet automatically — you do not have to do anything.';
     %>
     <div class="acct-section">
       <h3 class="acct-section__title">Your Rewards</h3>
@@ -263,15 +278,20 @@
           <div class="reward-stat-card__header">
             <i data-lucide="star"></i>
             <span>Reward Points</span>
+            <button type="button" class="reward-stat-card__info js-reward-info"
+                    data-info="<%= _lockedInfo %>"
+                    aria-label="Why are some rewards locked?">
+              <i data-lucide="info"></i>
+            </button>
           </div>
           <div class="reward-stat-card__total"><%= rewardStats.rp.total %> RP</div>
           <div class="reward-stat-card__row">
-            <span>Claimed</span>
-            <span class="reward-stat-card__claimed"><%= rewardStats.rp.claimed %> RP</span>
+            <span>Unlocked</span>
+            <span class="reward-stat-card__unlocked"><%= rewardStats.rp.claimed %> RP</span>
           </div>
           <div class="reward-stat-card__row">
-            <span>Unclaimed</span>
-            <span class="reward-stat-card__unclaimed"><%= rewardStats.rp.unclaimed %> RP</span>
+            <span>Locked</span>
+            <span class="reward-stat-card__locked"><%= rewardStats.rp.unclaimed %> RP</span>
           </div>
         </div>
 
@@ -279,15 +299,20 @@
           <div class="reward-stat-card__header">
             <i data-lucide="hexagon"></i>
             <span>BTT</span>
+            <button type="button" class="reward-stat-card__info js-reward-info"
+                    data-info="<%= _lockedInfo %>"
+                    aria-label="Why are some rewards locked?">
+              <i data-lucide="info"></i>
+            </button>
           </div>
           <div class="reward-stat-card__total"><%= rewardStats.btt.total %> BTT</div>
           <div class="reward-stat-card__row">
-            <span>Claimed</span>
-            <span class="reward-stat-card__claimed"><%= rewardStats.btt.claimed %> BTT</span>
+            <span>Unlocked</span>
+            <span class="reward-stat-card__unlocked"><%= rewardStats.btt.claimed %> BTT</span>
           </div>
           <div class="reward-stat-card__row">
-            <span>Unclaimed</span>
-            <span class="reward-stat-card__unclaimed"><%= rewardStats.btt.unclaimed %> BTT</span>
+            <span>Locked</span>
+            <span class="reward-stat-card__locked"><%= rewardStats.btt.unclaimed %> BTT</span>
           </div>
         </div>
 
@@ -295,15 +320,20 @@
           <div class="reward-stat-card__header">
             <i data-lucide="dollar-sign"></i>
             <span>USDT</span>
+            <button type="button" class="reward-stat-card__info js-reward-info"
+                    data-info="<%= _lockedInfo %>"
+                    aria-label="Why are some rewards locked?">
+              <i data-lucide="info"></i>
+            </button>
           </div>
           <div class="reward-stat-card__total">$<%= rewardStats.usdt.total %></div>
           <div class="reward-stat-card__row">
-            <span>Claimed</span>
-            <span class="reward-stat-card__claimed">$<%= rewardStats.usdt.claimed %></span>
+            <span>Unlocked</span>
+            <span class="reward-stat-card__unlocked">$<%= rewardStats.usdt.claimed %></span>
           </div>
           <div class="reward-stat-card__row">
-            <span>Unclaimed</span>
-            <span class="reward-stat-card__unclaimed">$<%= rewardStats.usdt.unclaimed %></span>
+            <span>Locked</span>
+            <span class="reward-stat-card__locked">$<%= rewardStats.usdt.unclaimed %></span>
           </div>
         </div>
       </div>
@@ -424,6 +454,26 @@
 </section>
 
 <script>
+  /* ── "Why is this locked?" on each reward card ─────────────────────────
+     Delegated, so it covers all three cards with one listener and keeps
+     working regardless of how many cards render. The copy itself is
+     server-rendered onto each button (see _lockedInfo further up this
+     file) — it names the real unlock condition, including the minimum
+     purchase amount when the admin has set one. */
+  (function () {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.js-reward-info');
+      if (!btn) return;
+      Swal.fire({
+        icon: 'info',
+        title: 'Locked and unlocked rewards',
+        text: btn.dataset.info || '',
+        confirmButtonText: 'Got it',
+        confirmButtonColor: '#15a844',
+      });
+    });
+  })();
+
   /* ── Commissions: reveal/hide the payout list ──────────────────────────── */
   (function() {
     var btn   = document.getElementById('commissionsToggleBtn');

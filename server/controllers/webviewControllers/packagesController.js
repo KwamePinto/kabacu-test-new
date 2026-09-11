@@ -36,6 +36,7 @@ const {
 const walletUtil = require("../../utils/wallet");
 const { generateSignature, verifySignature } = require("../../utils/palmpay");
 const { transferRPToBittoken } = require("../../services/bittokenService");
+const minerIdService = require("../../services/minerIdService");
 const SiteSettings = require("../../models/SiteSettingsModel");
 const Beneficiary = require("../../models/BeneficiaryModel");
 
@@ -2038,17 +2039,22 @@ exports.editUserProfile = async (req, res) => {
 
     const currentUser = await User.findById(userId);
 
+    /* Shape, uniqueness and the BitToken check all live in
+       services/minerIdService.js — the signup-bonus step validates the same
+       way, and two copies of the rules would drift. Only the shape and
+       uniqueness parts run here directly; the BitToken call is skipped when
+       the ID has not changed, exactly as before, because re-verifying an
+       unchanged ID on every profile save would fail the whole form whenever
+       BitToken happened to be down. */
     let parsedMinerId = null;
     if (minerId && minerId.trim() !== "") {
-      const trimmed = minerId.trim();
-      const isNum = /^\d+$/.test(trimmed);
-      if (!isNum || trimmed.length < 8 || trimmed.length > 11) {
-        req.flash("error", "Miner ID must be between 8 and 11 digits (numbers only)");
+      const shapeIssue = minerIdService.shapeError(minerId);
+      if (shapeIssue) {
+        req.flash("error", shapeIssue);
         return res.redirect("/user-profile");
       }
-      parsedMinerId = Number(trimmed);
+      parsedMinerId = Number(minerId.trim());
 
-      // Check if minerId belongs to another user
       const existingMinerId = await User.findOne({
         minerId: parsedMinerId,
         _id: { $ne: userId },
@@ -2059,22 +2065,13 @@ exports.editUserProfile = async (req, res) => {
         return res.redirect("/user-profile");
       }
 
-      // Validate via API only when the miner ID has actually changed
       if (currentUser.minerId !== parsedMinerId) {
         try {
-          await axios.post(
-            `${process.env.BITTOKEN_BASE_URL}/api/user/kabacu/verify/user`,
-            { email_id: email, miner_id: parsedMinerId },
-          );
+          // Verified against the email being SAVED, not the stored one — the
+          // same form can change both at once.
+          await minerIdService.verifyWithBitToken(email, parsedMinerId);
         } catch (apiErr) {
-          console.log(
-            "MINER ID VERIFY ERROR:",
-            apiErr.response?.data || apiErr.message,
-          );
-          req.flash(
-            "error",
-            `Your email (${email}) and the miner ID you entered (${parsedMinerId}) do not match an account on BitToken App.`,
-          );
+          req.flash("error", apiErr.message);
           return res.redirect("/user-profile");
         }
       }

@@ -527,8 +527,30 @@
 
 .reward-stat-card__row + .reward-stat-card__row { margin-top: 6px; }
 
-.reward-stat-card__claimed   { font-weight: 700; color: var(--primary); }
-.reward-stat-card__unclaimed { font-weight: 700; color: var(--error); }
+.reward-stat-card__unlocked { font-weight: 700; color: var(--primary); }
+.reward-stat-card__locked   { font-weight: 700; color: var(--error); }
+
+/* Sits at the far right of the card header — the header is a flex row, so
+   margin-left:auto is what pushes it into the corner. */
+.reward-stat-card__info {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.reward-stat-card__info:hover { background: var(--input-bg); color: var(--text); }
+.reward-stat-card__info svg   { width: 14px; height: 14px; }
 
 /* ── Appearance picker ───────────────────────────────────── */
 /* Restored after the referral-page refactor removed these rules while the

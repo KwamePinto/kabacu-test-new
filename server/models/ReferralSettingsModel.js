@@ -64,6 +64,13 @@ const referralSettingsSchema = new mongoose.Schema({
     requireEmailVerification:    { type: Boolean, default: true },
     requireWhatsappVerification: { type: Boolean, default: true },
 
+    /* Link a BitToken miner ID, verified against BitToken itself.
+       Defaults OFF, unlike the two above: this was added to a promotion that
+       was already running, and defaulting it on would have moved the goalposts
+       for everyone mid-way — people who had finished every step would suddenly
+       have an unfinished one. An admin turns it on deliberately. */
+    requireMinerId: { type: Boolean, default: false },
+
     // How many people the user must refer, and who must each finish both
     // of their own verifications before they count. 0 removes the
     // requirement entirely.

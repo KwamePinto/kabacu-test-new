@@ -93,6 +93,10 @@ router.get('/verify-whatsapp', verification.verifyWhatsappPage);
 router.post('/whatsapp/send', whatsappSendLimiter, verification.sendWhatsappCode);
 router.post('/whatsapp/verify', whatsappVerifyLimiter, verification.verifyWhatsappCode);
 
+// ── BitToken Miner ID (signup-bonus step) ───────────────────────────────────
+router.get('/verify-miner-id', verification.verifyMinerIdPage);
+router.post('/miner-id/verify', verification.submitMinerId);
+
 // ── Forgot password flow ──────────────────────────────────────────────────────
 
 router.get('/forgot-password', getUser.forgotPassword);

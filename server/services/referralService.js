@@ -457,7 +457,7 @@ async function signupBonusProgress(userId) {
   const settings = await ReferralSettings.getSettings();
   const bonus = settings.signupBonus || {};
   const user = await User.findById(userId)
-    .select('isVerified whatsappVerifiedAt whatsappNumber whatsappLocalNumber referralCode signupBonusPaidAt signupBonusType signupBonusAmount')
+    .select('isVerified whatsappVerifiedAt whatsappNumber whatsappLocalNumber minerId referralCode signupBonusPaidAt signupBonusType signupBonusAmount')
     .lean();
 
   if (!user) return null;
@@ -488,6 +488,7 @@ async function signupBonusProgress(userId) {
     objectives.push({
       key: 'email',
       title: 'Verify your email address',
+      shortLabel: 'email',
       detail: 'We send a 6-digit code to the address you signed up with. This is also how you reset a forgotten password, so it is worth doing even without the bonus.',
       action: 'verify',
       href: '/user/verify-otp',
@@ -500,6 +501,7 @@ async function signupBonusProgress(userId) {
     objectives.push({
       key: 'whatsapp',
       title: 'Verify your WhatsApp number',
+      shortLabel: 'WhatsApp',
       detail: 'We send a code to your WhatsApp. A Nigerian number is also saved as a beneficiary, so buying data for it later is one tap.',
       action: 'verify',
       href: '/user/verify-whatsapp',
@@ -509,10 +511,29 @@ async function signupBonusProgress(userId) {
     });
   }
 
+  /* Off by default — see requireMinerId on the settings model. Placed after
+     the two verifications and before the referral steps: it is something the
+     user can finish on their own, and the referral steps are the ones that
+     depend on other people. */
+  if (bonus.requireMinerId === true) {
+    objectives.push({
+      key: 'minerId',
+      title: 'Link your BitToken Miner ID',
+      shortLabel: 'Miner ID',
+      detail: 'Enter the Miner ID from your BitToken app. We check it against BitToken, so it has to be the ID on the account registered to this same email address.',
+      action: 'verify',
+      href: '/user/verify-miner-id',
+      done: Boolean(user.minerId),
+      progress: user.minerId ? 1 : 0,
+      value: user.minerId || null,
+    });
+  }
+
   if (target > 0) {
     objectives.push({
       key: 'refer',
       title: `Refer ${target} ${target === 1 ? "person" : "people"}`,
+      shortLabel: `${target} referral${target === 1 ? '' : 's'}`,
       detail: 'Share your referral code. Anyone who signs up with it counts here.',
       action: 'code',
       code: user.referralCode || null,
@@ -525,6 +546,7 @@ async function signupBonusProgress(userId) {
     objectives.push({
       key: 'referVerified',
       title: `${target} of your referrals verify their account`,
+      shortLabel: 'their verifications',
       detail: 'Each person you referred must verify both their email and their WhatsApp number. You cannot do this part for them — nudge them if it stalls.',
       action: 'count',
       count: Math.min(referredVerifiedCount, target),

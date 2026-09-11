@@ -303,6 +303,23 @@
 
                       <div class="kp-row">
                         <div class="kp-row__main">
+                          <span class="kp-row__label">Require BitToken Miner ID</span>
+                          <p class="kp-row__hint">
+                            They enter their Miner ID and we check it against BitToken, which only
+                            matches when the ID belongs to an account on this same email. One ID per
+                            Kabacu account, so it costs a farmer a real BitToken account each time.
+                          </p>
+                        </div>
+                        <div class="kp-row__ctrl">
+                          <label class="kp-toggle">
+                            <input type="checkbox" id="sb-req-minerid" <%= sb.requireMinerId === true ? 'checked' : '' %>>
+                            <span class="kp-toggle__track"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="kp-row">
+                        <div class="kp-row__main">
                           <span class="kp-row__label">Referrals required</span>
                           <p class="kp-row__hint">
                             How many people they must refer <em>and</em> who must each verify their own

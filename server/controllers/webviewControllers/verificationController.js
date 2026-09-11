@@ -1,5 +1,5 @@
 /**
- * WhatsApp verification and the signup-bonus progress page.
+ * WhatsApp and Miner ID verification, and the signup-bonus progress page.
  *
  * Split out of userController rather than added to it: that file is already
  * ~1200 lines and owns password/session concerns, while everything here is
@@ -9,6 +9,7 @@ const User = require('../../models/UserModel');
 const Beneficiary = require('../../models/BeneficiaryModel');
 const referralService = require('../../services/referralService');
 const wa = require('../../services/whatsapp');
+const minerIdService = require('../../services/minerIdService');
 const logger = require('../../config/logger');
 const { authenticateUser } = require('../../config/authMiddleware');
 const { toCode } = require('../../utils/country');
@@ -217,6 +218,47 @@ exports.verifyWhatsappCode = [
       });
     } catch (err) {
       logger.error(`[WHATSAPP verify] ${err.message}`);
+      return res.json({ success: false, message: 'Something went wrong. Please try again.' });
+    }
+  },
+];
+
+/* ── BitToken Miner ID ─────────────────────────────────────────────────── */
+
+exports.verifyMinerIdPage = [
+  authenticateUser,
+  async (req, res) => {
+    const user = await User.findById(req.user.id).select('minerId email').lean();
+
+    res.render('webview/verify-miner-id', {
+      title: 'Link your Miner ID',
+      // The page shows the email BitToken will be matched against, because
+      // that is the single most common reason this fails: the account here
+      // and the account on BitToken are under two different addresses, and
+      // without seeing it the user has no way to work that out.
+      email: (user && user.email) || '',
+      currentMinerId: (user && user.minerId) || null,
+      linked: Boolean(user && user.minerId),
+      configured: minerIdService.isConfigured(),
+      minDigits: minerIdService.MIN_DIGITS,
+      maxDigits: minerIdService.MAX_DIGITS,
+      hideHeader: true,
+      hideFooter: true,
+    });
+  },
+];
+
+exports.submitMinerId = [
+  authenticateUser,
+  async (req, res) => {
+    try {
+      const result = await minerIdService.linkMinerId(req.user.id, req.body.minerId);
+      if (result.success) {
+        logger.info(`[MINER ID] ${req.user.username} linked ${result.minerId}`);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[MINER ID submit] ${err.message}`);
       return res.json({ success: false, message: 'Something went wrong. Please try again.' });
     }
   },

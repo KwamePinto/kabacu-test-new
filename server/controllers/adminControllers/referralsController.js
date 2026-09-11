@@ -118,11 +118,14 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
     const sbRequireEmail = req.body.signupBonusRequireEmail !== false && req.body.signupBonusRequireEmail !== "false";
     const sbRequireWhatsapp = req.body.signupBonusRequireWhatsapp !== false && req.body.signupBonusRequireWhatsapp !== "false";
     const sbRequiredReferrals = Math.max(0, Math.floor(Number(req.body.signupBonusRequiredReferrals) || 0));
+    // Opt-in, so an absent field means off — the opposite of the two above,
+    // which are on unless explicitly switched off.
+    const sbRequireMinerId = req.body.signupBonusRequireMinerId === true || req.body.signupBonusRequireMinerId === 'true';
 
     /* A promotion nobody can complete is worse than one that is switched
        off, because the progress page would show a bar that can never
        fill. */
-    if (sbActive && !sbRequireEmail && !sbRequireWhatsapp && sbRequiredReferrals === 0) {
+    if (sbActive && !sbRequireEmail && !sbRequireWhatsapp && !sbRequireMinerId && sbRequiredReferrals === 0) {
       return res.json({
         success: false,
         message: 'Keep at least one signup-bonus requirement, or switch the promotion off — otherwise it pays out to everyone instantly.',
@@ -135,6 +138,7 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
       amount: sbAmount,
       requireEmailVerification: sbRequireEmail,
       requireWhatsappVerification: sbRequireWhatsapp,
+      requireMinerId: sbRequireMinerId,
       requiredReferrals: sbRequiredReferrals,
     };
 

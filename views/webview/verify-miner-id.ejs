@@ -1,0 +1,127 @@
+<script>
+  const successMsg = <%- JSON.stringify(success_msg) %>;
+  const errorMsg   = <%- JSON.stringify(error_msg) %>;
+  if (successMsg && successMsg.length > 0) Swal.fire({ icon: 'success', text: successMsg[0] });
+  if (errorMsg && errorMsg.length > 0) Swal.fire({ icon: 'error', text: errorMsg[0] });
+</script>
+
+<section class="auth-page">
+  <div class="auth-card">
+    <div class="auth-card__logo">
+      <img src="/assets/images/new.PNG" alt="Kabacu">
+    </div>
+
+    <% if (linked) { %>
+      <!-- Already done: no form, just confirmation and a way onward. -->
+      <h1 class="auth-card__title">Miner ID linked</h1>
+      <p class="auth-card__sub">
+        <strong><%= currentMinerId %></strong> is linked to your account and verified with BitToken.
+      </p>
+      <a href="/signup-bonus" class="btn btn--primary btn--full btn--lg" style="margin-top:15px;">
+        View bonus progress
+      </a>
+      <div class="auth-divider"><span>or</span></div>
+      <a href="/" class="btn btn--outline btn--full">Continue shopping</a>
+
+    <% } else if (!configured) { %>
+      <h1 class="auth-card__title">Not available yet</h1>
+      <p class="auth-card__sub">
+        Miner ID checks aren't switched on yet. Nothing is lost — you can come back
+        to this from your signup bonus page once they are.
+      </p>
+      <a href="/signup-bonus" class="btn btn--primary btn--full">Back to bonus progress</a>
+      <div class="auth-divider"><span>or</span></div>
+      <a href="/" class="btn btn--outline btn--full">Continue shopping</a>
+
+    <% } else { %>
+      <h1 class="auth-card__title">Link your Miner ID</h1>
+      <p class="auth-card__sub">
+        Enter the Miner ID from your BitToken app. We check it with BitToken, so it
+        must belong to the account registered to
+        <strong><%= email %></strong> — the same address you use here.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="minerIdInput">BitToken Miner ID</label>
+        <div class="input-wrapper">
+          <i data-lucide="hash"></i>
+          <input type="text" id="minerIdInput" class="form-input"
+                 placeholder="<%= '1'.repeat(minDigits) %>"
+                 inputmode="numeric" autocomplete="off"
+                 maxlength="<%= maxDigits %>">
+        </div>
+        <small class="form-hint" id="minerIdError" style="display:none;color:var(--error);"></small>
+        <small class="form-hint">
+          <%= minDigits %>–<%= maxDigits %> digits, numbers only. Each Miner ID can be
+          linked to one Kabacu account.
+        </small>
+      </div>
+
+      <button type="button" id="minerIdBtn" class="btn btn--primary btn--full btn--lg">
+        Verify and link
+      </button>
+
+      <div class="auth-divider"><span>Not now?</span></div>
+      <a href="/" class="btn btn--outline btn--full">Skip for now</a>
+      <p class="auth-card__sub" style="margin-top:10px;font-size:12.5px;">
+        You can finish this any time from
+        <a href="/signup-bonus" style="color:var(--primary);">your signup bonus page</a>.
+      </p>
+    <% } %>
+  </div>
+</section>
+
+<% if (!linked && configured) { %>
+<script>
+(function () {
+  var CSRF  = '<%= csrfToken %>';
+  var input = document.getElementById('minerIdInput');
+  var btn   = document.getElementById('minerIdBtn');
+  var err   = document.getElementById('minerIdError');
+
+  function showErr(msg) {
+    err.textContent = msg;
+    err.style.display = msg ? 'block' : 'none';
+  }
+
+  // Digits only. The ID is copied off another app's screen, so stripping
+  // anything else as it is typed is friendlier than rejecting it on submit.
+  input.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+    showErr('');
+  });
+
+  function submit() {
+    showErr('');
+    var val = input.value.trim();
+    /* Length is checked again on the server — this is only here to save a
+       round-trip on an obviously incomplete entry. */
+    if (val.length < <%= minDigits %>) {
+      showErr('A Miner ID is at least <%= minDigits %> digits.');
+      return;
+    }
+
+    btn.disabled = true;
+    var label = btn.textContent;
+    btn.textContent = 'Checking with BitToken…';
+
+    fetch('/user/miner-id/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ minerId: val }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.success) { showErr(d.message); return; }
+        Swal.fire({ icon: 'success', title: 'Linked', text: d.message })
+          .then(function () { window.location.href = '/signup-bonus'; });
+      })
+      .catch(function () { showErr('Network error. Please try again.'); })
+      .finally(function () { btn.disabled = false; btn.textContent = label; });
+  }
+
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+})();
+</script>
+<% } %>

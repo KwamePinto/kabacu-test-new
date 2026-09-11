@@ -92,6 +92,11 @@
                     Verified: <%= o.value %> — saved as a beneficiary.
                   </p>
                 <% } %>
+                <% if (o.key === 'minerId' && o.done && o.value) { %>
+                  <p class="bonus-step__detail" style="color:var(--success);">
+                    Linked: <%= o.value %> — verified with BitToken.
+                  </p>
+                <% } %>
               </div>
 
               <div class="bonus-step__action">

@@ -163,18 +163,24 @@
       <div class="container setup-strip__inner">
         <i data-lucide="shield-check" class="setup-strip__icon"></i>
         <span class="setup-strip__text">
-          <% if (setupBanner.rewardLabel) { %>
+          <%
+            /* Nothing about which steps exist is decided here — the strip is
+               handed a ready-made list by setupBannerMiddleware, which reads
+               the same requirements the signup-bonus page does. Adding a
+               requirement in the admin panel changes this line on its own. */
+          %>
+          <% if (setupBanner.ready) { %>
+            Your <strong><%= setupBanner.rewardLabel %></strong> is ready
+            <span class="setup-strip__todo">nothing left to do — claim it</span>
+          <% } else if (setupBanner.rewardLabel) { %>
             Finish setting up your account to claim <strong><%= setupBanner.rewardLabel %></strong>
+            <span class="setup-strip__todo"><%= setupBanner.todo %> still to go</span>
           <% } else { %>
             Verify your account so you can reset your password if you ever lose it
+            <span class="setup-strip__todo"><%= setupBanner.todo %> still to verify</span>
           <% } %>
-          <span class="setup-strip__todo">
-            <% if (setupBanner.needEmail && setupBanner.needWhatsapp) { %>email and WhatsApp still to verify<%
-               } else if (setupBanner.needEmail) { %>email still to verify<%
-               } else { %>WhatsApp still to verify<% } %>
-          </span>
         </span>
-        <a href="<%= setupBanner.href %>" class="setup-strip__cta">Finish</a>
+        <a href="<%= setupBanner.href %>" class="setup-strip__cta"><%= setupBanner.ready ? 'Claim' : 'Finish' %></a>
         <button type="button" class="setup-strip__close" id="setupStripClose" aria-label="Dismiss">&times;</button>
       </div>
     </div>
