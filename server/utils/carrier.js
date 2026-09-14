@@ -16,9 +16,9 @@
  * and gives the product card the token it needs to pick its carrier artwork.
  */
 const CARRIERS = {
-  mtn:       { label: 'MTN',     art: '/assets/images/Networks/mtn.png',    color: '#fbbf24' },
-  airtel:    { label: 'Airtel',  art: '/assets/images/Networks/airtel.png', color: '#ef4444' },
-  glo:       { label: 'GLO',     art: '/assets/images/Networks/glo.png',    color: '#22c55e' },
+  mtn:       { label: 'MTN',     art: '/assets/images/Networks/mtn_golden_wave_overlay.png',          color: '#fbbf24' },
+  airtel:    { label: 'Airtel',  art: '/assets/images/Networks/glossy_airtel_wave_overlay.png',        color: '#ef4444' },
+  glo:       { label: 'GLO',     art: '/assets/images/Networks/glossy_glo_green_wave_overlay.png',     color: '#22c55e' },
   // No artwork for 9mobile yet — the source folder has no 9mobile image, so
   // cards fall back to the plain background rather than showing nothing.
   '9mobile': { label: '9mobile', art: null,                                 color: '#3b82f6' },

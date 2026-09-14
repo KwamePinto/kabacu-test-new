@@ -1025,35 +1025,20 @@
    plan's carrier (server/utils/carrier.js), so an MTN bundle looks like MTN
    whether OurDataStore or GSubz fulfils it.
 
-   The PNGs are the original artwork with its white ground removed at build
-   time (scripts/convert-network-art.js), which is what makes one asset serve
-   both themes: there is no white rectangle left to clash with a dark card, so
-   only the artwork's strength changes between light and dark.
+   The overlays are authored with their own soft alpha — a third to a half of
+   every frame is partially transparent — so each composites over whatever
+   colour the card happens to be. That is why there is no per-theme dimming
+   here and none should be added back: these adapt on their own.
 
    The whole frame is the card's background, which is what makes the big
-   faint logo ghosted through the middle of the art part of the design. It
-   was briefly cropped to just the wave and given its own strip in the
-   card's flow; that removed the ghost logo entirely and made every card
-   taller than it needed to be, so it is a background again. */
-:root                      { --carrier-art-opacity: 1; }
-:root[data-theme="light"]  { --carrier-art-opacity: 1; }
-/* Eased right back on dark, and reviewed on the real cards in both themes
-   rather than guessed. This was originally set to .2 because card text sat
-   directly on the artwork and full-strength brand colour overpowered it.
-   Text now sits above the artwork band instead, so that reason is gone and
-   the only remaining question is how loud the band should be on a dark
-   card — .2 is kept because it is the value that was signed off, but it can
-   go higher now without hurting legibility. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --carrier-art-opacity: .2; }
-}
-:root[data-theme="dark"]   { --carrier-art-opacity: .2; }
+   faint logo ghosted through the middle of the art part of the design. */
 
 .bundle-card,
 .product-card { position: relative; }
 
-/* A layer of its own rather than a background on the card, only so the
-   artwork can carry its own opacity without fading the text with it. */
+/* A layer of its own rather than a background on the card, so the artwork
+   sits behind the content without the card's own background painting over
+   it. */
 .bundle-card[data-carrier]::before,
 .product-card[data-carrier]::before {
   content: "";
@@ -1070,7 +1055,6 @@
      which cuts the carrier logo off the bottom-left. */
   background-position: center bottom;
   background-size: 100% auto;
-  opacity: var(--carrier-art-opacity);
   pointer-events: none;
 }
 
@@ -1084,10 +1068,10 @@
    instead, same asset as the product cards. */
 .bundle-card[data-carrier="mtn"],
 .product-card[data-carrier="mtn"],
-.checkout-item__img[data-carrier="mtn"]    { --carrier-art: url("/assets/images/Networks/mtn.png"); }
+.checkout-item__img[data-carrier="mtn"]    { --carrier-art: url("/assets/images/Networks/mtn_golden_wave_overlay.png"); }
 .bundle-card[data-carrier="glo"],
 .product-card[data-carrier="glo"],
-.checkout-item__img[data-carrier="glo"]    { --carrier-art: url("/assets/images/Networks/glo.png"); }
+.checkout-item__img[data-carrier="glo"]    { --carrier-art: url("/assets/images/Networks/glossy_glo_green_wave_overlay.png"); }
 .bundle-card[data-carrier="airtel"],
 .product-card[data-carrier="airtel"],
-.checkout-item__img[data-carrier="airtel"] { --carrier-art: url("/assets/images/Networks/airtel.png"); }
+.checkout-item__img[data-carrier="airtel"] { --carrier-art: url("/assets/images/Networks/glossy_airtel_wave_overlay.png"); }
