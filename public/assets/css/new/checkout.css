@@ -52,9 +52,6 @@
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: 200% auto;
-  /* Same dark-mode easing the cards get — the token is declared once in
-     components.css, next to the artwork rules it belongs with. */
-  filter: var(--carrier-art-filter, none);
 }
 
 .checkout-item__details { flex: 1; }

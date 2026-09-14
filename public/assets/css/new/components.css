@@ -1025,24 +1025,16 @@
    plan's carrier (server/utils/carrier.js), so an MTN bundle looks like MTN
    whether OurDataStore or GSubz fulfils it.
 
-   The overlays are authored with their own soft alpha — a third to a half of
-   every frame is partially transparent — so each composites over whatever
-   colour the card happens to be, and light mode needs no help at all.
+   The overlays are the wave and the carrier logo only, on transparent
+   ground — no large watermark through the middle of the frame. That is what
+   makes them work untouched in both themes: most of the card is simply
+   clear, so there is nothing laid over the price and plan name to compete
+   with them, and nothing to dim.
 
-   Dark mode does. Against #33412f the ghosted logo through the middle of the
-   frame reads far louder than it does on white, enough to compete with the
-   price sitting over it. brightness() rather than opacity: it darkens the
-   art so it recedes into the dark card while leaving the colour
-   relationships intact, so a Glo card still reads green rather than grey.
-   .65 was chosen by eye against all three carriers in both themes.
-
-   The whole frame is the card's background, which is what makes the big
-   faint logo ghosted through the middle of the art part of the design. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --carrier-art-filter: brightness(.65); }
-}
-/* Last, so an explicit dark choice still wins on a system set to light. */
-:root[data-theme="dark"] { --carrier-art-filter: brightness(.65); }
+   There is deliberately no per-theme handling here. Earlier artwork carried
+   a big ghosted logo across the middle that glared on the dark card and
+   needed easing back; these do not, so the token and filter that did it are
+   gone rather than left switched off. */
 
 .bundle-card,
 .product-card { position: relative; }
@@ -1066,8 +1058,6 @@
      which cuts the carrier logo off the bottom-left. */
   background-position: center bottom;
   background-size: 100% auto;
-  /* Unset outside dark mode, so this resolves to none — see the token above. */
-  filter: var(--carrier-art-filter, none);
   pointer-events: none;
 }
 
