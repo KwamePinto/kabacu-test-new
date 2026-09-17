@@ -28,7 +28,7 @@
         <label class="form-label">Full Name</label>
         <div class="input-wrapper">
           <i data-lucide="user"></i>
-          <input type="text" id="fullName" name="username" class="form-input" placeholder="Enter your full name" required>
+          <input type="text" id="fullName" name="username" class="form-input" placeholder="Enter your full name" value="<%= formData && formData.username ? formData.username : '' %>" required>
         </div>
       </div>
 
@@ -36,13 +36,13 @@
         <label class="form-label">Email address</label>
         <div class="input-wrapper">
           <i data-lucide="mail"></i>
-          <input type="email" name="email" class="form-input" placeholder="you@example.com" required>
+          <input type="email" name="email" class="form-input" placeholder="you@example.com" value="<%= formData && formData.email ? formData.email : '' %>" required>
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Phone Number</label>
-        <input type="tel" id="phone" class="form-input" placeholder="Enter phone number" required>
+        <input type="tel" id="phone" class="form-input" placeholder="Enter phone number" value="<%= formData && formData.phone_number ? formData.phone_number : '' %>" required>
         <input type="hidden" name="phone_number" id="phoneNumber">
       </div>
 
@@ -53,7 +53,7 @@
           <select name="country" id="countrySelect" class="form-input form-select" required>
              <% Object.entries(countryNames).forEach(([code, name]) => { %>
 
-            <option value="<%= name %>" <%= name === 'Nigeria' ? 'selected' : '' %>> <%= name %></option>
+            <option value="<%= name %>" <%= (formData && formData.country ? formData.country : 'Nigeria') === name ? 'selected' : '' %>> <%= name %></option>
 
             <% }) %>
 
@@ -239,6 +239,9 @@ var phoneInput = window.intlTelInput(phoneInputField, {
   preferredCountries: ['ng', 'gh', 'ke', 'za'],
   separateDialCode: true,
 });
+
+var savedPhone = phoneInputField.value.trim();
+if (savedPhone) phoneInput.setNumber(savedPhone);
 
 /* ── Keep the Country field and the phone country picker in sync ──────
    Both defaulted to Nigeria independently before, with nothing tying

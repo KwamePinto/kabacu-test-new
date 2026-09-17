@@ -58,6 +58,20 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="copyReferralModal" role="dialog" aria-modal="true" aria-label="Choose what to copy">
+      <div class="modal-box" style="max-width:420px;">
+        <button type="button" class="modal-close" id="copyReferralClose" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+        <h3 class="modal-title">Copy referral details</h3>
+        <p class="referral-card__hint" style="margin-top:0;">Choose what you want to copy.</p>
+        <div style="display:grid;gap:10px;">
+          <button type="button" class="btn btn--primary" id="copyReferralLink">Copy full signup link</button>
+          <button type="button" class="btn btn--outline" id="copyReferralCode">Copy referral code</button>
+        </div>
+      </div>
+    </div>
+
     <%
       var cp   = typeof codePricing !== 'undefined' ? codePricing : { isActive: false };
       var hist = (typeof codeHistory !== 'undefined' && codeHistory) || [];
@@ -515,46 +529,55 @@
       });
     }
 
-    if (copyBtn) {
+    var copyModal = document.getElementById('copyReferralModal');
+    var copyLinkBtn = document.getElementById('copyReferralLink');
+    var copyCodeBtn = document.getElementById('copyReferralCode');
+    var copyClose = document.getElementById('copyReferralClose');
+
+    function closeCopyModal() {
+      if (copyModal) copyModal.classList.remove('open');
+    }
+
+    function copyValue(value, label) {
+      var done = function() {
+        closeCopyModal();
+        toast('success', label + ' copied.');
+      };
+      var fallback = function() {
+        var ta = document.createElement('textarea');
+        ta.value = value;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); }
+        catch (e) { toast('error', 'Could not copy. Your referral code is ' + copyBtn.dataset.code); }
+        document.body.removeChild(ta);
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    }
+
+    if (copyBtn && copyModal) {
       copyBtn.addEventListener('click', function() {
-        var code = this.dataset.code;
-        if (!code) return;
-        // A bare code isn't shareable — a friend has nowhere to type it.
-        // Copy the full signup link with the code pre-filled instead, same
-        // as the ?ref= handling already built into /user/signup.
-        var link = window.location.origin + '/user/signup?ref=' + encodeURIComponent(code);
-
-        var done = function() {
-          var label = copyBtn.querySelector('span');
-          var original = label.textContent;
-          label.textContent = 'Copied';
-          setTimeout(function() {
-            label.textContent = original;
-          }, 1600);
-        };
-
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(link).then(done).catch(fallback);
-        } else {
-          fallback();
-        }
-
-        /* clipboard API needs HTTPS, so keep a plain-HTTP path working too */
-        function fallback() {
-          var ta = document.createElement('textarea');
-          ta.value = link;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.select();
-          try {
-            document.execCommand('copy');
-            done();
-          } catch (e) {
-            toast('error', 'Could not copy. Your referral code is ' + code);
-          }
-          document.body.removeChild(ta);
-        }
+        if (this.dataset.code) copyModal.classList.add('open');
+      });
+      if (copyClose) copyClose.addEventListener('click', closeCopyModal);
+      copyModal.addEventListener('click', function(e) {
+        if (e.target === copyModal) closeCopyModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeCopyModal();
+      });
+      if (copyLinkBtn) copyLinkBtn.addEventListener('click', function() {
+        var code = copyBtn.dataset.code;
+        copyValue(window.location.origin + '/user/signup?ref=' + encodeURIComponent(code), 'Signup link');
+      });
+      if (copyCodeBtn) copyCodeBtn.addEventListener('click', function() {
+        copyValue(copyBtn.dataset.code, 'Referral code');
       });
     }
 

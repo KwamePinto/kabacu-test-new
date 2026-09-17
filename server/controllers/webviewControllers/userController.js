@@ -287,6 +287,23 @@ async function resolveSignupWalletCountry(countryValue) {
     }
 }
 
+function rememberSignupForm(req) {
+  const { username, email, phone_number, country, referralCode } = req.body || {};
+  req.session.signupFormData = {
+    username: String(username || '').trim(),
+    email: String(email || '').trim(),
+    phone_number: String(phone_number || '').trim(),
+    country: String(country || '').trim(),
+    referralCode: String(referralCode || '').trim().slice(0, 32),
+  };
+}
+
+function signupRedirect(req, res, message) {
+  rememberSignupForm(req);
+  req.flash('error', message);
+  return res.redirect('/user/signup');
+}
+
 exports.signup = async (req,res)=>{
     countries.registerLocale(
   require("i18n-iso-countries/langs/en.json")
@@ -306,17 +323,21 @@ const countryNames = countries.getNames("en");
     const y = op.y !== undefined ? op.y : b;
     req.session.signupMathCaptcha = op.answer;
 
+    const savedForm = req.session.signupFormData || {};
+    delete req.session.signupFormData;
+
     /* A shared link (/user/signup?ref=CODE) pre-fills the field rather than
        requiring it to be retyped — the query param is display-only, never
        trusted: the real validation happens in signupPost against the code
        table, exactly as if it had been typed by hand. Length-capped since it
        only ever needs to hold a code, not an arbitrary query string. */
-    const prefillReferralCode = String(req.query.ref || '').trim().slice(0, 32);
+    const prefillReferralCode = String(req.query.ref || savedForm.referralCode || '').trim().slice(0, 32);
 
     res.render('webview/register', {
         countryNames, hideHeader: true, hideFooter: true,
         mathQuestion: `${x} ${op.sym} ${y}`,
         prefillReferralCode,
+        formData: savedForm,
     })
 
 }
@@ -374,8 +395,7 @@ async (req, res) => {
         req.session.signupMathCaptcha = null;
 
         if (isNaN(mathAnswer) || mathAnswer !== expectedAnswer) {
-            req.flash('error', 'Incorrect answer to the math question. Please try again.');
-            return res.redirect('/user/signup');
+          return signupRedirect(req, res, 'Incorrect answer to the math question. Please try again.');
         }
 
         // =====================================

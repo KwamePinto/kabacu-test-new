@@ -148,6 +148,7 @@ app.post('/command/verify/resend', adminUserCtrl.resendOtp);
 
 app.use('/admin', require('./server/routes/adminRoutes/userAdminRoute'));
 app.use('/admin/main', require('./server/routes/adminRoutes/dashboardRoute'));
+app.get('/admin/dashboard', (req, res) => res.redirect('/admin/main/dashboard'));
 app.use('/admin/category', require('./server/routes/adminRoutes/categoryRoute'));
 app.use('/admin/product', require('./server/routes/adminRoutes/productsRoute'));
 app.use('/admin/settings', require('./server/routes/adminRoutes/settingsRoute'));

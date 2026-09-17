@@ -274,10 +274,14 @@
                         <td><%= index + 1 %></td>
                         <td><small><%= tx.reference || '—' %></small></td>
                         <td>
+                          <% if (tx.user) { %>
                           <a href="/admin/product/user-details/<%= tx.user._id %>" style="color:black">
-                            <b><%= tx.user?.username || 'N/A' %></b><br>
-                            <small class="text-muted"><%= tx.user?.email || '' %></small>
+                            <b><%= tx.user.username || 'N/A' %></b><br>
+                            <small class="text-muted"><%= tx.user.email || '' %></small>
                           </a>
+                          <% } else { %>
+                          <span class="text-muted">User no longer available</span>
+                          <% } %>
                         </td>
                         <td><%= tx.phone || '—' %></td>
                         <td><b>₦<%= (tx.amount || 0).toLocaleString() %></b></td>

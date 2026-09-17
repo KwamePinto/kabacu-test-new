@@ -67,5 +67,6 @@ exports.dashboard = [authenticateAdminUser, async (req, res) => {
         });
     } catch (error) {
         console.log('DASHBOARD ERROR:', error);
+        return res.status(500).send('Unable to load the admin dashboard. Please try again.');
     }
 }];
