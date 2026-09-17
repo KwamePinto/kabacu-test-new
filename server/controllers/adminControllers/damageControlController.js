@@ -1,6 +1,7 @@
 const { authenticateAdminUser } = require('../../config/authMiddleware');
 const Transaction     = require('../../models/TransactionModel');
 const Wallet          = require('../../models/WalletModal');
+const User            = require('../../models/UserModel');
 const { notify }      = require('../../services/userNotificationService');
 
 // Case 1 (pre-fix): timed out → treated as fail → wallet refunded → may need manual deduction
@@ -707,9 +708,33 @@ exports.shortDeliveryTopUp = [authenticateAdminUser, async (req, res) => {
     tx.markModified('apiResponse');
     await tx.save();
 
+    /* Addressed by name, so read the buyer — the transaction only carries
+       their id. Falls back to a nameless greeting rather than printing
+       "Hello undefined" if the account has since been deleted. */
+    const buyer = await User.findById(tx.user).select('username').lean().catch(() => null);
+    const name = (buyer && buyer.username) || 'there';
+
+    /* The bought/delivered figures are stamped by transactionPoller when the
+       shortfall is detected. Both are recomputed from the shortfall if either
+       is missing on an older row, so the sentence always adds up rather than
+       reading "your undefinedGB purchase". */
+    const deliveredGb = Number(ar._shortDeliveredGb) || 0;
+    const boughtGb = Number(ar._shortBoughtGb) || (deliveredGb + missingGb);
+
     notify(tx.user, {
       type: 'success',
-      text: `The missing ${missingGb}GB from your earlier purchase has been sent to ${tx.phone}.`,
+      text:
+        `Hello ${name},\n\n` +
+        `Following our investigation, we have finally identified the issue with your ${boughtGb}GB ` +
+        `data purchase, where only ${deliveredGb}GB was initially credited to your account.\n\n` +
+        `We have now credited the remaining ${missingGb}GB to your account, bringing the total to ` +
+        `the full ${boughtGb}GB purchased.\n\n` +
+        `We sincerely apologize for the inconvenience and the time it took to resolve this issue. ` +
+        `We truly appreciate your patience and cooperation while we worked through the verification ` +
+        `process.\n\n` +
+        `Our team is working hard to improve our systems and processes to ensure that issues like ` +
+        `this are minimized and do not happen again.\n\n` +
+        `Thank you for your understanding and continued trust in Kabacu.`,
       link: '/user/transaction-history',
     });
 

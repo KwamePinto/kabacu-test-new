@@ -196,12 +196,14 @@
 
                       <div class="kp-row">
                         <div class="kp-row__main">
-                          <span class="kp-row__label">Minimum first purchase</span>
-                          <p class="kp-row__hint">0 means any purchase qualifies.</p>
+                          <span class="kp-row__label">Purchases required</span>
+                          <p class="kp-row__hint">How many purchases the referred user must complete before
+                             the reward is paid. 1 means their first purchase qualifies. A count, not an
+                             amount — so it means the same in every currency.</p>
                         </div>
                         <div class="kp-row__ctrl">
-                          <input type="number" id="f-minpurchase" class="kp-input kp-input--num" min="0" step="any"
-                                 value="<%= settings.minPurchaseAmount || 0 %>">
+                          <input type="number" id="f-minpurchase" class="kp-input kp-input--num" min="0" step="1"
+                                 value="<%= settings.minPurchaseCount == null ? 1 : settings.minPurchaseCount %>">
                         </div>
                       </div>
 

@@ -78,9 +78,19 @@ forgotPasswordTokenExpires: Date,
     // collection is the authoritative link record and enforces that.
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user', default: null },
 
-    // Flipped the first time this user completes a purchase, which is the
-    // moment their referrer becomes eligible for a reward.
+    // Flipped the first time this user completes a purchase.
     hasMadeFirstPurchase: { type: Boolean, default: false },
+
+    // How many purchases this user has completed. This is what a referral
+    // reward is gated on (ReferralSettings.minPurchaseCount) — a count, not
+    // a value, so the same threshold means the same thing in every currency.
+    //
+    // Maintained only by referralService.handlePurchase, the single hook both
+    // checkout paths call once a sale is paid for and recorded. Deliberately
+    // NOT derived from the Transaction collection: that collection also holds
+    // admin goodwill top-ups and manual adjustments, so counting rows there
+    // would let an admin correction move a user toward someone's payout.
+    purchaseCount: { type: Number, default: 0, min: 0 },
 
     // ── Signup bonus ─────────────────────────────────────────────────────
     // Set when the promotion paid out, so it can never be credited twice —

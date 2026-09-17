@@ -72,7 +72,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     console.error('[referrals viewPanel]', err);
     res.render('adminview/referrals', {
       layout: 'layouts/adminLayout',
-      settings: { rewardType: 'rewardpoint', amount: 0, isActive: true, minPurchaseAmount: 0, maxRewardsPerReferrer: 0 },
+      settings: { rewardType: 'rewardpoint', amount: 0, isActive: true, minPurchaseCount: 1, maxRewardsPerReferrer: 0 },
       referrals: [], specialCodes: [],
       stats: { pending: 0, qualified: 0, rewarded: 0, void: 0 },
       codeRequests: [],
@@ -85,7 +85,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
 
 exports.saveSettings = [authenticateAdminUser, async (req, res) => {
   try {
-    const { rewardType, amount, minPurchaseAmount, maxRewardsPerReferrer, isActive } = req.body;
+    const { rewardType, amount, minPurchaseCount, maxRewardsPerReferrer, isActive } = req.body;
 
     if (!['rewardpoint', 'BTT', 'USDT'].includes(rewardType)) {
       return res.json({ success: false, message: 'Pick a valid reward type.' });
@@ -94,7 +94,9 @@ exports.saveSettings = [authenticateAdminUser, async (req, res) => {
     const update = {
       rewardType,
       isActive: isActive !== false && isActive !== 'false',
-      minPurchaseAmount: Math.max(0, Number(minPurchaseAmount) || 0),
+      // A whole number of purchases — rounded rather than trusted, since the
+      // field used to accept decimals when it was a money amount.
+      minPurchaseCount: Math.max(0, Math.round(Number(minPurchaseCount) || 0)),
       maxRewardsPerReferrer: Math.max(0, Number(maxRewardsPerReferrer) || 0),
     };
 

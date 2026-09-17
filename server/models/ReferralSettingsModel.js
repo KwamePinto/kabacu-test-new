@@ -24,9 +24,21 @@ const referralSettingsSchema = new mongoose.Schema({
   // the matching wallet balance.
   amount: { type: Number, default: 0, min: 0 },
 
-  // A referred user's first purchase must be at least this much to qualify.
-  // 0 means any purchase qualifies.
-  minPurchaseAmount: { type: Number, default: 0, min: 0 },
+  /**
+   * How many purchases a referred user must complete before their referrer is
+   * paid. 0 and 1 both mean the first purchase qualifies.
+   *
+   * This used to be minPurchaseAmount — a minimum spend, in Naira. A single
+   * number cannot be a spend threshold across markets: "200" meant a
+   * meaningful basket in Naira and a fortune (or nothing) in BTT/USDT, so the
+   * same setting silently held referrers in different countries to completely
+   * different bars. A count carries the same meaning everywhere, which is why
+   * the gate moved off value entirely.
+   *
+   * Counted from User.purchaseCount — see the note there on why the
+   * Transaction collection is not used.
+   */
+  minPurchaseCount: { type: Number, default: 1, min: 0 },
 
   // Safety valve: 0 = unlimited.
   maxRewardsPerReferrer: { type: Number, default: 0, min: 0 },

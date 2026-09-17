@@ -127,6 +127,16 @@
 
   var TYPE_COLOR = { purchase:'#3b82f6', success:'#22c55e', failed:'#ef4444', refund:'#f59e0b', attention:'#f97316', info:'#6b7280' };
 
+  /* Notification text is built server-side but interpolates values the user
+     controls — their own username in the short-delivery message, a phone
+     number in others — and it is written into innerHTML below, so it is
+     escaped here rather than trusted. */
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function timeAgo(d) {
     var s = Math.floor((Date.now() - new Date(d)) / 1000);
     if (s < 60)   return s + 's ago';
@@ -155,7 +165,10 @@
           return '<a ' + href + ' style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;text-decoration:none;border-bottom:1px solid var(--border);' + (!n.read ? 'background:var(--input-bg);' : '') + '">' +
             '<span style="width:8px;height:8px;border-radius:50%;background:' + color + ';flex-shrink:0;margin-top:5px;"></span>' +
             '<span style="flex:1;">' +
-              '<span style="display:block;font-size:13px;color:var(--text);">' + n.text + '</span>' +
+              /* pre-line keeps the blank lines in multi-paragraph messages
+                 (the short-delivery resolution notice is six paragraphs) while
+                 still wrapping normally inside each one. */
+              '<span style="display:block;font-size:13px;color:var(--text);white-space:pre-line;">' + escapeHtml(n.text) + '</span>' +
               '<span style="display:block;font-size:11px;color:var(--muted);margin-top:2px;">' + timeAgo(n.createdAt) + '</span>' +
             '</span>' +
           '</a>';

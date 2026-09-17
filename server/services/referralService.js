@@ -195,20 +195,32 @@ async function grantReward(referral, settings) {
 }
 
 /**
- * Called after a user completes a purchase. If this was their first and they
- * were referred, the referrer is paid.
+ * Called after a user completes a purchase. Counts the purchase, and pays the
+ * referrer once the referred user has completed enough of them
+ * (ReferralSettings.minPurchaseCount).
  *
- * Safe to call on every purchase: it no-ops unless there is a pending referral.
+ * Safe to call on every purchase: the count is kept for everyone, and the
+ * payout half no-ops unless there is a pending referral.
+ *
+ * Callers still pass `amount` — it is used by handleCommission alongside this
+ * and is deliberately ignored here. The reward gate was a minimum spend once;
+ * it is a purchase count now, so no value from this sale affects the decision.
+ * See the note on ReferralSettings.minPurchaseCount for why.
  */
-async function handlePurchase(userId, { amount = 0, transactionId = null } = {}) {
+async function handlePurchase(userId, { transactionId = null } = {}) {
   try {
     const referral = await Referral.findOne({ referred: userId, status: 'pending' });
 
-    // Mark the first purchase regardless, so the flag is accurate for users
-    // who were never referred.
-    await User.updateOne(
-      { _id: userId, hasMadeFirstPurchase: false },
-      { $set: { hasMadeFirstPurchase: true } },
+    /* Counted for everyone, referred or not, so the number is already correct
+       if a referral is attached later. $inc with the post-update document is
+       what makes this safe under concurrent checkouts: the count that gets
+       compared below is the one this purchase actually produced, so two sales
+       landing together cannot both read the same pre-increment value and
+       either double-pay or both fall short. */
+    const counted = await User.findOneAndUpdate(
+      { _id: userId },
+      { $inc: { purchaseCount: 1 }, $set: { hasMadeFirstPurchase: true } },
+      { returnDocument: 'after', projection: { purchaseCount: 1 } },
     );
 
     if (!referral) return;
@@ -216,8 +228,12 @@ async function handlePurchase(userId, { amount = 0, transactionId = null } = {})
     const settings = await ReferralSettings.getSettings();
     if (!settings.isActive) return;
 
-    if (settings.minPurchaseAmount > 0 && amount < settings.minPurchaseAmount) {
-      return; // stays pending — a later, larger purchase can still qualify
+    // 0 and 1 are the same rule: the first purchase qualifies.
+    const required = Math.max(1, Number(settings.minPurchaseCount) || 0);
+    const completed = (counted && counted.purchaseCount) || 0;
+
+    if (completed < required) {
+      return; // stays pending — their next purchase can still qualify
     }
 
     if (settings.maxRewardsPerReferrer > 0) {

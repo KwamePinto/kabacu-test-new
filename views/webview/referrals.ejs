@@ -39,8 +39,12 @@
       </div>
 
       <p class="referral-card__hint">
-        <% if (referralSettings && referralSettings.isActive) { %>
-        Share your link. You are rewarded once someone who used it makes their first purchase.
+        <% if (referralSettings && referralSettings.isActive) {
+             /* Stated as a purchase count, never a spend — the threshold is
+                currency-independent now, so this line is too. */
+             var _hintBuys = Math.max(1, Number(referralSettings.minPurchaseCount) || 0); %>
+        Share your link. You are rewarded once someone who used it
+        <%= _hintBuys > 1 ? 'completes ' + _hintBuys.toLocaleString() + ' purchases' : 'makes their first purchase' %>.
         <% } else { %>
         The referral programme is currently paused.
         <% } %>
@@ -278,11 +282,15 @@
          honest framing is that it is locked until the person they referred
          buys something. The info button on each card says exactly that. */
 
-      var _minBuy = Number(referralSettings && referralSettings.minPurchaseAmount) || 0;
+      /* A number of purchases, not a spend — so this copy names no currency
+         and reads the same for a referrer in any market. */
+      var _minBuys = Math.max(1, Number(referralSettings && referralSettings.minPurchaseCount) || 0);
       var _lockedInfo =
         'Unlocked rewards are already in your wallet — there is nothing to claim.\n\n' +
-        'Locked rewards are yours but not paid out yet. A referral reward unlocks the moment the person you referred makes their first purchase' +
-        (_minBuy > 0 ? ' of \u20a6' + _minBuy.toLocaleString() + ' or more' : '') +
+        'Locked rewards are yours but not paid out yet. A referral reward unlocks once the person you referred has ' +
+        (_minBuys > 1
+          ? 'completed ' + _minBuys.toLocaleString() + ' purchases'
+          : 'made their first purchase') +
         '. It is paid into your wallet automatically — you do not have to do anything.';
     %>
     <div class="acct-section">
