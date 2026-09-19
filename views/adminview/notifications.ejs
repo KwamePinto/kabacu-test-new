@@ -147,11 +147,18 @@
                     <form id="sendUserForm">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <div class="form-group">
-                        <label>User</label>
-                        <input type="text" id="devicesFilterInput" class="form-control mb-2" placeholder="Filter by name or email…" autocomplete="off">
-                        <select name="userId" id="devicesSelect" class="form-control" required>
-                          <option value="">— Select user —</option>
-                        </select>
+                        <label>Users</label>
+                        <div class="user-picker" id="devicesPicker" data-name="userIds">
+                          <div class="user-picker__field">
+                            <input type="text" class="form-control user-picker__input"
+                                   placeholder="Start typing a name or email…" autocomplete="off"
+                                   role="combobox" aria-expanded="false" aria-autocomplete="list">
+                            <div class="user-picker__menu" role="listbox"></div>
+                          </div>
+                          <div class="user-picker__chips"></div>
+                          <div class="user-picker__hidden"></div>
+                        </div>
+                        <small class="text-muted">Tick as many as you like — the message goes only to the people listed below.</small>
                       </div>
                       <%- include('../partials/notificationMessageSelect.ejs') %>
                       <button type="submit" class="btn btn-primary btn-block" id="sendUserBtn">Send</button>
@@ -167,11 +174,18 @@
                     <form id="sendAllUsersForm">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <div class="form-group">
-                        <label>User</label>
-                        <input type="text" id="allUsersFilterInput" class="form-control mb-2" placeholder="Filter by name or email…" autocomplete="off">
-                        <select name="userId" id="allUsersSelect" class="form-control" required>
-                          <option value="">— Select user —</option>
-                        </select>
+                        <label>Users</label>
+                        <div class="user-picker" id="allUsersPicker" data-name="userIds">
+                          <div class="user-picker__field">
+                            <input type="text" class="form-control user-picker__input"
+                                   placeholder="Start typing a name or email…" autocomplete="off"
+                                   role="combobox" aria-expanded="false" aria-autocomplete="list">
+                            <div class="user-picker__menu" role="listbox"></div>
+                          </div>
+                          <div class="user-picker__chips"></div>
+                          <div class="user-picker__hidden"></div>
+                        </div>
+                        <small class="text-muted">Tick as many as you like — the message goes only to the people listed below.</small>
                       </div>
                       <%- include('../partials/notificationMessageSelect.ejs') %>
                       <button type="submit" class="btn btn-primary btn-block" id="sendAllUsersBtn">Send</button>
@@ -197,17 +211,18 @@
 
                     <% if (registeredUsers && registeredUsers.length) { %>
                     <div class="form-group">
-                      <label>Select users (optional — leave blank for all)</label>
-                      <div style="max-height:200px;overflow-y:auto;border:1px solid #e4e6fc;border-radius:4px;padding:8px;">
-                        <% registeredUsers.forEach(ru => { %>
-                        <div class="custom-control custom-checkbox mb-1">
-                          <input type="checkbox" class="custom-control-input" name="userIds" value="<%= ru.user._id %>" id="user_<%= ru.user._id %>">
-                          <label class="custom-control-label" for="user_<%= ru.user._id %>">
-                            <%= ru.user.firstname %> <%= ru.user.lastname %> (<%= ru.user.email %>)
-                          </label>
+                      <label>Select users</label>
+                      <div class="user-picker" id="broadcastPicker" data-name="userIds">
+                        <div class="user-picker__field">
+                          <input type="text" class="form-control user-picker__input"
+                                 placeholder="Start typing a name or email…" autocomplete="off"
+                                 role="combobox" aria-expanded="false" aria-autocomplete="list">
+                          <div class="user-picker__menu" role="listbox"></div>
                         </div>
-                        <% }) %>
+                        <div class="user-picker__chips"></div>
+                        <div class="user-picker__hidden"></div>
                       </div>
+                      <small class="text-muted">Leave empty to broadcast to <strong>everyone</strong> — you will be asked to confirm first.</small>
                     </div>
                     <% } else { %>
                     <p class="text-muted">No registered devices yet. Broadcast will still reach all users via in-app notifications.</p>
@@ -232,6 +247,82 @@
 </div>
 <script src="/admin/assets/js/app.min.js"></script>
 <script src="/admin/assets/js/scripts.js"></script>
+<style>
+  /* Multi-select user picker (Send panel). Scoped to .user-picker so it cannot
+     reach the Stisla form styles used everywhere else in the admin. */
+  .user-picker__field { position: relative; }
+
+  .user-picker__menu {
+    display: none;
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    z-index: 30;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: 2px;
+    background: #fff;
+    border: 1px solid #e4e6fc;
+    border-radius: 4px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .12);
+  }
+
+  .user-picker__row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+    padding: 8px 11px;
+    font-weight: 400;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .user-picker__row:hover { background: #f6f7ff; }
+  .user-picker__row input { margin: 0; flex-shrink: 0; }
+  .user-picker__row span { overflow-wrap: anywhere; }
+
+  .user-picker__empty {
+    padding: 11px;
+    font-size: 12.5px;
+    color: #98a6ad;
+  }
+
+  .user-picker__chips { margin-top: 9px; }
+
+  .user-picker__count {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6777ef;
+    margin-bottom: 5px;
+  }
+
+  .user-picker__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    margin: 0 4px 4px 0;
+    padding: 3px 5px 3px 10px;
+    border-radius: 14px;
+    background: #eef0ff;
+    color: #3b4ba8;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .user-picker__remove {
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+    color: #3b4ba8;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 3px;
+    cursor: pointer;
+  }
+  .user-picker__remove:hover { color: #dc3545; }
+
+  .user-picker__none { font-size: 12px; color: #98a6ad; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   // ── User list filter ──────────────────────────────────────────
@@ -239,41 +330,138 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function initUserFilter(filterInputId, selectId, users) {
-    var filterInput = document.getElementById(filterInputId);
-    var selectEl = document.getElementById(selectId);
-    if (!filterInput || !selectEl) return;
+  /**
+   * Multi-select user picker.
+   *
+   * Replaces a filter box wired to a <select>, which needed the admin to type,
+   * then open the dropdown, then pick — and could only ever hold one name. The
+   * list opens on the first keystroke, each row is a checkbox so several
+   * people can be ticked in one pass, and everything ticked is listed
+   * underneath. Only the users in that list are sent to.
+   *
+   * Selections are posted as repeated hidden `userIds` inputs, which is the
+   * shape the broadcast endpoint already accepted.
+   */
+  function initUserPicker(rootId, users) {
+    var root = document.getElementById(rootId);
+    if (!root) return null;
 
-    function populate(query) {
-      var q = query.trim().toLowerCase();
-      var filtered = q ?
-        users.filter(function(u) {
-          return u.label.toLowerCase().indexOf(q) !== -1;
-        }) :
-        users;
-      selectEl.innerHTML = '<option value="">— Select user —</option>' +
-        filtered.map(function(u) {
-          return '<option value="' + escH(u.id) + '">' + escH(u.label) + '</option>';
+    var input  = root.querySelector('.user-picker__input');
+    var menu   = root.querySelector('.user-picker__menu');
+    var chips  = root.querySelector('.user-picker__chips');
+    var hidden = root.querySelector('.user-picker__hidden');
+    var fieldName = root.getAttribute('data-name') || 'userIds';
+
+    var byId = {};
+    users.forEach(function(u) { byId[u.id] = u; });
+
+    // Kept in the order the admin picked them, so the list below reads as a
+    // record of what they did rather than re-sorting under them.
+    var selected = [];
+    function isSelected(id) { return selected.indexOf(id) !== -1; }
+
+    function renderMenu() {
+      var q = input.value.trim().toLowerCase();
+      var matches = q
+        ? users.filter(function(u) { return u.label.toLowerCase().indexOf(q) !== -1; })
+        : users;
+
+      if (!matches.length) {
+        menu.innerHTML = '<div class="user-picker__empty">No users match \u201c' + escH(input.value) + '\u201d</div>';
+        return;
+      }
+
+      // Capped so a few thousand accounts cannot lock the browser up building
+      // DOM nodes on every keystroke. Typing narrows it well below the cap.
+      var shown = matches.slice(0, 200);
+      menu.innerHTML = shown.map(function(u) {
+        return '<label class="user-picker__row">' +
+          '<input type="checkbox" value="' + escH(u.id) + '"' + (isSelected(u.id) ? ' checked' : '') + '>' +
+          '<span>' + escH(u.label) + '</span>' +
+        '</label>';
+      }).join('') + (matches.length > shown.length
+        ? '<div class="user-picker__empty">' + (matches.length - shown.length) +
+          ' more\u2026 keep typing to narrow the list.</div>'
+        : '');
+    }
+
+    function renderSelected() {
+      hidden.innerHTML = selected.map(function(id) {
+        return '<input type="hidden" name="' + escH(fieldName) + '" value="' + escH(id) + '">';
+      }).join('');
+
+      if (!selected.length) {
+        chips.innerHTML = '<span class="user-picker__none">No one selected yet.</span>';
+        return;
+      }
+      chips.innerHTML =
+        '<div class="user-picker__count">Sending to ' + selected.length +
+          ' user' + (selected.length === 1 ? '' : 's') + '</div>' +
+        selected.map(function(id) {
+          var u = byId[id];
+          return '<span class="user-picker__chip">' + escH(u ? u.label : id) +
+            '<button type="button" class="user-picker__remove" data-id="' + escH(id) +
+            '" aria-label="Remove">\u00d7</button></span>';
         }).join('');
     }
 
-    filterInput.addEventListener('input', function() {
-      populate(filterInput.value);
+    function open()  { menu.style.display = 'block'; input.setAttribute('aria-expanded', 'true'); }
+    function close() { menu.style.display = 'none';  input.setAttribute('aria-expanded', 'false'); }
+
+    input.addEventListener('input', function() { renderMenu(); open(); });
+    input.addEventListener('focus', function() { renderMenu(); open(); });
+
+    menu.addEventListener('change', function(e) {
+      var cb = e.target;
+      if (!cb || cb.type !== 'checkbox') return;
+      if (cb.checked) {
+        if (!isSelected(cb.value)) selected.push(cb.value);
+      } else {
+        selected = selected.filter(function(s) { return s !== cb.value; });
+      }
+      // The menu is deliberately left open and the query untouched, so a run
+      // of people can be ticked without retyping the search each time.
+      renderSelected();
     });
-    populate('');
+
+    chips.addEventListener('click', function(e) {
+      var btn = e.target.closest ? e.target.closest('.user-picker__remove') : null;
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      selected = selected.filter(function(s) { return s !== id; });
+      renderSelected();
+      renderMenu();
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!root.contains(e.target)) close();
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { close(); input.blur(); }
+    });
+
+    renderSelected();
+    return {
+      count:  function() { return selected.length; },
+      focus:  function() { input.focus(); },
+      labels: function() { return selected.map(function(id) { return byId[id] ? byId[id].label : id; }); }
+    };
   }
 
   // Embed user data
+  /* Labels are built from `username` — the only name field on the user model.
+     They used to read firstname + lastname, neither of which exists, so every
+     row in this panel showed "undefined undefined" beside the email. */
   var registeredUsersData = <%- JSON.stringify((registeredUsers || []).map(function(ru) {
-    return { id: String(ru.user._id), label: ru.user.firstname + ' ' + ru.user.lastname + ' — ' + ru.user.email };
-  })) %>;
+    return { id: String(ru.user._id), label: (ru.user.username || 'Unnamed') + ' — ' + ru.user.email };
+  })).replace(/</g, '\\u003c') %>;
   var allUsersData = <%- JSON.stringify((allUsers || []).map(function(u) {
-    return { id: String(u._id), label: u.firstname + ' ' + u.lastname + ' — ' + u.email };
-  })) %>;
+    return { id: String(u._id), label: (u.username || 'Unnamed') + ' — ' + u.email };
+  })).replace(/</g, '\\u003c') %>;
 
-  // Initialise filters
-  initUserFilter('devicesFilterInput', 'devicesSelect', registeredUsersData);
-  initUserFilter('allUsersFilterInput', 'allUsersSelect', allUsersData);
+  var devicesPicker   = initUserPicker('devicesPicker', registeredUsersData);
+  var allUsersPicker  = initUserPicker('allUsersPicker', allUsersData);
+  var broadcastPicker = initUserPicker('broadcastPicker', registeredUsersData);
 
   // ── Toggle custom message fields ──────────────────────────────
   document.querySelectorAll('.msg-select').forEach(function(sel) {
@@ -338,19 +526,22 @@
   }
 
   // ── Send form submit helper ───────────────────────────────────
-  async function submitSendForm(form, btnId) {
+  async function submitSendForm(form, btnId, picker) {
     var btn = document.getElementById(btnId);
     if (!btn) return;
 
-    var userSelect = form.querySelector('select[name="userId"]');
-    if (!userSelect || !userSelect.value) {
-      if (userSelect) {
-        userSelect.style.borderColor = '#dc3545';
-        userSelect.focus();
-      }
+    // This form has no all-users fallback: an empty selection means the admin
+    // has not finished choosing, so it is refused rather than sent anywhere.
+    if (!picker || picker.count() === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No users selected',
+        text: 'Search for a user and tick at least one name before sending.',
+        confirmButtonColor: '#6777ef'
+      });
+      if (picker) picker.focus();
       return;
     }
-    if (userSelect) userSelect.style.borderColor = '';
 
     btn.disabled = true;
     var orig = btn.textContent;
@@ -381,7 +572,7 @@
   if (sendUserForm) {
     sendUserForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      submitSendForm(sendUserForm, 'sendUserBtn');
+      submitSendForm(sendUserForm, 'sendUserBtn', devicesPicker);
     });
   }
 
@@ -390,7 +581,7 @@
   if (sendAllUsersForm) {
     sendAllUsersForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      submitSendForm(sendAllUsersForm, 'sendAllUsersBtn');
+      submitSendForm(sendAllUsersForm, 'sendAllUsersBtn', allUsersPicker);
     });
   }
 
@@ -399,6 +590,23 @@
   if (broadcastForm) {
     broadcastForm.addEventListener('submit', async function(e) {
       e.preventDefault();
+
+      /* An empty picker still means "everyone" here — that is what Broadcast
+         is for — but it is now a deliberate confirmation rather than the
+         silent consequence of forgetting to tick anyone. */
+      if (!broadcastPicker || broadcastPicker.count() === 0) {
+        var ok = await Swal.fire({
+          icon: 'warning',
+          title: 'Send to every user?',
+          text: 'No users are selected, so this will go to your entire user base.',
+          showCancelButton: true,
+          confirmButtonText: 'Yes, send to everyone',
+          cancelButtonText: 'Cancel',
+          confirmButtonColor: '#fd7e14'
+        });
+        if (!ok.isConfirmed) return;
+      }
+
       var btn = document.getElementById('broadcastBtn');
       btn.disabled = true;
       btn.textContent = 'Sending…';

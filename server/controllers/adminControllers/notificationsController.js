@@ -9,8 +9,8 @@ async function viewPanel(req, res) {
   try {
     const [messages, devices, allUsers] = await Promise.all([
       NotificationMessage.find().sort({ createdAt: -1 }),
-      UserDevice.find().populate('user', 'firstname lastname email'),
-      User.find({}, 'firstname lastname email _id').sort({ firstname: 1 }).lean(),
+      UserDevice.find().populate('user', 'username email'),
+      User.find({}, 'username email _id').sort({ username: 1 }).lean(),
     ]);
 
     // Group devices by user
@@ -76,7 +76,12 @@ async function deleteMessage(req, res) {
 
 async function sendToUser(req, res) {
   try {
-    const { userId, messageId, customTitle, customBody } = req.body;
+    const { userId, userIds, messageId, customTitle, customBody } = req.body;
+
+    /* The picker posts one `userIds` field per selected user, which arrives as
+       a string for one and an array for several. `userId` is the pre-picker
+       single-select shape, kept so an older cached page still sends. */
+    const targetIds = [].concat(userIds || [], userId || []).filter(Boolean);
 
     let title, body;
     if (messageId && messageId !== 'custom') {
@@ -90,14 +95,16 @@ async function sendToUser(req, res) {
     }
 
     if (!title || !body) return res.json({ success: false, message: 'Title and body are required' });
-    if (!userId)         return res.json({ success: false, message: 'No user selected' });
+    if (!targetIds.length) return res.json({ success: false, message: 'No user selected' });
 
     // 1. In-app notification (bell icon on website)
-    const inApp = { success: false, message: '' };
+    const inApp = { success: false, message: '', count: 0 };
     try {
-      await notify(userId, { type: 'info', text: body, link: null });
+      await Promise.all(targetIds.map(uid => notify(uid, { type: 'info', text: body, link: null })));
       inApp.success = true;
-      inApp.message = 'In-app notification delivered to user.';
+      inApp.count   = targetIds.length;
+      inApp.message = 'In-app notification delivered to ' + targetIds.length +
+        ' user' + (targetIds.length === 1 ? '' : 's') + '.';
     } catch (err) {
       logger.error('sendToUser in-app: %s', err.message);
       inApp.message = 'In-app notification failed: ' + err.message;
@@ -106,9 +113,10 @@ async function sendToUser(req, res) {
     // 2. Push notification (mobile devices)
     const push = { success: false, message: '' };
     try {
-      const devices = await UserDevice.find({ user: userId });
+      const devices = await UserDevice.find({ user: { $in: targetIds } });
       if (!devices.length) {
-        push.message = 'No registered mobile devices for this user — push skipped.';
+        push.message = 'No registered mobile devices for the selected user' +
+          (targetIds.length === 1 ? '' : 's') + ' — push skipped.';
       } else {
         await sendToPlayers(devices.map(d => d.fcmToken), title, body);
         push.success = true;
