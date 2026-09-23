@@ -14,6 +14,7 @@
 
             var _navSections = [
               { id: 'developers', label: 'Developers',      icon: 'users' },
+              { id: 'testing',    label: 'Testing',         icon: 'user-check', badge: (testers || []).length },
               { id: 'create',     label: 'Create a Report', icon: 'plus-circle' },
               { id: 'reports',    label: 'Reports',         icon: 'inbox', badge: (reports || []).length }
             ];
@@ -32,7 +33,7 @@
           <div class="kp-panel">
 
             <div class="kp-panel__head">
-              <h1 class="kp-panel__title">Support &amp; Reports</h1>
+              <h1 class="kp-panel__title">Support and Testing</h1>
               <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
 
@@ -40,7 +41,7 @@
 
               <%- include('partials/panelDrawer', {
                 panelKey: 'support',
-                drawerLabel: 'Support & Reports',
+                drawerLabel: 'Support and Testing',
                 sections: _navSections
               }) %>
 
@@ -143,6 +144,96 @@
                       <div class="kp-note kp-note--warn">
                         Only a super admin can add or remove developers. You can still assign a
                         report to any of the active ones above from Create a Report.
+                      </div>
+                    </div>
+                  </div>
+                  <% } %>
+
+                </div>
+
+                <!-- ══ Testing ═════════════════════════════════════════ -->
+                <div class="kp-section" data-section="testing">
+
+                  <div class="kp-card">
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-note">
+                        Testers sign in at <a href="/command/testing" target="_blank" rel="noopener">/command/testing</a>
+                        with just their email — no password, a one-time code is emailed to confirm it. Once signed
+                        in they meet the real site exactly as an anonymous visitor would (not as any customer
+                        account), so they can exercise the whole flow including sign-up and login. This is what
+                        lets a tester through while <a href="/admin/settings?tab=maintenance">maintenance mode</a>
+                        is on — see the "Testing portal access" toggle on that page.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Testers</h2>
+                      <div class="kp-card__aside">
+                        <span class="kp-pill"><%= testers.length %></span>
+                      </div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <th>Email</th>
+                              <th>Added by</th>
+                              <th>Added</th>
+                              <th>Last login</th>
+                              <% if (isSuperAdmin) { %><th style="width:80px;">Actions</th><% } %>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% if (testers.length) { %>
+                            <% testers.forEach(function (t) { %>
+                            <tr data-id="<%= t._id %>">
+                              <td style="font-weight:600;font-size:13px;"><%= t.email %></td>
+                              <td style="font-size:12.5px;"><%= t.addedBy || '—' %></td>
+                              <td style="font-size:12.5px;"><%= fmtWhen(t.createdAt) %></td>
+                              <td style="font-size:12.5px;"><%= t.lastLoginAt ? fmtWhen(t.lastLoginAt) : 'Never' %></td>
+                              <% if (isSuperAdmin) { %>
+                              <td>
+                                <button class="kp-btn kp-btn--sm kp-btn--danger"
+                                        onclick="removeTester('<%= t._id %>', '<%= t.email.replace(/'/g, "&#39;") %>', this)">Remove</button>
+                              </td>
+                              <% } %>
+                            </tr>
+                            <% }) %>
+                            <% } else { %>
+                            <tr>
+                              <td colspan="<%= isSuperAdmin ? 5 : 4 %>"><div class="kp-empty">No testers added yet.</div></td>
+                            </tr>
+                            <% } %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <% if (isSuperAdmin) { %>
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Add a tester</h2>
+                      <div class="kp-card__aside"><span class="kp-pill kp-pill--warn">Super admin only</span></div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-row kp-row--stack">
+                        <div class="kp-row__main"><span class="kp-row__label">Email</span></div>
+                        <input type="email" id="tester-email" class="kp-input" style="width:100%;" placeholder="name@example.com">
+                      </div>
+                    </div>
+                    <div class="kp-card__foot">
+                      <button type="button" class="kp-btn kp-btn--primary" id="add-tester-btn" onclick="addTester()">Add tester</button>
+                    </div>
+                  </div>
+                  <% } else { %>
+                  <div class="kp-card">
+                    <div class="kp-card__body kp-card__body--pad">
+                      <div class="kp-note kp-note--warn">
+                        Only a super admin can add or remove testers.
                       </div>
                     </div>
                   </div>
@@ -425,6 +516,69 @@
     btn.disabled = true;
     try {
       var res = await fetch('/admin/support/developers/' + id + '/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      });
+      var data = await res.json();
+      if (data.success) {
+        Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1600, showConfirmButton: false });
+        setTimeout(function () { location.reload(); }, 1200);
+      } else {
+        Swal.fire({ icon: 'error', text: data.message || 'Could not remove.', confirmButtonColor: '#6777ef' });
+        btn.disabled = false;
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+      btn.disabled = false;
+    }
+  }
+
+  // ── Testers ────────────────────────────────────────────────────────────────
+  async function addTester() {
+    var email = document.getElementById('tester-email').value.trim();
+    if (!email) { Swal.fire({ icon: 'warning', text: 'Enter an email address.', confirmButtonColor: '#6777ef' }); return; }
+
+    var btn = document.getElementById('add-tester-btn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Adding…';
+
+    try {
+      var res = await fetch('/admin/support/testers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ email: email }),
+      });
+      var data = await res.json();
+      if (data.success) {
+        Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1800, showConfirmButton: false });
+        setTimeout(function () { location.reload(); }, 1300);
+      } else {
+        Swal.fire({ icon: 'error', text: data.message || 'Could not add.', confirmButtonColor: '#6777ef' });
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#6777ef' });
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  }
+
+  async function removeTester(id, email, btn) {
+    var confirmed = await Swal.fire({
+      icon: 'warning',
+      title: 'Remove ' + email + '?',
+      text: 'They will no longer be able to sign in at /command/testing.',
+      showCancelButton: true,
+      confirmButtonText: 'Remove',
+      confirmButtonColor: '#dc3545',
+    });
+    if (!confirmed.isConfirmed) return;
+
+    btn.disabled = true;
+    try {
+      var res = await fetch('/admin/support/testers/' + id + '/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
       });

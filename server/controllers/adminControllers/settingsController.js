@@ -45,6 +45,14 @@ exports.updateSettings = [authenticateAdminUser, async (req, res) => {
     const maintMsg = (req.body.maintenanceMessage || '').trim();
     if (maintMsg) settings.maintenanceMessage = maintMsg;
 
+    // Whether a signed-in tester (see testerAuthController.js) bypasses the
+    // block above. Same toggle pattern as the rest of this form — checked
+    // submits 'true', unchecked submits nothing at all, so a missing field
+    // reads as false. Defaults true at the schema level (see
+    // SiteSettingsModel.js), so the checkbox starts checked and this line
+    // only ever turns it false once an admin actually unchecks it.
+    settings.testingBypassMaintenanceEnabled = req.body.testingBypassMaintenanceEnabled === 'true';
+
     // ── Upcoming maintenance banner ────────────────────────────────────────────
     settings.maintenanceBannerEnabled = req.body.maintenanceBannerEnabled === 'true';
     const rawDate = (req.body.maintenanceBannerScheduledAt || '').trim();

@@ -57,6 +57,21 @@ const siteSettingsSchema = new mongoose.Schema({
     default: null,
   },
 
+  // ── Testing portal (KabakuNew migration testing, /command/testing) ────────
+  // Whether a signed-in tester (server/models/TesterModel.js) bypasses
+  // maintenanceModeEnabled and reaches the real base-URL site. Defaults true
+  // so the portal's whole purpose — testing the real site while it's in
+  // maintenance for the migration — works without any extra setup. A super
+  // admin turns it off (Admin → Settings → Maintenance) to lock testers out
+  // too: to check the maintenance page itself holds up, or to fully close
+  // the site during the actual cutover. The testing login page itself
+  // (/command/testing) and the admin dashboard stay reachable either way —
+  // see maintenanceMiddleware.js.
+  testingBypassMaintenanceEnabled: {
+    type: Boolean,
+    default: true,
+  },
+
   // Games arcade (public page fed from GameMonetize) — nav link, category
   // cards, and the page itself all hide when this is off.
   gamesEnabled: {

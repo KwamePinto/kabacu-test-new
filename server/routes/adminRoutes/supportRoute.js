@@ -15,6 +15,8 @@ router.post('/report/:id/remind',  ctrl.remindReport);
    there is no role middleware to hang it off. */
 router.post('/developers',           ctrl.addDeveloper);
 router.post('/developers/:id/remove', ctrl.removeDeveloper);
+router.post('/testers',              ctrl.addTester);
+router.post('/testers/:id/remove',   ctrl.removeTester);
 router.post('/report/:id/update',  ctrl.updateReport);
 router.post('/report/:id/delete',  ctrl.deleteReport);
 

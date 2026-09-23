@@ -20,10 +20,19 @@ function invalidateCache() {
 async function maintenanceMiddleware(req, res, next) {
   const url = req.originalUrl.split('?')[0];
 
-  // Always pass through: admin panel, admin login, API routes, static uploads
+  // Always pass through: admin panel, the whole /command family (admin
+  // login + 2FA, and the tester login portal — a tester must always be able
+  // to reach and use /command/testing regardless of maintenance state; what
+  // a signed-in tester can do past this point still depends on
+  // testingBypassMaintenanceEnabled below), API routes, static uploads.
+  //
+  // This also fixes a standing gap: the old check only matched the bare
+  // string "/command", so /command/verify (admin 2FA) was never actually
+  // exempted — an admin mid-login during maintenance would have hit the
+  // maintenance page instead of the code-entry form.
   if (
     url.startsWith('/admin') ||
-    url === '/command' ||
+    url.startsWith('/command') ||
     url.startsWith('/api') ||
     url.startsWith('/uploads')
   ) {
@@ -43,17 +52,28 @@ async function maintenanceMiddleware(req, res, next) {
       }
     }
 
-    // Block the site if maintenance mode is on
+    // A signed-in tester (see testerAuthController.js) — made available to
+    // every view so the main layout can show a "Testing Mode" indicator
+    // regardless of whether maintenance is even on right now.
+    const hasTesterSession = !!(req.session && req.session.tester && req.session.tester.email);
+    res.locals.isTesterSession = hasTesterSession;
+    res.locals.testerEmail = hasTesterSession ? req.session.tester.email : null;
+
+    // Block the site if maintenance mode is on — unless this is a tester
+    // session and the admin has left the bypass switched on.
     if (settings.maintenanceModeEnabled) {
-      const rawMessage = settings.maintenanceMessage ||
-        "We're performing scheduled maintenance. We'll be back up shortly.";
-      return res.status(503).render('webview/maintenance', {
-        layout: false,
-        // Pre-rendered to HTML here so the view can output it unescaped —
-        // see server/utils/maintenanceTokens.js for what that HTML can
-        // contain (only escaped text and inert token placeholder spans).
-        messageHtml: renderMaintenanceMessage(rawMessage),
-      });
+      const bypassAllowed = hasTesterSession && settings.testingBypassMaintenanceEnabled !== false;
+      if (!bypassAllowed) {
+        const rawMessage = settings.maintenanceMessage ||
+          "We're performing scheduled maintenance. We'll be back up shortly.";
+        return res.status(503).render('webview/maintenance', {
+          layout: false,
+          // Pre-rendered to HTML here so the view can output it unescaped —
+          // see server/utils/maintenanceTokens.js for what that HTML can
+          // contain (only escaped text and inert token placeholder spans).
+          messageHtml: renderMaintenanceMessage(rawMessage),
+        });
+      }
     }
 
     next();

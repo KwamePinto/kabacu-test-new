@@ -233,13 +233,13 @@
                                /assets/js/maintenanceEditor.js. -->
                                     <div class="mt-toolbar" id="maintToolbar">
                                       <button type="button" class="mt-toolbar__btn" data-mt-insert="date">
-                                        <span aria-hidden="true"></span> Date
+                                        <span aria-hidden="true">&#128197;</span> Date
                                       </button>
                                       <button type="button" class="mt-toolbar__btn" data-mt-insert="time">
-                                        <span aria-hidden="true"></span> Time
+                                        <span aria-hidden="true">&#128338;</span> Time
                                       </button>
                                       <button type="button" class="mt-toolbar__btn" data-mt-insert="countdown">
-                                        <span aria-hidden="true"></span> Countdown
+                                        <span aria-hidden="true">&#9203;</span> Countdown
                                       </button>
                                       <span class="mt-toolbar__hint">or type <code>{}</code> anywhere in the
                                         message</span>
@@ -254,6 +254,43 @@
                                         see</span>
                                     </div>
                                     <div class="mt-preview" id="maintPreview"></div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">Testing portal access</h2>
+                                  <div class="kp-card__aside">
+                                    <span
+                                      class="kp-pill <%= settings.testingBypassMaintenanceEnabled !== false ? 'kp-pill--good' : 'kp-pill--warn' %>"
+                                      id="badge-testbypass">
+                                      <%= settings.testingBypassMaintenanceEnabled !== false ? 'Bypass on' : 'Bypass off' %>
+                                    </span>
+                                  </div>
+                                </div>
+                                <div class="kp-card__body">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Let testers through during maintenance</span>
+                                      <p class="kp-row__hint">
+                                        A tester signed in at <code>/command/testing</code> (see Support and Testing
+                                        &rarr; Testing) can still use the real site while maintenance mode is on.
+                                        Turn this off to lock testers out too &mdash; e.g. to check the maintenance
+                                        page itself, or to fully close the site during the actual cutover. The
+                                        testing login page and the admin dashboard stay reachable either way.
+                                      </p>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" name="testingBypassMaintenanceEnabled" value="true"
+                                          id="testBypassToggle" data-badge="badge-testbypass" data-on="Bypass on"
+                                          data-off="Bypass off" data-on-class="kp-pill--good"
+                                          data-off-class="kp-pill--warn"
+                                          <%=settings.testingBypassMaintenanceEnabled !== false ? 'checked' : '' %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
                                   </div>
                                 </div>
                               </div>

@@ -51,6 +51,50 @@
 </head>
 <body class="<% if (locals.hideHeader) { %>no-header<% } %>">
 
+  <!-- Tester session indicator — set by maintenanceMiddleware.js whenever
+       req.session.tester exists, regardless of whether maintenance mode is
+       even on. A tester is not logged in as any customer account (see
+       testerAuthController.js), so this is the only thing on the page that
+       tells them their session is special and how to leave it. -->
+  <% if (locals.isTesterSession) { %>
+  <div class="tester-banner" id="testerBanner">
+    <div class="tester-banner__inner">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      <span class="tester-banner__text">
+        Testing mode<% if (locals.testerEmail) { %> — <strong><%= testerEmail %></strong><% } %>.
+        You're browsing as an anonymous visitor, not signed in to any account.
+      </span>
+      <form method="POST" action="/command/testing/logout" style="margin:0;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="tester-banner__exit">Exit testing mode</button>
+      </form>
+    </div>
+  </div>
+  <style>
+    .tester-banner {
+      background: linear-gradient(90deg, #111827, #1f2937);
+      color: #fff;
+      padding: 9px 16px;
+      position: sticky; top: 0; z-index: 1101;
+    }
+    .tester-banner__inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .tester-banner__text { flex: 1; font-size: 13px; line-height: 1.5; }
+    .tester-banner__exit {
+      font-size: 12px; font-weight: 700;
+      background: rgba(255,255,255,.14); color: #fff;
+      border: none; padding: 5px 14px; border-radius: 20px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .tester-banner__exit:hover { background: rgba(255,255,255,.24); }
+    @media (max-width: 600px) {
+      .tester-banner__text { font-size: 12px; }
+    }
+  </style>
+  <% } %>
+
   <% if (locals.maintenanceBanner) { %>
   <div class="maint-banner" id="maintBanner">
     <div class="maint-banner__inner">

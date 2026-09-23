@@ -1,0 +1,112 @@
+  <style>
+    body { background: #f0f4f8; }
+    .login-brand { text-align: center; margin-bottom: 28px; }
+    .login-brand img { height: 48px; width: auto; }
+    .login-brand-title {
+      margin: 10px 0 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+    .login-box { width: 100%; max-width: 400px; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    .card-header {
+      background: #111827;
+      border-radius: 12px 12px 0 0 !important;
+      padding: 20px 28px;
+      border: none;
+    }
+    .card-header h4 { color: #fff; font-size: 17px; font-weight: 700; margin: 0; }
+    .card-body { padding: 28px; }
+    .btn-signin {
+      background: #111827 !important;
+      border-color: #111827 !important;
+      transition: all 0.3s ease;
+      color: #fff;
+    }
+    .btn-signin:hover {
+      background: #1f2937 !important;
+      border-color: #1f2937 !important;
+      color: #fff;
+    }
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .testing-note {
+      font-size: 12.5px;
+      color: #6b7280;
+      line-height: 1.7;
+      margin: 0 0 18px;
+      padding: 12px 14px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+    }
+  </style>
+
+  <div class="loader"></div>
+  <div id="app">
+    <div class="login-wrap">
+      <div class="login-box">
+
+        <div class="login-brand">
+          <img src="/assets/images/new.PNG" alt="Kabacu">
+          <p class="login-brand-title">Testing Portal</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h4>Tester Access</h4>
+          </div>
+          <div class="card-body">
+
+            <p class="testing-note">
+              For approved testers only. Enter the email a super admin added to the
+              testers list — we'll send a one-time code to sign you in.
+            </p>
+
+            <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger" style="font-size:13px;border-radius:6px;padding:10px 14px;margin-bottom:18px;">
+              <i class="fas fa-exclamation-circle mr-1"></i> <%= error %>
+            </div>
+            <% } %>
+
+            <form method="POST" action="/command/testing" class="needs-validation" novalidate="">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+              <div class="form-group">
+                <label for="email">Email Address</label>
+                <input id="email" type="email" class="form-control" name="email" required autofocus placeholder="you@example.com">
+                <div class="invalid-feedback">Please enter your email</div>
+              </div>
+
+              <div class="form-group mt-4 mb-0">
+                <button type="submit" class="btn btn-lg btn-block btn-signin"
+                  style="font-weight:700;border-radius:8px;">
+                  Send Code
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+
+        <div class="login-footer">
+          &copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.
+        </div>
+
+      </div>
+    </div>
+  </div>

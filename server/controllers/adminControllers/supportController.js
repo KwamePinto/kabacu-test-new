@@ -3,6 +3,7 @@ const fs = require('fs/promises');
 const Developer = require('../../models/DeveloperModel');
 const BugReport = require('../../models/BugReportModel');
 const UserAdmin = require('../../models/UserAdminModel');
+const Tester = require('../../models/TesterModel');
 const sendEmail = require('../../utils/emailService');
 const { authenticateAdminUser } = require('../../config/authMiddleware');
 
@@ -157,9 +158,10 @@ async function cleanupUploads(files) {
 
 exports.viewPanel = [authenticateAdminUser, async (req, res) => {
   try {
-    const [developers, activeDevelopers] = await Promise.all([
+    const [developers, activeDevelopers, testers] = await Promise.all([
       Developer.find().sort({ isActive: -1, createdAt: 1 }).lean(),
       Developer.find({ isActive: true }).sort({ createdAt: 1 }).select('name email').lean(),
+      Tester.find().sort({ createdAt: -1 }).lean(),
     ]);
 
     const scope = isSuper(req) ? {} : { reportedBy: req.user.id };
@@ -169,6 +171,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
       layout: 'layouts/adminLayout',
       developers,
       activeDevelopers,
+      testers,
       reports,
       isSuperAdmin: isSuper(req),
       myId: String(req.user.id),
@@ -178,7 +181,7 @@ exports.viewPanel = [authenticateAdminUser, async (req, res) => {
     console.error('[support viewPanel]', err);
     res.render('adminview/support', {
       layout: 'layouts/adminLayout',
-      developers: [], activeDevelopers: [], reports: [],
+      developers: [], activeDevelopers: [], testers: [], reports: [],
       isSuperAdmin: isSuper(req),
       myId: String(req.user.id),
       csrfToken: res.locals.csrfToken,
@@ -231,6 +234,51 @@ exports.removeDeveloper = [authenticateAdminUser, async (req, res) => {
     res.json({ success: true, message: dev.name + ' removed.' });
   } catch (err) {
     console.error('[support removeDeveloper]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];
+
+/* ── Testers (super admin only) ────────────────────────────────────────────
+   The allowlist for the migration-testing portal, /command/testing — see
+   TesterModel.js and testerAuthController.js. Login there is gated purely
+   on whether an email exists in this collection, so adding/removing here is
+   the entire access-control surface for that portal. */
+
+exports.addTester = [authenticateAdminUser, async (req, res) => {
+  try {
+    if (!isSuper(req)) {
+      return res.status(403).json({ success: false, message: 'Only a super admin can add a tester.' });
+    }
+
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return res.json({ success: false, message: 'Enter a valid email address.' });
+    }
+
+    const existing = await Tester.findOne({ email });
+    if (existing) {
+      return res.json({ success: false, message: email + ' is already on the testers list.' });
+    }
+
+    const tester = await Tester.create({ email, addedBy: req.user.username || '' });
+    res.json({ success: true, message: email + ' added.', tester });
+  } catch (err) {
+    console.error('[support addTester]', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+}];
+
+exports.removeTester = [authenticateAdminUser, async (req, res) => {
+  try {
+    if (!isSuper(req)) {
+      return res.status(403).json({ success: false, message: 'Only a super admin can remove a tester.' });
+    }
+    const tester = await Tester.findByIdAndDelete(req.params.id);
+    if (!tester) return res.json({ success: false, message: 'Tester not found.' });
+
+    res.json({ success: true, message: tester.email + ' removed.' });
+  } catch (err) {
+    console.error('[support removeTester]', err);
     res.json({ success: false, message: 'Server error. Please try again.' });
   }
 }];

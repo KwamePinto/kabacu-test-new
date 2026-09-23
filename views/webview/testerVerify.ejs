@@ -1,0 +1,142 @@
+  <style>
+    body { background: #f0f4f8; }
+    .login-brand { text-align: center; margin-bottom: 28px; }
+    .login-brand img { height: 48px; width: auto; }
+    .login-brand-title {
+      margin: 10px 0 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+    .login-box { width: 100%; max-width: 400px; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    .card-header {
+      background: #111827;
+      border-radius: 12px 12px 0 0 !important;
+      padding: 20px 28px;
+      border: none;
+    }
+    .card-header h4 { color: #fff; font-size: 17px; font-weight: 700; margin: 0; }
+    .card-body { padding: 28px; }
+    .login-footer { text-align: center; margin-top: 22px; font-size: 12px; color: #9ca3af; }
+
+    /* One wide, monospaced field rather than six boxes: it pastes cleanly from
+       an email client and works with password managers and mobile autofill. */
+    .otp-input {
+      width: 100%;
+      height: 58px;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: .34em;
+      text-indent: .34em;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #f9fafb;
+      color: #111827;
+    }
+    .otp-input:focus {
+      outline: none;
+      border-color: #111827;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(17,24,39,.12);
+    }
+    .otp-hint { font-size: 13px; color: #6b7280; line-height: 1.7; margin-bottom: 18px; }
+    .otp-hint strong { color: #111827; }
+    .otp-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .otp-link { background: none; border: none; padding: 0; font-size: 13px; color: #111827; font-weight: 600; cursor: pointer; }
+    .otp-link:disabled { color: #9ca3af; cursor: not-allowed; }
+    .otp-back { font-size: 13px; color: #6b7280; text-decoration: none; }
+  </style>
+
+  <div class="loader"></div>
+  <div id="app">
+    <div class="login-wrap">
+      <div class="login-box">
+
+        <div class="login-brand">
+          <img src="/assets/images/new.PNG" alt="Kabacu">
+          <p class="login-brand-title">Testing Portal</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h4>Enter Your Code</h4>
+          </div>
+          <div class="card-body">
+
+            <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger" style="font-size:13px;border-radius:6px;padding:10px 14px;margin-bottom:18px;">
+              <i class="fas fa-exclamation-circle mr-1"></i> <%= error %>
+            </div>
+            <% } %>
+
+            <% if (typeof notice !== 'undefined' && notice) { %>
+            <div class="alert alert-success" style="font-size:13px;border-radius:6px;padding:10px 14px;margin-bottom:18px;">
+              <i class="fas fa-check-circle mr-1"></i> <%= notice %>
+            </div>
+            <% } %>
+
+            <p class="otp-hint">
+              We've emailed a 6-digit code to
+              <strong><%= typeof email !== 'undefined' && email ? email : 'your email' %></strong>.
+              Enter it below to enter testing mode. It expires in 10 minutes.
+            </p>
+
+            <form method="POST" action="/command/testing/verify" id="otpForm">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+              <div class="form-group">
+                <label for="code">Verification Code</label>
+                <input id="code" name="code" class="otp-input"
+                       type="text" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="6" pattern="[0-9]{6}" placeholder="––––––"
+                       required autofocus aria-describedby="codeHelp">
+                <small id="codeHelp" class="text-muted" style="display:block;margin-top:8px;font-size:12px;">
+                  Six digits, from the email we just sent.
+                </small>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <button type="submit" id="otpSubmit"
+                        class="btn btn-lg btn-block"
+                        style="font-weight:700;border-radius:8px;background:#111827;border-color:#111827;color:#fff;">
+                  Verify &amp; Enter Testing Mode
+                </button>
+              </div>
+            </form>
+
+            <div class="otp-actions">
+              <form method="POST" action="/command/testing/verify/resend" style="margin:0;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="otp-link">Resend code</button>
+              </form>
+              <a href="/command/testing" class="otp-back">Back</a>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="login-footer">
+          &copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.
+        </div>
+
+      </div>
+    </div>
+  </div>

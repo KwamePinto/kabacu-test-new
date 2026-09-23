@@ -146,6 +146,20 @@ app.get('/command/verify',         adminUserCtrl.verifyOtpPage);
 app.post('/command/verify',        adminUserCtrl.verifyOtpPost);
 app.post('/command/verify/resend', adminUserCtrl.resendOtp);
 
+// Testing portal (KabakuNew only) — email + one-time-code login for
+// allowlisted testers (Admin → Support and Testing → Testing). A successful
+// login sets req.session.tester only — never user_token or admin_token — so
+// the tester meets the real site exactly as an anonymous visitor would,
+// except that maintenanceMiddleware lets them past the maintenance block.
+// See testerAuthController.js and SiteSettings.testingBypassMaintenanceEnabled.
+const testerAuthCtrl = require('./server/controllers/webviewControllers/testerAuthController');
+app.get('/command/testing',                testerAuthCtrl.loginPage);
+app.post('/command/testing',               testerAuthCtrl.loginPost);
+app.get('/command/testing/verify',         testerAuthCtrl.verifyOtpPage);
+app.post('/command/testing/verify',        testerAuthCtrl.verifyOtpPost);
+app.post('/command/testing/verify/resend', testerAuthCtrl.resendOtp);
+app.post('/command/testing/logout',        testerAuthCtrl.logout);
+
 app.use('/admin', require('./server/routes/adminRoutes/userAdminRoute'));
 app.use('/admin/main', require('./server/routes/adminRoutes/dashboardRoute'));
 app.get('/admin/dashboard', (req, res) => res.redirect('/admin/main/dashboard'));
@@ -186,6 +200,14 @@ app.use((err, req, res, next) => {
     // to the referer and losing the pending login.
     if (req.originalUrl.startsWith('/command/verify')) {
       return res.redirect('/command/verify');
+    }
+    // Same reasoning for the tester portal's own OTP step, and its email
+    // step below — keep them on that step rather than losing where they were.
+    if (req.originalUrl.startsWith('/command/testing/verify')) {
+      return res.redirect('/command/testing/verify');
+    }
+    if (req.originalUrl.startsWith('/command/testing')) {
+      return res.redirect('/command/testing');
     }
     if (req.originalUrl.startsWith('/admin')) {
       return res.redirect('/admin/main/dashboard');
