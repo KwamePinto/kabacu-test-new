@@ -49,7 +49,7 @@
   <link rel="stylesheet" href="/assets/css/new/profile.css">
   <link rel="stylesheet" href="/assets/css/new/checkout.css">
 </head>
-<body class="<% if (locals.hideHeader) { %>no-header<% } %>">
+<body class="<% if (locals.hideHeader) { %>no-header<% } %> <% if (locals.isTesterSession) { %>tester-mode<% } %>">
 
   <!-- Tester session indicator — set by maintenanceMiddleware.js whenever
        req.session.tester exists, regardless of whether maintenance mode is
@@ -71,11 +71,27 @@
     </div>
   </div>
   <style>
+    /* Fixed to the bottom of the viewport, not the top: sitting at the top
+       pushed the header down and covered the sign-in button underneath it.
+       Fixed (not sticky) means it stays put without needing scroll position
+       or document flow to keep it in view — it's always visible the moment
+       the page loads, nothing to scroll down for.
+
+       --bottom-nav-h is the mobile bottom tab bar's own height (base.css) —
+       stacked directly above it there so the two never overlap; that bar is
+       hidden at the same >=768px breakpoint this rule switches at, so the
+       banner drops flush to the very bottom on desktop. */
     .tester-banner {
       background: linear-gradient(90deg, #111827, #1f2937);
       color: #fff;
       padding: 9px 16px;
-      position: sticky; top: 0; z-index: 1101;
+      position: fixed;
+      left: 0; right: 0;
+      bottom: var(--bottom-nav-h, 68px);
+      z-index: 1000;
+    }
+    @media (min-width: 768px) {
+      .tester-banner { bottom: 0; }
     }
     .tester-banner__inner {
       max-width: 1200px; margin: 0 auto;
@@ -91,6 +107,18 @@
     .tester-banner__exit:hover { background: rgba(255,255,255,.24); }
     @media (max-width: 600px) {
       .tester-banner__text { font-size: 12px; }
+    }
+
+    /* Being position:fixed takes the banner out of document flow, so unlike
+       the old sticky-at-top placement it no longer pushes page content out
+       of its way on its own — reserve the room by hand instead, so it never
+       ends up sitting over a real footer or a button near the bottom of a
+       page. Stacked on top of the bottom-nav space base.css already
+       reserves, and dropped once that bar (and the mobile-only offset
+       above) disappears at the desktop breakpoint. */
+    body.tester-mode { padding-bottom: calc(var(--bottom-nav-h, 68px) + 52px); }
+    @media (min-width: 768px) {
+      body.tester-mode { padding-bottom: 52px; }
     }
   </style>
   <% } %>
