@@ -47,14 +47,25 @@ const siteSettingsSchema = new mongoose.Schema({
     default: "We're currently performing scheduled maintenance to improve your experience. We'll be back up shortly — thank you for your patience.",
   },
 
-  // Upcoming maintenance banner
+  // ── Upcoming maintenance banner ────────────────────────────────────────────
+  // Shown site-wide (views/layouts/main.ejs) while enabled. Free text, same
+  // {{date:...}}/{{time:...}}/{{countdown:...}} tokens as maintenanceMessage
+  // above — written with the same toolbar/"{}"-trigger editor (Admin →
+  // Settings → Maintenance), rendered through the same
+  // maintenanceTokens.js/assets/js/maintenanceEditor.js pipeline. There used
+  // to be a separate maintenanceBannerScheduledAt datetime field driving
+  // when the banner auto-hid itself; that is gone now — an admin embeds a
+  // {{countdown:...}} token in the message itself, and
+  // maintenanceTokens.firstCountdownTarget() reads the target straight out
+  // of it. A message with no countdown token just shows for as long as the
+  // toggle below is on, no auto-expiry.
   maintenanceBannerEnabled: {
     type: Boolean,
     default: false,
   },
-  maintenanceBannerScheduledAt: {
-    type: Date,
-    default: null,
+  maintenanceBannerMessage: {
+    type: String,
+    default: 'Kabacu will undergo scheduled maintenance on [DATE] at [TIME]. Please save your work before then.',
   },
 
   // ── Testing portal (KabakuNew migration testing, /command/testing) ────────

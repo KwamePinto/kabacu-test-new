@@ -55,8 +55,8 @@ exports.updateSettings = [authenticateAdminUser, async (req, res) => {
 
     // ── Upcoming maintenance banner ────────────────────────────────────────────
     settings.maintenanceBannerEnabled = req.body.maintenanceBannerEnabled === 'true';
-    const rawDate = (req.body.maintenanceBannerScheduledAt || '').trim();
-    settings.maintenanceBannerScheduledAt = rawDate ? new Date(rawDate) : null;
+    const bannerMsg = (req.body.maintenanceBannerMessage || '').trim();
+    if (bannerMsg) settings.maintenanceBannerMessage = bannerMsg;
 
     await settings.save();
 

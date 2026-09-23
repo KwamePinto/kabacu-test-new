@@ -120,52 +120,18 @@
     &copy; <%= new Date().getFullYear() %> Kabacu &mdash; All rights reserved.
   </footer>
 
+  <!-- A real file on disk, served by express.static — resolved before
+       maintenanceMiddleware ever runs, so this loads normally even though
+       maintenance mode is (by definition) on for every visitor seeing this
+       page. Only fillTokenNodes() is used here; the toolbar/popover
+       machinery in this file targets elements this page doesn't have, so it
+       simply never activates. Also used by the "upcoming maintenance"
+       banner (views/layouts/main.ejs) — one function, both surfaces. -->
+  <script src="/assets/js/maintenanceEditor.js"></script>
   <script>
-    // Mirrors server/utils/maintenanceTokens.js's token types and
-    // assets/js/maintenanceEditor.js's own copy of this same formatting, so
-    // what the admin saw in their live preview is exactly what renders here.
-    (function () {
-      function fillDate(el, value) {
-        var d = new Date(value + 'T00:00:00');
-        el.textContent = isNaN(d) ? value : d.toLocaleDateString('en-NG', {
-          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-        });
-      }
-      function fillTime(el, value) {
-        var t = new Date('2000-01-01T' + value + ':00');
-        el.textContent = isNaN(t) ? value : t.toLocaleTimeString('en-NG', {
-          hour: 'numeric', minute: '2-digit',
-        });
-      }
-      function fillCountdown(el, value) {
-        var target = new Date(value);
-        if (isNaN(target)) { el.textContent = value; return; }
-        function tick() {
-          var diff = target - Date.now();
-          if (diff <= 0) { el.textContent = 'any moment now'; return; }
-          var d = Math.floor(diff / 86400000);
-          var h = Math.floor((diff % 86400000) / 3600000);
-          var m = Math.floor((diff % 3600000) / 60000);
-          var s = Math.floor((diff % 60000) / 1000);
-          el.textContent =
-            (d > 0 ? d + 'd ' : '') +
-            (d > 0 || h > 0 ? h + 'h ' : '') +
-            m + 'm ' + s + 's';
-          setTimeout(tick, 1000);
-        }
-        tick();
-      }
-
-      var nodes = document.querySelectorAll('#maintMessage [data-mt]');
-      for (var i = 0; i < nodes.length; i++) {
-        var el = nodes[i];
-        var value = el.getAttribute('data-value') || '';
-        var kind = el.getAttribute('data-mt');
-        if (kind === 'date') fillDate(el, value);
-        else if (kind === 'time') fillTime(el, value);
-        else if (kind === 'countdown') fillCountdown(el, value);
-      }
-    }());
+    if (window.MaintenanceEditor) {
+      window.MaintenanceEditor.fillTokenNodes(document.getElementById('maintMessage'));
+    }
   </script>
 
 </body>

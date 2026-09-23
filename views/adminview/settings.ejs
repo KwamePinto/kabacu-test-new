@@ -315,15 +315,43 @@
                                       </label>
                                     </div>
                                   </div>
-                                  <div class="kp-row">
+                                  <div class="kp-row kp-row--stack">
                                     <div class="kp-row__main">
-                                      <span class="kp-row__label">Scheduled time</span>
+                                      <span class="kp-row__label">Banner message</span>
+                                      <p class="kp-row__hint"><span id="bannerMsgCount">
+                                          <%= settings.maintenanceBannerMessage.length %>
+                                        </span> / 400</p>
                                     </div>
-                                    <div class="kp-row__ctrl">
-                                      <input type="datetime-local" name="maintenanceBannerScheduledAt"
-                                        id="maintenanceBannerScheduledAt" class="kp-input" style="min-width:220px;"
-                                        value="<%= settings.maintenanceBannerScheduledAt ? new Date(settings.maintenanceBannerScheduledAt).toISOString().slice(0,16) : '' %>">
+
+                                    <!-- Same toolbar/"{}"-trigger editor as the maintenance page
+                                         message above. Insert a {{countdown:...}} token anywhere in
+                                         this text and it becomes both the visible countdown AND what
+                                         decides when the banner auto-hides itself — see
+                                         maintenanceTokens.firstCountdownTarget(). No countdown token
+                                         means no auto-hide: the toggle above is then the only control. -->
+                                    <div class="mt-toolbar" id="bannerToolbar">
+                                      <button type="button" class="mt-toolbar__btn" data-mt-insert="date">
+                                        <span aria-hidden="true">&#128197;</span> Date
+                                      </button>
+                                      <button type="button" class="mt-toolbar__btn" data-mt-insert="time">
+                                        <span aria-hidden="true">&#128338;</span> Time
+                                      </button>
+                                      <button type="button" class="mt-toolbar__btn" data-mt-insert="countdown">
+                                        <span aria-hidden="true">&#9203;</span> Countdown
+                                      </button>
+                                      <span class="mt-toolbar__hint">or type <code>{}</code> anywhere in the
+                                        message</span>
                                     </div>
+
+                                    <textarea name="maintenanceBannerMessage" id="maintenanceBannerMessage"
+                                      class="kp-input" rows="3" maxlength="400" style="width:100%;min-height:76px;"
+                                      placeholder="e.g. Kabacu will undergo scheduled maintenance on {} — please save your work before then."><%= settings.maintenanceBannerMessage %></textarea>
+
+                                    <div class="kp-row__main" style="margin-top:10px;">
+                                      <span class="kp-row__label" style="font-size:12.5px;">Preview — what visitors
+                                        will see</span>
+                                    </div>
+                                    <div class="mt-preview" id="bannerPreview"></div>
                                   </div>
                                 </div>
                                 <div class="kp-card__foot">
@@ -510,6 +538,11 @@
       toolbarId: 'maintToolbar',
       previewId: 'maintPreview',
     });
+    window.MaintenanceEditor.init({
+      textareaId: 'maintenanceBannerMessage',
+      toolbarId: 'bannerToolbar',
+      previewId: 'bannerPreview',
+    });
   }
 </script>
 <script>
@@ -537,6 +570,7 @@
     ['bttTopupSuspendedMessage', 'bttMsgCount'],
     ['usdtTopupSuspendedMessage', 'usdtMsgCount'],
     ['maintenanceMessage', 'maintMsgCount'],
+    ['maintenanceBannerMessage', 'bannerMsgCount'],
   ].forEach(function (pair) {
     var field = document.getElementById(pair[0]);
     var out = document.getElementById(pair[1]);

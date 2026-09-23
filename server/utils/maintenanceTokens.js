@@ -12,14 +12,21 @@
  * way to know that a given call actually came from it.
  *
  * Formatting itself happens once per visitor, in their own browser, so a date
- * and a live countdown always read in that visitor's own clock — the same
- * approach the scheduled-maintenance banner already uses (views/layouts/main.ejs).
- * This function's only job is to turn each token into an inert placeholder
- * span; a small inline script in views/webview/maintenance.ejs fills them in,
- * and assets/js/maintenanceEditor.js does the same for the live preview in
- * the admin editor. All three — this regex, that script, and this one — are
- * hand-kept in sync; there is nowhere shared to import them from, since one
- * runs server-side and the other two are plain <script> tags.
+ * and a live countdown always read in that visitor's own clock. This
+ * function's only job is to turn each token into an inert placeholder span;
+ * assets/js/maintenanceEditor.js's fillTokenNodes() fills them in wherever
+ * this HTML ends up — the admin editor's own live preview, the public
+ * maintenance page, and the site-wide "upcoming maintenance" banner all call
+ * the same function against their own rendered output. This regex and that
+ * one are hand-kept in sync — one runs server-side, the other in the browser
+ * — but the fill logic itself now lives in exactly one place.
+ *
+ * Same free-text-plus-tokens shape drives two independent surfaces:
+ * SiteSettings.maintenanceMessage (the maintenance page itself, always on
+ * while maintenanceModeEnabled is) and maintenanceBannerMessage (the
+ * "upcoming maintenance" banner shown site-wide beforehand, while
+ * maintenanceBannerEnabled is). See firstCountdownTarget() below for how the
+ * banner decides when to stop showing itself.
  */
 
 const TOKEN_RE = /\{\{(date|time|countdown):([0-9:T-]+)\}\}/g;
@@ -54,4 +61,24 @@ function renderMaintenanceMessage(raw) {
   return out;
 }
 
-module.exports = { renderMaintenanceMessage, TOKEN_RE, VALUE_RE };
+/**
+ * The instant a {{countdown:...}} token in `raw` points at — the first one,
+ * if there is more than one — or null if there isn't one, or it doesn't
+ * parse to a valid date.
+ *
+ * Used by maintenanceMiddleware.js to decide when the "upcoming maintenance"
+ * banner should stop showing itself: once this instant has passed, there is
+ * nothing left to warn visitors is "upcoming". A banner message with no
+ * countdown token at all has no such expiry — it shows for as long as
+ * maintenanceBannerEnabled stays on, admin-controlled only.
+ */
+function firstCountdownTarget(raw) {
+  if (!raw) return null;
+  const re = /\{\{countdown:([0-9:T-]+)\}\}/;
+  const m = re.exec(raw);
+  if (!m) return null;
+  const d = new Date(m[1]);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+module.exports = { renderMaintenanceMessage, firstCountdownTarget, TOKEN_RE, VALUE_RE };

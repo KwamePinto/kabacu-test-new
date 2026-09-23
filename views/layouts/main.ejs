@@ -127,12 +127,13 @@
   <div class="maint-banner" id="maintBanner">
     <div class="maint-banner__inner">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span class="maint-banner__text">
-        Kabacu will undergo scheduled maintenance on
-        <strong id="maintBannerDate"></strong>.
-        Please save your work before then.
-      </span>
-      <span class="maint-banner__countdown" id="maintCountdown"></span>
+      <!-- Free text, admin-written (Admin → Settings → Maintenance → Scheduled
+           maintenance banner) — no longer hardcoded here. messageHtml comes
+           from server/utils/maintenanceTokens.js: escaped text plus inert
+           {{date:}}/{{time:}}/{{countdown:}} token placeholders, the exact
+           same pipeline the maintenance page itself uses. The script below
+           fills those in and ticks any countdown. -->
+      <span class="maint-banner__text" id="maintBannerText"><%- maintenanceBanner.messageHtml %></span>
       <button class="maint-banner__close" id="maintBannerClose" aria-label="Dismiss">&times;</button>
     </div>
   </div>
@@ -148,11 +149,7 @@
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     }
     .maint-banner__text { flex: 1; font-size: 13px; line-height: 1.5; }
-    .maint-banner__countdown {
-      font-size: 12px; font-weight: 700;
-      background: rgba(0,0,0,.18); padding: 3px 12px;
-      border-radius: 20px; white-space: nowrap;
-    }
+    .maint-banner__text .mt-token { font-weight: 700; }
     .maint-banner__close {
       background: none; border: none; color: #fff;
       font-size: 20px; line-height: 1; cursor: pointer;
@@ -163,38 +160,21 @@
       .maint-banner__text { font-size: 12px; }
     }
   </style>
+  <!-- A real file on disk, served by express.static — resolved before
+       maintenanceMiddleware ever runs, so this loads normally regardless of
+       maintenance mode. Only fillTokenNodes() is used here; the toolbar/popover
+       machinery in this file targets elements this page doesn't have, so it
+       simply never activates. -->
+  <script src="/assets/js/maintenanceEditor.js"></script>
   <script>
     (function () {
-      var target = new Date('<%= maintenanceBanner.scheduledAt %>');
-      var dateEl = document.getElementById('maintBannerDate');
-      var countdownEl = document.getElementById('maintCountdown');
-
-      if (dateEl) {
-        dateEl.textContent = target.toLocaleDateString('en-NG', {
-          weekday: 'short', month: 'short', day: 'numeric',
-          hour: '2-digit', minute: '2-digit',
-        });
+      var banner = document.getElementById('maintBanner');
+      if (banner && window.MaintenanceEditor) {
+        window.MaintenanceEditor.fillTokenNodes(banner);
       }
-
-      function tick() {
-        var diff = target - Date.now();
-        if (diff <= 0) {
-          if (countdownEl) countdownEl.textContent = 'Starting now…';
-          return;
-        }
-        var h = Math.floor(diff / 3600000);
-        var m = Math.floor((diff % 3600000) / 60000);
-        var s = Math.floor((diff % 60000) / 1000);
-        if (countdownEl) countdownEl.textContent =
-          'in ' + (h > 0 ? h + 'h ' : '') + m + 'm ' + s + 's';
-        setTimeout(tick, 1000);
-      }
-      tick();
-
       var closeBtn = document.getElementById('maintBannerClose');
       if (closeBtn) closeBtn.addEventListener('click', function () {
-        var el = document.getElementById('maintBanner');
-        if (el) el.style.display = 'none';
+        if (banner) banner.style.display = 'none';
       });
     }());
   </script>

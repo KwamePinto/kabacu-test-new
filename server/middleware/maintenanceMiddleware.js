@@ -1,5 +1,5 @@
 const SiteSettings = require('../models/SiteSettingsModel');
-const { renderMaintenanceMessage } = require('../utils/maintenanceTokens');
+const { renderMaintenanceMessage, firstCountdownTarget } = require('../utils/maintenanceTokens');
 
 let _cache = null;
 let _cacheAt = 0;
@@ -42,12 +42,19 @@ async function maintenanceMiddleware(req, res, next) {
   try {
     const settings = await getCachedSettings();
 
-    // Set banner locals for all public pages when banner is active
-    if (settings.maintenanceBannerEnabled && settings.maintenanceBannerScheduledAt) {
-      const scheduledAt = new Date(settings.maintenanceBannerScheduledAt);
-      if (scheduledAt > new Date()) {
+    // Set banner locals for all public pages when banner is active. The
+    // banner's own text is free-form now (see SiteSettings.maintenanceBannerMessage
+    // and maintenanceTokens.js) — if it contains a {{countdown:...}} token,
+    // that target is what auto-hides the banner once it has passed, same as
+    // the old dedicated scheduledAt field used to. No countdown token means
+    // no auto-expiry: the toggle alone controls visibility.
+    if (settings.maintenanceBannerEnabled && settings.maintenanceBannerMessage) {
+      const target = firstCountdownTarget(settings.maintenanceBannerMessage);
+      if (!target || target.getTime() > Date.now()) {
         res.locals.maintenanceBanner = {
-          scheduledAt: scheduledAt.toISOString(),
+          // Same pre-rendered-HTML approach as the maintenance page itself —
+          // see the messageHtml comment further down.
+          messageHtml: renderMaintenanceMessage(settings.maintenanceBannerMessage),
         };
       }
     }
