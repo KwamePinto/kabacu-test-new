@@ -1,4 +1,5 @@
 const SiteSettings = require('../models/SiteSettingsModel');
+const { renderMaintenanceMessage } = require('../utils/maintenanceTokens');
 
 let _cache = null;
 let _cacheAt = 0;
@@ -44,10 +45,14 @@ async function maintenanceMiddleware(req, res, next) {
 
     // Block the site if maintenance mode is on
     if (settings.maintenanceModeEnabled) {
+      const rawMessage = settings.maintenanceMessage ||
+        "We're performing scheduled maintenance. We'll be back up shortly.";
       return res.status(503).render('webview/maintenance', {
         layout: false,
-        message: settings.maintenanceMessage ||
-          "We're performing scheduled maintenance. We'll be back up shortly.",
+        // Pre-rendered to HTML here so the view can output it unescaped —
+        // see server/utils/maintenanceTokens.js for what that HTML can
+        // contain (only escaped text and inert token placeholder spans).
+        messageHtml: renderMaintenanceMessage(rawMessage),
       });
     }
 

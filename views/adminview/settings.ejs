@@ -219,11 +219,33 @@
                         <div class="kp-row kp-row--stack">
                           <div class="kp-row__main">
                             <span class="kp-row__label">Maintenance page message</span>
-                            <p class="kp-row__hint"><span id="maintMsgCount"><%= settings.maintenanceMessage.length %></span> / 600</p>
+                            <p class="kp-row__hint"><span id="maintMsgCount"><%= settings.maintenanceMessage.length %></span> / 900</p>
                           </div>
+
+                          <!-- Insert a date, time, or countdown: from the toolbar, or by
+                               typing "{}" anywhere in the message. See
+                               /assets/js/maintenanceEditor.js. -->
+                          <div class="mt-toolbar" id="maintToolbar">
+                            <button type="button" class="mt-toolbar__btn" data-mt-insert="date">
+                              <span aria-hidden="true">📅</span> Date
+                            </button>
+                            <button type="button" class="mt-toolbar__btn" data-mt-insert="time">
+                              <span aria-hidden="true">🕒</span> Time
+                            </button>
+                            <button type="button" class="mt-toolbar__btn" data-mt-insert="countdown">
+                              <span aria-hidden="true">⏳</span> Countdown
+                            </button>
+                            <span class="mt-toolbar__hint">or type <code>{}</code> anywhere in the message</span>
+                          </div>
+
                           <textarea name="maintenanceMessage" id="maintenanceMessage"
-                                    class="kp-input" rows="3" maxlength="600" style="width:100%;min-height:80px;"
+                                    class="kp-input" rows="5" maxlength="900" style="width:100%;min-height:120px;"
                                     placeholder="e.g. We are carrying out scheduled maintenance."><%= settings.maintenanceMessage %></textarea>
+
+                          <div class="kp-row__main" style="margin-top:10px;">
+                            <span class="kp-row__label" style="font-size:12.5px;">Preview — what visitors will see</span>
+                          </div>
+                          <div class="mt-preview" id="maintPreview"></div>
                         </div>
                       </div>
                     </div>
@@ -279,7 +301,73 @@
 <script src="/admin/assets/js/app.min.js"></script>
 <script src="/admin/assets/js/scripts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    /* Maintenance-message token picker (toolbar + inline "{}" trigger). */
+    .mt-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .mt-toolbar__btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 13px; border-radius: 999px;
+      font-size: 12.5px; font-weight: 600; color: var(--kp-text);
+      background: var(--kp-surface); border: 1px solid var(--kp-border);
+      cursor: pointer; transition: background .13s ease, border-color .13s ease;
+    }
+    .mt-toolbar__btn:hover { background: var(--kp-bg); border-color: var(--kp-accent); }
+    .mt-toolbar__hint { font-size: 11.5px; color: var(--kp-muted); }
+    .mt-toolbar__hint code {
+      background: var(--kp-border-2); padding: 1px 5px; border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .mt-popover {
+      position: absolute; z-index: 2000; background: var(--kp-surface);
+      border: 1px solid var(--kp-border); border-radius: var(--kp-r-sm);
+      box-shadow: 0 10px 30px rgba(0,0,0,.16); padding: 10px;
+    }
+    .mt-popover[hidden] { display: none; }
+    .mt-popover__row { display: flex; align-items: center; gap: 6px; }
+    .mt-popover__input {
+      border: 1px solid var(--kp-border); border-radius: 6px; padding: 6px 8px;
+      font-size: 13px; color: var(--kp-text); background: var(--kp-surface);
+    }
+    .mt-popover__btn { border: none; border-radius: 6px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+    .mt-popover__btn--ok { background: var(--kp-accent); color: #fff; }
+    .mt-popover__btn--cancel { background: transparent; color: var(--kp-muted); }
+    .mt-popover__btn--cancel:hover { color: var(--kp-text); }
+
+    .mt-inline-menu {
+      position: absolute; z-index: 2000; min-width: 152px; overflow: hidden;
+      background: var(--kp-surface); border: 1px solid var(--kp-border);
+      border-radius: var(--kp-r-sm); box-shadow: 0 10px 30px rgba(0,0,0,.16);
+    }
+    .mt-inline-menu[hidden] { display: none; }
+    .mt-inline-menu__item {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 9px 13px; border: none; background: none; text-align: left;
+      font-size: 13px; color: var(--kp-text); cursor: pointer;
+    }
+    .mt-inline-menu__item:hover { background: var(--kp-bg); }
+
+    .mt-preview {
+      border: 1px dashed var(--kp-border); border-radius: var(--kp-r-sm);
+      padding: 16px; font-size: 13.5px; line-height: 1.75; color: var(--kp-text);
+      white-space: pre-line; background: var(--kp-bg); min-height: 60px;
+    }
+    .mt-token { font-weight: 700; color: var(--kp-accent); padding: 1px 5px; background: var(--kp-accent-bg); border-radius: 4px; }
+  </style>
 <script src="/admin/assets/js/kbc-panel.js"></script>
+<script src="/assets/js/maintenanceEditor.js"></script>
+<script>
+// Toolbar / "{}" token picker for the maintenance message, plus its live
+// preview. See /assets/js/maintenanceEditor.js — shared, byte-for-byte,
+// with KabakuOld's copy of the same file.
+if (window.MaintenanceEditor) {
+  window.MaintenanceEditor.init({
+    textareaId: 'maintenanceMessage',
+    toolbarId:  'maintToolbar',
+    previewId:  'maintPreview',
+  });
+}
+</script>
 <script>
 /* Toggles carry their own `name` and value="true", so an unchecked box simply
    submits nothing. The server reads `req.body.x === 'true'`, which makes a

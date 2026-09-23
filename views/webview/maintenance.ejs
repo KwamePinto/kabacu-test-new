@@ -57,6 +57,19 @@
       color: #6b7280;
       text-align: center;
       max-width: 420px;
+      /* The message can now contain admin-authored paragraph breaks (blank
+         lines between paragraphs) — pre-line keeps those breaks visible
+         while still wrapping normally within each paragraph, matching how
+         the notification bell already handles multi-paragraph text. */
+      white-space: pre-line;
+    }
+
+    /* A date/time/countdown token, once filled in by the script below.
+       Subtle emphasis only — it should read as part of the sentence, not as
+       a UI control on a page that has none. */
+    .mt-token {
+      font-weight: 600;
+      color: #15803d;
     }
 
     .maint-divider {
@@ -96,11 +109,64 @@
 
   <div class="maint-divider"></div>
 
-  <p class="maint-message"><%= message %></p>
+  <!-- messageHtml is produced by server/utils/maintenanceTokens.js: admin
+       text is HTML-escaped, {{date:...}}/{{time:...}}/{{countdown:...}}
+       tokens become inert <span data-mt> placeholders. The script below
+       fills those in and ticks any countdown — see that file and
+       assets/js/maintenanceEditor.js for the full explanation. -->
+  <p class="maint-message" id="maintMessage"><%- messageHtml %></p>
 
   <footer class="maint-footer">
     &copy; <%= new Date().getFullYear() %> Kabacu &mdash; All rights reserved.
   </footer>
+
+  <script>
+    // Mirrors server/utils/maintenanceTokens.js's token types and
+    // assets/js/maintenanceEditor.js's own copy of this same formatting, so
+    // what the admin saw in their live preview is exactly what renders here.
+    (function () {
+      function fillDate(el, value) {
+        var d = new Date(value + 'T00:00:00');
+        el.textContent = isNaN(d) ? value : d.toLocaleDateString('en-NG', {
+          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        });
+      }
+      function fillTime(el, value) {
+        var t = new Date('2000-01-01T' + value + ':00');
+        el.textContent = isNaN(t) ? value : t.toLocaleTimeString('en-NG', {
+          hour: 'numeric', minute: '2-digit',
+        });
+      }
+      function fillCountdown(el, value) {
+        var target = new Date(value);
+        if (isNaN(target)) { el.textContent = value; return; }
+        function tick() {
+          var diff = target - Date.now();
+          if (diff <= 0) { el.textContent = 'any moment now'; return; }
+          var d = Math.floor(diff / 86400000);
+          var h = Math.floor((diff % 86400000) / 3600000);
+          var m = Math.floor((diff % 3600000) / 60000);
+          var s = Math.floor((diff % 60000) / 1000);
+          el.textContent =
+            (d > 0 ? d + 'd ' : '') +
+            (d > 0 || h > 0 ? h + 'h ' : '') +
+            m + 'm ' + s + 's';
+          setTimeout(tick, 1000);
+        }
+        tick();
+      }
+
+      var nodes = document.querySelectorAll('#maintMessage [data-mt]');
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        var value = el.getAttribute('data-value') || '';
+        var kind = el.getAttribute('data-mt');
+        if (kind === 'date') fillDate(el, value);
+        else if (kind === 'time') fillTime(el, value);
+        else if (kind === 'countdown') fillCountdown(el, value);
+      }
+    }());
+  </script>
 
 </body>
 </html>
