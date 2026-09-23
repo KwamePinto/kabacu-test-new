@@ -233,13 +233,13 @@
                                /assets/js/maintenanceEditor.js. -->
                                     <div class="mt-toolbar" id="maintToolbar">
                                       <button type="button" class="mt-toolbar__btn" data-mt-insert="date">
-                                        <span aria-hidden="true">&#128197;</span> Date
+                                        Date
                                       </button>
                                       <button type="button" class="mt-toolbar__btn" data-mt-insert="time">
-                                        <span aria-hidden="true">&#128338;</span> Time
+                                        Time
                                       </button>
                                       <button type="button" class="mt-toolbar__btn" data-mt-insert="countdown">
-                                        <span aria-hidden="true">&#9203;</span> Countdown
+                                        Countdown
                                       </button>
                                       <span class="mt-toolbar__hint">or type <code>{}</code> anywhere in the
                                         message</span>
@@ -265,7 +265,8 @@
                                     <span
                                       class="kp-pill <%= settings.testingBypassMaintenanceEnabled !== false ? 'kp-pill--good' : 'kp-pill--warn' %>"
                                       id="badge-testbypass">
-                                      <%= settings.testingBypassMaintenanceEnabled !== false ? 'Bypass on' : 'Bypass off' %>
+                                      <%= settings.testingBypassMaintenanceEnabled !==false ? 'Bypass on' : 'Bypass off'
+                                        %>
                                     </span>
                                   </div>
                                 </div>
@@ -286,8 +287,8 @@
                                         <input type="checkbox" name="testingBypassMaintenanceEnabled" value="true"
                                           id="testBypassToggle" data-badge="badge-testbypass" data-on="Bypass on"
                                           data-off="Bypass off" data-on-class="kp-pill--good"
-                                          data-off-class="kp-pill--warn"
-                                          <%=settings.testingBypassMaintenanceEnabled !== false ? 'checked' : '' %>>
+                                          data-off-class="kp-pill--warn" <%=settings.testingBypassMaintenanceEnabled
+                                          !==false ? 'checked' : '' %>>
                                         <span class="kp-toggle__track"></span>
                                       </label>
                                     </div>
