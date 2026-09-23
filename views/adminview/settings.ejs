@@ -4,297 +4,309 @@
     <div class="navbar-bg"></div>
 
     <%- include('../partials/headerAdmin.ejs') %>
-    <%- include('../partials/sideMenuAdmin.ejs') %>
+      <%- include('../partials/sideMenuAdmin.ejs') %>
 
-    <div class="main-content">
-      <section class="section">
-        <div class="section-body">
+        <div class="main-content">
+          <section class="section">
+            <div class="section-body">
 
-          <%
-            /* Anything switched off, or maintenance being on, is worth counting
-               into a badge so an admin sees it without opening every section. */
-            var offCount = (settings.rpTransferEnabled ? 0 : 1)
-                         + (settings.bttTopupEnabled   ? 0 : 1)
-                         + (settings.usdtTopupEnabled  ? 0 : 1);
-            var maintOn = settings.maintenanceModeEnabled || settings.maintenanceBannerEnabled;
-          %>
+              <% /* Anything switched off, or maintenance being on, is worth counting into a badge so an admin sees it
+                without opening every section. */ var offCount=(settings.rpTransferEnabled ? 0 : 1) +
+                (settings.bttTopupEnabled ? 0 : 1) + (settings.usdtTopupEnabled ? 0 : 1); var
+                maintOn=settings.maintenanceModeEnabled || settings.maintenanceBannerEnabled; %>
 
-          <div class="kp-panel">
+                <div class="kp-panel">
 
-            <%
-              var _navSections = [
-                  { id: 'features',    label: 'Wallet Features', icon: 'toggle-left', badge: offCount },
-                  { id: 'provider',    label: 'Provider',        icon: 'server' },
-                  { id: 'maintenance', label: 'Maintenance',     icon: 'tool', badge: maintOn ? 1 : 0 }
-                ];
-            %>
-            <div class="kp-panel__head">
-              <h1 class="kp-panel__title">Site Settings</h1>
-              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
-            </div>
-
-            <div class="kp-panel__body">
-
-              <%- include('partials/panelDrawer', {
-                panelKey: 'settings',
-                drawerLabel: 'Site Settings',
-                sections: _navSections
-              }) %>
-
-              <div class="kp-panel__main">
-                <form method="post" action="/admin/settings" id="settingsForm">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-                  <!-- ══ Wallet features ═══════════════════════════════════ -->
-                  <div class="kp-section" data-section="features">
-
-                    <div class="kp-card">
-                      <div class="kp-card__head">
-                        <h2 class="kp-card__title">RP transfer to BitToken</h2>
-                        <div class="kp-card__aside">
-                          <span class="kp-pill <%= settings.rpTransferEnabled ? 'kp-pill--good' : '' %>" id="badge-rp">
-                            <%= settings.rpTransferEnabled ? 'Enabled' : 'Disabled' %>
-                          </span>
-                        </div>
-                      </div>
-                      <div class="kp-card__body">
-                        <div class="kp-row">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Allow transfers</span>
-                            <p class="kp-row__hint">Off shows users a notice instead of the option.</p>
-                          </div>
-                          <div class="kp-row__ctrl">
-                            <label class="kp-toggle">
-                              <input type="checkbox" name="rpTransferEnabled" value="true"
-                                     id="rpTransferToggle" data-badge="badge-rp"
-                                     <%= settings.rpTransferEnabled ? 'checked' : '' %>>
-                              <span class="kp-toggle__track"></span>
-                            </label>
-                          </div>
-                        </div>
-                        <div class="kp-row kp-row--stack">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Notice when off</span>
-                            <p class="kp-row__hint"><span id="charCount"><%= settings.rpTransferSuspendedMessage.length %></span> / 500</p>
-                          </div>
-                          <textarea name="rpTransferSuspendedMessage" id="rpTransferSuspendedMessage"
-                                    class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
-                                    placeholder="e.g. RP transfer is suspended for now."><%= settings.rpTransferSuspendedMessage %></textarea>
-                        </div>
-                      </div>
+                  <% var _navSections=[ { id: 'features' , label: 'Wallet Features' , icon: 'toggle-left' , badge:
+                    offCount }, { id: 'provider' , label: 'Provider' , icon: 'server' }, { id: 'maintenance' ,
+                    label: 'Maintenance' , icon: 'tool' , badge: maintOn ? 1 : 0 } ]; %>
+                    <div class="kp-panel__head">
+                      <h1 class="kp-panel__title">Site Settings</h1>
+                      <p class="kp-panel__sub kp-panel__section-label">
+                        <%= _navSections[0].label %>
+                      </p>
                     </div>
 
-                    <div class="kp-card">
-                      <div class="kp-card__head">
-                        <h2 class="kp-card__title">BTT top-up</h2>
-                        <div class="kp-card__aside">
-                          <span class="kp-pill <%= settings.bttTopupEnabled ? 'kp-pill--good' : '' %>" id="badge-btt">
-                            <%= settings.bttTopupEnabled ? 'Enabled' : 'Disabled' %>
-                          </span>
-                        </div>
-                      </div>
-                      <div class="kp-card__body">
-                        <div class="kp-row">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Allow BTT top-ups</span>
-                            <p class="kp-row__hint">Funding the BTT balance from BitToken.</p>
-                          </div>
-                          <div class="kp-row__ctrl">
-                            <label class="kp-toggle">
-                              <input type="checkbox" name="bttTopupEnabled" value="true"
-                                     id="bttTopupToggle" data-badge="badge-btt"
-                                     <%= settings.bttTopupEnabled ? 'checked' : '' %>>
-                              <span class="kp-toggle__track"></span>
-                            </label>
-                          </div>
-                        </div>
-                        <div class="kp-row kp-row--stack">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Notice when off</span>
-                            <p class="kp-row__hint"><span id="bttMsgCount"><%= settings.bttTopupSuspendedMessage.length %></span> / 500</p>
-                          </div>
-                          <textarea name="bttTopupSuspendedMessage" id="bttTopupSuspendedMessage"
-                                    class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
-                                    placeholder="e.g. BTT top-up is unavailable right now."><%= settings.bttTopupSuspendedMessage %></textarea>
-                        </div>
-                      </div>
-                    </div>
+                    <div class="kp-panel__body">
 
-                    <div class="kp-card">
-                      <div class="kp-card__head">
-                        <h2 class="kp-card__title">USDT top-up</h2>
-                        <div class="kp-card__aside">
-                          <span class="kp-pill <%= settings.usdtTopupEnabled ? 'kp-pill--good' : '' %>" id="badge-usdt">
-                            <%= settings.usdtTopupEnabled ? 'Enabled' : 'Disabled' %>
-                          </span>
-                        </div>
-                      </div>
-                      <div class="kp-card__body">
-                        <div class="kp-row">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Allow USDT top-ups</span>
-                          </div>
-                          <div class="kp-row__ctrl">
-                            <label class="kp-toggle">
-                              <input type="checkbox" name="usdtTopupEnabled" value="true"
-                                     id="usdtTopupToggle" data-badge="badge-usdt"
-                                     <%= settings.usdtTopupEnabled ? 'checked' : '' %>>
-                              <span class="kp-toggle__track"></span>
-                            </label>
-                          </div>
-                        </div>
-                        <div class="kp-row kp-row--stack">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Notice when off</span>
-                            <p class="kp-row__hint"><span id="usdtMsgCount"><%= settings.usdtTopupSuspendedMessage.length %></span> / 500</p>
-                          </div>
-                          <textarea name="usdtTopupSuspendedMessage" id="usdtTopupSuspendedMessage"
-                                    class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
-                                    placeholder="e.g. USDT top-up is unavailable right now."><%= settings.usdtTopupSuspendedMessage %></textarea>
-                        </div>
-                      </div>
-                    </div>
+                      <%- include('partials/panelDrawer', { panelKey: 'settings' , drawerLabel: 'Site Settings' ,
+                        sections: _navSections }) %>
 
-                    <div class="kp-card">
-                      <div class="kp-card__foot">
-                        <button type="button" class="kp-btn kp-btn--primary" id="saveSettingsBtn">Save settings</button>
-                        <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
-                      </div>
-                    </div>
-                  </div>
+                        <div class="kp-panel__main">
+                          <form method="post" action="/admin/settings" id="settingsForm">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-                  <!-- ══ Provider ══════════════════════════════════════════ -->
-                  <div class="kp-section" data-section="provider">
-                    <div class="kp-card">
-                      <div class="kp-card__head"><h2 class="kp-card__title">OurDataStore</h2></div>
-                      <div class="kp-card__body kp-card__body--pad">
-                        <p class="kp-note">
-                          The ADEX ID identifies our account with the data provider. Find it by
-                          logging in to <strong>app.ourdatastore.com</strong>, opening DevTools and
-                          reading the account id from a request.
-                        </p>
-                        <div class="kp-field">
-                          <label class="kp-field__label" for="ourdatastoreAdexId">ADEX ID</label>
-                          <input type="text" name="ourdatastoreAdexId" id="ourdatastoreAdexId"
-                                 class="kp-input kp-input--code" style="max-width:280px;"
-                                 value="<%= settings.ourdatastoreAdexId || '' %>"
-                                 placeholder="e.g. 12345">
-                        </div>
-                      </div>
-                      <div class="kp-card__foot">
-                        <button type="button" class="kp-btn kp-btn--primary" onclick="document.getElementById('saveSettingsBtn').click()">Save settings</button>
-                        <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
-                      </div>
-                    </div>
-                  </div>
+                            <!-- ══ Wallet features ═══════════════════════════════════ -->
+                            <div class="kp-section" data-section="features">
 
-                  <!-- ══ Maintenance ═══════════════════════════════════════ -->
-                  <div class="kp-section" data-section="maintenance">
-                    <div class="kp-card">
-                      <div class="kp-card__head">
-                        <h2 class="kp-card__title">Maintenance mode</h2>
-                        <div class="kp-card__aside">
-                          <span class="kp-pill <%= settings.maintenanceModeEnabled ? 'kp-pill--warn' : 'kp-pill--good' %>" id="badge-maint">
-                            <%= settings.maintenanceModeEnabled ? 'Active' : 'Off' %>
-                          </span>
-                        </div>
-                      </div>
-                      <div class="kp-card__body">
-                        <div class="kp-row">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Take the site offline</span>
-                            <p class="kp-row__hint">Every visitor sees the maintenance page.</p>
-                          </div>
-                          <div class="kp-row__ctrl">
-                            <label class="kp-toggle">
-                              <input type="checkbox" name="maintenanceModeEnabled" value="true"
-                                     id="maintModeToggle" data-badge="badge-maint"
-                                     data-on="Active" data-off="Off"
-                                     data-on-class="kp-pill--warn" data-off-class="kp-pill--good"
-                                     <%= settings.maintenanceModeEnabled ? 'checked' : '' %>>
-                              <span class="kp-toggle__track"></span>
-                            </label>
-                          </div>
-                        </div>
-                        <div class="kp-row kp-row--stack">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Maintenance page message</span>
-                            <p class="kp-row__hint"><span id="maintMsgCount"><%= settings.maintenanceMessage.length %></span> / 900</p>
-                          </div>
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">RP transfer to BitToken</h2>
+                                  <div class="kp-card__aside">
+                                    <span class="kp-pill <%= settings.rpTransferEnabled ? 'kp-pill--good' : '' %>"
+                                      id="badge-rp">
+                                      <%= settings.rpTransferEnabled ? 'Enabled' : 'Disabled' %>
+                                    </span>
+                                  </div>
+                                </div>
+                                <div class="kp-card__body">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Allow transfers</span>
+                                      <p class="kp-row__hint">Off shows users a notice instead of the option.</p>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" name="rpTransferEnabled" value="true"
+                                          id="rpTransferToggle" data-badge="badge-rp" <%=settings.rpTransferEnabled
+                                          ? 'checked' : '' %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Notice when off</span>
+                                      <p class="kp-row__hint"><span id="charCount">
+                                          <%= settings.rpTransferSuspendedMessage.length %>
+                                        </span> / 500</p>
+                                    </div>
+                                    <textarea name="rpTransferSuspendedMessage" id="rpTransferSuspendedMessage"
+                                      class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
+                                      placeholder="e.g. RP transfer is suspended for now."><%= settings.rpTransferSuspendedMessage %></textarea>
+                                  </div>
+                                </div>
+                              </div>
 
-                          <!-- Insert a date, time, or countdown: from the toolbar, or by
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">BTT top-up</h2>
+                                  <div class="kp-card__aside">
+                                    <span class="kp-pill <%= settings.bttTopupEnabled ? 'kp-pill--good' : '' %>"
+                                      id="badge-btt">
+                                      <%= settings.bttTopupEnabled ? 'Enabled' : 'Disabled' %>
+                                    </span>
+                                  </div>
+                                </div>
+                                <div class="kp-card__body">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Allow BTT top-ups</span>
+                                      <p class="kp-row__hint">Funding the BTT balance from BitToken.</p>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" name="bttTopupEnabled" value="true" id="bttTopupToggle"
+                                          data-badge="badge-btt" <%=settings.bttTopupEnabled ? 'checked' : '' %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Notice when off</span>
+                                      <p class="kp-row__hint"><span id="bttMsgCount">
+                                          <%= settings.bttTopupSuspendedMessage.length %>
+                                        </span> / 500</p>
+                                    </div>
+                                    <textarea name="bttTopupSuspendedMessage" id="bttTopupSuspendedMessage"
+                                      class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
+                                      placeholder="e.g. BTT top-up is unavailable right now."><%= settings.bttTopupSuspendedMessage %></textarea>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">USDT top-up</h2>
+                                  <div class="kp-card__aside">
+                                    <span class="kp-pill <%= settings.usdtTopupEnabled ? 'kp-pill--good' : '' %>"
+                                      id="badge-usdt">
+                                      <%= settings.usdtTopupEnabled ? 'Enabled' : 'Disabled' %>
+                                    </span>
+                                  </div>
+                                </div>
+                                <div class="kp-card__body">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Allow USDT top-ups</span>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" name="usdtTopupEnabled" value="true" id="usdtTopupToggle"
+                                          data-badge="badge-usdt" <%=settings.usdtTopupEnabled ? 'checked' : '' %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Notice when off</span>
+                                      <p class="kp-row__hint"><span id="usdtMsgCount">
+                                          <%= settings.usdtTopupSuspendedMessage.length %>
+                                        </span> / 500</p>
+                                    </div>
+                                    <textarea name="usdtTopupSuspendedMessage" id="usdtTopupSuspendedMessage"
+                                      class="kp-input" rows="2" maxlength="500" style="width:100%;min-height:64px;"
+                                      placeholder="e.g. USDT top-up is unavailable right now."><%= settings.usdtTopupSuspendedMessage %></textarea>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div class="kp-card">
+                                <div class="kp-card__foot">
+                                  <button type="button" class="kp-btn kp-btn--primary" id="saveSettingsBtn">Save
+                                    settings</button>
+                                  <span class="kp-mute" style="font-size:12.5px;">Saves every section in this
+                                    panel.</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- ══ Provider ══════════════════════════════════════════ -->
+                            <div class="kp-section" data-section="provider">
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">OurDataStore</h2>
+                                </div>
+                                <div class="kp-card__body kp-card__body--pad">
+                                  <p class="kp-note">
+                                    The ADEX ID identifies our account with the data provider. Find it by
+                                    logging in to <strong>app.ourdatastore.com</strong>, opening DevTools and
+                                    reading the account id from a request.
+                                  </p>
+                                  <div class="kp-field">
+                                    <label class="kp-field__label" for="ourdatastoreAdexId">ADEX ID</label>
+                                    <input type="text" name="ourdatastoreAdexId" id="ourdatastoreAdexId"
+                                      class="kp-input kp-input--code" style="max-width:280px;"
+                                      value="<%= settings.ourdatastoreAdexId || '' %>" placeholder="e.g. 12345">
+                                  </div>
+                                </div>
+                                <div class="kp-card__foot">
+                                  <button type="button" class="kp-btn kp-btn--primary"
+                                    onclick="document.getElementById('saveSettingsBtn').click()">Save settings</button>
+                                  <span class="kp-mute" style="font-size:12.5px;">Saves every section in this
+                                    panel.</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- ══ Maintenance ═══════════════════════════════════════ -->
+                            <div class="kp-section" data-section="maintenance">
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">Maintenance mode</h2>
+                                  <div class="kp-card__aside">
+                                    <span
+                                      class="kp-pill <%= settings.maintenanceModeEnabled ? 'kp-pill--warn' : 'kp-pill--good' %>"
+                                      id="badge-maint">
+                                      <%= settings.maintenanceModeEnabled ? 'Active' : 'Off' %>
+                                    </span>
+                                  </div>
+                                </div>
+                                <div class="kp-card__body">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Take the site offline</span>
+                                      <p class="kp-row__hint">Every visitor sees the maintenance page.</p>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" name="maintenanceModeEnabled" value="true"
+                                          id="maintModeToggle" data-badge="badge-maint" data-on="Active" data-off="Off"
+                                          data-on-class="kp-pill--warn" data-off-class="kp-pill--good"
+                                          <%=settings.maintenanceModeEnabled ? 'checked' : '' %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Maintenance page message</span>
+                                      <p class="kp-row__hint"><span id="maintMsgCount">
+                                          <%= settings.maintenanceMessage.length %>
+                                        </span> / 900</p>
+                                    </div>
+
+                                    <!-- Insert a date, time, or countdown: from the toolbar, or by
                                typing "{}" anywhere in the message. See
                                /assets/js/maintenanceEditor.js. -->
-                          <div class="mt-toolbar" id="maintToolbar">
-                            <button type="button" class="mt-toolbar__btn" data-mt-insert="date">
-                              <span aria-hidden="true">📅</span> Date
-                            </button>
-                            <button type="button" class="mt-toolbar__btn" data-mt-insert="time">
-                              <span aria-hidden="true">🕒</span> Time
-                            </button>
-                            <button type="button" class="mt-toolbar__btn" data-mt-insert="countdown">
-                              <span aria-hidden="true">⏳</span> Countdown
-                            </button>
-                            <span class="mt-toolbar__hint">or type <code>{}</code> anywhere in the message</span>
-                          </div>
+                                    <div class="mt-toolbar" id="maintToolbar">
+                                      <button type="button" class="mt-toolbar__btn" data-mt-insert="date">
+                                        <span aria-hidden="true"></span> Date
+                                      </button>
+                                      <button type="button" class="mt-toolbar__btn" data-mt-insert="time">
+                                        <span aria-hidden="true"></span> Time
+                                      </button>
+                                      <button type="button" class="mt-toolbar__btn" data-mt-insert="countdown">
+                                        <span aria-hidden="true"></span> Countdown
+                                      </button>
+                                      <span class="mt-toolbar__hint">or type <code>{}</code> anywhere in the
+                                        message</span>
+                                    </div>
 
-                          <textarea name="maintenanceMessage" id="maintenanceMessage"
-                                    class="kp-input" rows="5" maxlength="900" style="width:100%;min-height:120px;"
-                                    placeholder="e.g. We are carrying out scheduled maintenance."><%= settings.maintenanceMessage %></textarea>
+                                    <textarea name="maintenanceMessage" id="maintenanceMessage" class="kp-input"
+                                      rows="5" maxlength="900" style="width:100%;min-height:120px;"
+                                      placeholder="e.g. We are carrying out scheduled maintenance."><%= settings.maintenanceMessage %></textarea>
 
-                          <div class="kp-row__main" style="margin-top:10px;">
-                            <span class="kp-row__label" style="font-size:12.5px;">Preview — what visitors will see</span>
-                          </div>
-                          <div class="mt-preview" id="maintPreview"></div>
-                        </div>
-                      </div>
-                    </div>
+                                    <div class="kp-row__main" style="margin-top:10px;">
+                                      <span class="kp-row__label" style="font-size:12.5px;">Preview — what visitors will
+                                        see</span>
+                                    </div>
+                                    <div class="mt-preview" id="maintPreview"></div>
+                                  </div>
+                                </div>
+                              </div>
 
-                    <div class="kp-card">
-                      <div class="kp-card__head"><h2 class="kp-card__title">Scheduled maintenance banner</h2></div>
-                      <div class="kp-card__body">
-                        <div class="kp-row">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Show countdown banner</span>
-                            <p class="kp-row__hint">Warns users before the site goes offline.</p>
-                          </div>
-                          <div class="kp-row__ctrl">
-                            <label class="kp-toggle">
-                              <input type="checkbox" name="maintenanceBannerEnabled" value="true"
-                                     id="maintBannerToggle"
-                                     <%= settings.maintenanceBannerEnabled ? 'checked' : '' %>>
-                              <span class="kp-toggle__track"></span>
-                            </label>
-                          </div>
-                        </div>
-                        <div class="kp-row">
-                          <div class="kp-row__main">
-                            <span class="kp-row__label">Scheduled time</span>
-                          </div>
-                          <div class="kp-row__ctrl">
-                            <input type="datetime-local" name="maintenanceBannerScheduledAt"
-                                   id="maintenanceBannerScheduledAt" class="kp-input" style="min-width:220px;"
-                                   value="<%= settings.maintenanceBannerScheduledAt ? new Date(settings.maintenanceBannerScheduledAt).toISOString().slice(0,16) : '' %>">
-                          </div>
-                        </div>
-                      </div>
-                      <div class="kp-card__foot">
-                        <button type="button" class="kp-btn kp-btn--primary" onclick="document.getElementById('saveSettingsBtn').click()">Save settings</button>
-                        <span class="kp-mute" style="font-size:12.5px;">Saves every section in this panel.</span>
-                      </div>
-                    </div>
-                  </div>
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title">Scheduled maintenance banner</h2>
+                                </div>
+                                <div class="kp-card__body">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Show countdown banner</span>
+                                      <p class="kp-row__hint">Warns users before the site goes offline.</p>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" name="maintenanceBannerEnabled" value="true"
+                                          id="maintBannerToggle" <%=settings.maintenanceBannerEnabled ? 'checked' : ''
+                                          %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Scheduled time</span>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <input type="datetime-local" name="maintenanceBannerScheduledAt"
+                                        id="maintenanceBannerScheduledAt" class="kp-input" style="min-width:220px;"
+                                        value="<%= settings.maintenanceBannerScheduledAt ? new Date(settings.maintenanceBannerScheduledAt).toISOString().slice(0,16) : '' %>">
+                                    </div>
+                                  </div>
+                                </div>
+                                <div class="kp-card__foot">
+                                  <button type="button" class="kp-btn kp-btn--primary"
+                                    onclick="document.getElementById('saveSettingsBtn').click()">Save settings</button>
+                                  <span class="kp-mute" style="font-size:12.5px;">Saves every section in this
+                                    panel.</span>
+                                </div>
+                              </div>
+                            </div>
 
-                </form>
-              </div><!-- /kp-panel__main -->
-            </div><!-- /kp-panel__body -->
-          </div><!-- /kp-panel -->
+                          </form>
+                        </div><!-- /kp-panel__main -->
+                    </div><!-- /kp-panel__body -->
+                </div><!-- /kp-panel -->
 
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
 
-    <%- include('../partials/footerAdmin.ejs') %>
+        <%- include('../partials/footerAdmin.ejs') %>
   </div>
 </div>
 
@@ -302,116 +314,210 @@
 <script src="/admin/assets/js/scripts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
-    /* Maintenance-message token picker (toolbar + inline "{}" trigger). */
-    .mt-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .mt-toolbar__btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 13px; border-radius: 999px;
-      font-size: 12.5px; font-weight: 600; color: var(--kp-text);
-      background: var(--kp-surface); border: 1px solid var(--kp-border);
-      cursor: pointer; transition: background .13s ease, border-color .13s ease;
-    }
-    .mt-toolbar__btn:hover { background: var(--kp-bg); border-color: var(--kp-accent); }
-    .mt-toolbar__hint { font-size: 11.5px; color: var(--kp-muted); }
-    .mt-toolbar__hint code {
-      background: var(--kp-border-2); padding: 1px 5px; border-radius: 4px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
+  /* Maintenance-message token picker (toolbar + inline "{}" trigger). */
+  .mt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
 
-    .mt-popover {
-      position: absolute; z-index: 2000; background: var(--kp-surface);
-      border: 1px solid var(--kp-border); border-radius: var(--kp-r-sm);
-      box-shadow: 0 10px 30px rgba(0,0,0,.16); padding: 10px;
-    }
-    .mt-popover[hidden] { display: none; }
-    .mt-popover__row { display: flex; align-items: center; gap: 6px; }
-    .mt-popover__input {
-      border: 1px solid var(--kp-border); border-radius: 6px; padding: 6px 8px;
-      font-size: 13px; color: var(--kp-text); background: var(--kp-surface);
-    }
-    .mt-popover__btn { border: none; border-radius: 6px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-    .mt-popover__btn--ok { background: var(--kp-accent); color: #fff; }
-    .mt-popover__btn--cancel { background: transparent; color: var(--kp-muted); }
-    .mt-popover__btn--cancel:hover { color: var(--kp-text); }
+  .mt-toolbar__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--kp-text);
+    background: var(--kp-surface);
+    border: 1px solid var(--kp-border);
+    cursor: pointer;
+    transition: background .13s ease, border-color .13s ease;
+  }
 
-    .mt-inline-menu {
-      position: absolute; z-index: 2000; min-width: 152px; overflow: hidden;
-      background: var(--kp-surface); border: 1px solid var(--kp-border);
-      border-radius: var(--kp-r-sm); box-shadow: 0 10px 30px rgba(0,0,0,.16);
-    }
-    .mt-inline-menu[hidden] { display: none; }
-    .mt-inline-menu__item {
-      display: flex; align-items: center; gap: 8px; width: 100%;
-      padding: 9px 13px; border: none; background: none; text-align: left;
-      font-size: 13px; color: var(--kp-text); cursor: pointer;
-    }
-    .mt-inline-menu__item:hover { background: var(--kp-bg); }
+  .mt-toolbar__btn:hover {
+    background: var(--kp-bg);
+    border-color: var(--kp-accent);
+  }
 
-    .mt-preview {
-      border: 1px dashed var(--kp-border); border-radius: var(--kp-r-sm);
-      padding: 16px; font-size: 13.5px; line-height: 1.75; color: var(--kp-text);
-      white-space: pre-line; background: var(--kp-bg); min-height: 60px;
-    }
-    .mt-token { font-weight: 700; color: var(--kp-accent); padding: 1px 5px; background: var(--kp-accent-bg); border-radius: 4px; }
-  </style>
+  .mt-toolbar__hint {
+    font-size: 11.5px;
+    color: var(--kp-muted);
+  }
+
+  .mt-toolbar__hint code {
+    background: var(--kp-border-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .mt-popover {
+    position: absolute;
+    z-index: 2000;
+    background: var(--kp-surface);
+    border: 1px solid var(--kp-border);
+    border-radius: var(--kp-r-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+    padding: 10px;
+  }
+
+  .mt-popover[hidden] {
+    display: none;
+  }
+
+  .mt-popover__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mt-popover__input {
+    border: 1px solid var(--kp-border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: var(--kp-text);
+    background: var(--kp-surface);
+  }
+
+  .mt-popover__btn {
+    border: none;
+    border-radius: 6px;
+    padding: 6px 11px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mt-popover__btn--ok {
+    background: var(--kp-accent);
+    color: #fff;
+  }
+
+  .mt-popover__btn--cancel {
+    background: transparent;
+    color: var(--kp-muted);
+  }
+
+  .mt-popover__btn--cancel:hover {
+    color: var(--kp-text);
+  }
+
+  .mt-inline-menu {
+    position: absolute;
+    z-index: 2000;
+    min-width: 152px;
+    overflow: hidden;
+    background: var(--kp-surface);
+    border: 1px solid var(--kp-border);
+    border-radius: var(--kp-r-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+  }
+
+  .mt-inline-menu[hidden] {
+    display: none;
+  }
+
+  .mt-inline-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 13px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 13px;
+    color: var(--kp-text);
+    cursor: pointer;
+  }
+
+  .mt-inline-menu__item:hover {
+    background: var(--kp-bg);
+  }
+
+  .mt-preview {
+    border: 1px dashed var(--kp-border);
+    border-radius: var(--kp-r-sm);
+    padding: 16px;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: var(--kp-text);
+    white-space: pre-line;
+    background: var(--kp-bg);
+    min-height: 60px;
+  }
+
+  .mt-token {
+    font-weight: 700;
+    color: var(--kp-accent);
+    padding: 1px 5px;
+    background: var(--kp-accent-bg);
+    border-radius: 4px;
+  }
+</style>
 <script src="/admin/assets/js/kbc-panel.js"></script>
 <script src="/assets/js/maintenanceEditor.js"></script>
 <script>
-// Toolbar / "{}" token picker for the maintenance message, plus its live
-// preview. See /assets/js/maintenanceEditor.js — shared, byte-for-byte,
-// with KabakuOld's copy of the same file.
-if (window.MaintenanceEditor) {
-  window.MaintenanceEditor.init({
-    textareaId: 'maintenanceMessage',
-    toolbarId:  'maintToolbar',
-    previewId:  'maintPreview',
-  });
-}
+  // Toolbar / "{}" token picker for the maintenance message, plus its live
+  // preview. See /assets/js/maintenanceEditor.js — shared, byte-for-byte,
+  // with KabakuOld's copy of the same file.
+  if (window.MaintenanceEditor) {
+    window.MaintenanceEditor.init({
+      textareaId: 'maintenanceMessage',
+      toolbarId: 'maintToolbar',
+      previewId: 'maintPreview',
+    });
+  }
 </script>
 <script>
-/* Toggles carry their own `name` and value="true", so an unchecked box simply
-   submits nothing. The server reads `req.body.x === 'true'`, which makes a
-   missing field false — exactly right. That replaced the hidden-input mirroring
-   the old form needed, so there is one source of truth per setting. */
+  /* Toggles carry their own `name` and value="true", so an unchecked box simply
+     submits nothing. The server reads `req.body.x === 'true'`, which makes a
+     missing field false — exactly right. That replaced the hidden-input mirroring
+     the old form needed, so there is one source of truth per setting. */
 
-// Keep the pill in the card header in step with its toggle.
-document.querySelectorAll('.kp-toggle input[data-badge]').forEach(function (cb) {
-  cb.addEventListener('change', function () {
-    var badge = document.getElementById(this.dataset.badge);
-    if (!badge) return;
-    var on = this.checked;
-    badge.textContent = on ? (this.dataset.on || 'Enabled') : (this.dataset.off || 'Disabled');
-    var onCls  = this.dataset.onClass  || 'kp-pill--good';
-    var offCls = this.dataset.offClass || '';
-    badge.className = 'kp-pill ' + (on ? onCls : offCls);
+  // Keep the pill in the card header in step with its toggle.
+  document.querySelectorAll('.kp-toggle input[data-badge]').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var badge = document.getElementById(this.dataset.badge);
+      if (!badge) return;
+      var on = this.checked;
+      badge.textContent = on ? (this.dataset.on || 'Enabled') : (this.dataset.off || 'Disabled');
+      var onCls = this.dataset.onClass || 'kp-pill--good';
+      var offCls = this.dataset.offClass || '';
+      badge.className = 'kp-pill ' + (on ? onCls : offCls);
+    });
   });
-});
 
-// Character counters
-[
-  ['rpTransferSuspendedMessage', 'charCount'],
-  ['bttTopupSuspendedMessage',   'bttMsgCount'],
-  ['usdtTopupSuspendedMessage',  'usdtMsgCount'],
-  ['maintenanceMessage',         'maintMsgCount'],
-].forEach(function (pair) {
-  var field = document.getElementById(pair[0]);
-  var out   = document.getElementById(pair[1]);
-  if (!field || !out) return;
-  field.addEventListener('input', function () { out.textContent = this.value.length; });
-});
-
-// Save, with a confirmation because these apply to the live site at once.
-document.getElementById('saveSettingsBtn').addEventListener('click', function () {
-  Swal.fire({
-    title: 'Save settings?',
-    text: 'Changes apply to the live site immediately.',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Save',
-    confirmButtonColor: '#15a844',
-    cancelButtonText: 'Cancel',
-  }).then(function (result) {
-    if (result.isConfirmed) document.getElementById('settingsForm').submit();
+  // Character counters
+  [
+    ['rpTransferSuspendedMessage', 'charCount'],
+    ['bttTopupSuspendedMessage', 'bttMsgCount'],
+    ['usdtTopupSuspendedMessage', 'usdtMsgCount'],
+    ['maintenanceMessage', 'maintMsgCount'],
+  ].forEach(function (pair) {
+    var field = document.getElementById(pair[0]);
+    var out = document.getElementById(pair[1]);
+    if (!field || !out) return;
+    field.addEventListener('input', function () { out.textContent = this.value.length; });
   });
-});
+
+  // Save, with a confirmation because these apply to the live site at once.
+  document.getElementById('saveSettingsBtn').addEventListener('click', function () {
+    Swal.fire({
+      title: 'Save settings?',
+      text: 'Changes apply to the live site immediately.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Save',
+      confirmButtonColor: '#15a844',
+      cancelButtonText: 'Cancel',
+    }).then(function (result) {
+      if (result.isConfirmed) document.getElementById('settingsForm').submit();
+    });
+  });
 </script>
