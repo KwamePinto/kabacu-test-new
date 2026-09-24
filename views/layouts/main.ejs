@@ -123,63 +123,6 @@
   </style>
   <% } %>
 
-  <% if (locals.maintenanceBanner) { %>
-  <div class="maint-banner" id="maintBanner">
-    <div class="maint-banner__inner">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <!-- Free text, admin-written (Admin → Settings → Maintenance → Scheduled
-           maintenance banner) — no longer hardcoded here. messageHtml comes
-           from server/utils/maintenanceTokens.js: escaped text plus inert
-           {{date:}}/{{time:}}/{{countdown:}} token placeholders, the exact
-           same pipeline the maintenance page itself uses. The script below
-           fills those in and ticks any countdown. -->
-      <span class="maint-banner__text" id="maintBannerText"><%- maintenanceBanner.messageHtml %></span>
-      <button class="maint-banner__close" id="maintBannerClose" aria-label="Dismiss">&times;</button>
-    </div>
-  </div>
-  <style>
-    .maint-banner {
-      background: linear-gradient(90deg, #f59e0b, #d97706);
-      color: #fff;
-      padding: 9px 16px;
-      position: sticky; top: 0; z-index: 1100;
-    }
-    .maint-banner__inner {
-      max-width: 1200px; margin: 0 auto;
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    }
-    .maint-banner__text { flex: 1; font-size: 13px; line-height: 1.5; }
-    .maint-banner__text .mt-token { font-weight: 700; }
-    .maint-banner__close {
-      background: none; border: none; color: #fff;
-      font-size: 20px; line-height: 1; cursor: pointer;
-      padding: 0 2px; flex-shrink: 0; opacity: .8;
-    }
-    .maint-banner__close:hover { opacity: 1; }
-    @media (max-width: 600px) {
-      .maint-banner__text { font-size: 12px; }
-    }
-  </style>
-  <!-- A real file on disk, served by express.static — resolved before
-       maintenanceMiddleware ever runs, so this loads normally regardless of
-       maintenance mode. Only fillTokenNodes() is used here; the toolbar/popover
-       machinery in this file targets elements this page doesn't have, so it
-       simply never activates. -->
-  <script src="/assets/js/maintenanceEditor.js"></script>
-  <script>
-    (function () {
-      var banner = document.getElementById('maintBanner');
-      if (banner && window.MaintenanceEditor) {
-        window.MaintenanceEditor.fillTokenNodes(banner);
-      }
-      var closeBtn = document.getElementById('maintBannerClose');
-      if (closeBtn) closeBtn.addEventListener('click', function () {
-        if (banner) banner.style.display = 'none';
-      });
-    }());
-  </script>
-  <% } %>
-
   <% if (!locals.hideHeader) { %>
   <%- include('../partials/header') %>
   <% } %>
@@ -190,6 +133,81 @@
       var _strips = (locals.announcements && announcements.strips) || [];
       var _popups = (locals.announcements && announcements.popups) || [];
     %>
+
+    <!-- Upcoming-maintenance banner. Lives here, inside .page-main, rather
+         than above the header the way it used to: the header is
+         position:fixed (out of document flow — see .app-header in
+         layout.css), so a banner placed before it in the DOM and pinned
+         with position:sticky rendered ON TOP of the fixed header, covering
+         it and its buttons. .page-main already reserves padding-top to
+         clear the fixed header for everything inside it — exactly what the
+         announcement strips below rely on — so putting the banner in the
+         same spot, with no special positioning of its own, puts it where
+         strips normally sit: directly under the header, in normal flow,
+         scrolling away with the rest of the page.
+
+         NOTE: the home page's hero-transparent script (index.ejs) used to
+         only check for an active .ann-strip before deciding whether to pull
+         the hero flush under the header — it had no idea this banner existed,
+         so it pulled the hero up regardless and the hero visually painted
+         over this banner a moment after first load (looked like the banner
+         flashing then vanishing). That check now also looks for .maint-banner
+         — see index.ejs. -->
+    <% if (!locals.hideHeader && locals.maintenanceBanner) { %>
+    <div class="maint-banner" id="maintBanner">
+      <div class="maint-banner__inner">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <!-- Free text, admin-written (Admin → Settings → Maintenance → Scheduled
+             maintenance banner) — no longer hardcoded here. messageHtml comes
+             from server/utils/maintenanceTokens.js: escaped text plus inert
+             {{date:}}/{{time:}}/{{countdown:}} token placeholders, the exact
+             same pipeline the maintenance page itself uses. The script below
+             fills those in and ticks any countdown. -->
+        <span class="maint-banner__text" id="maintBannerText"><%- maintenanceBanner.messageHtml %></span>
+        <button class="maint-banner__close" id="maintBannerClose" aria-label="Dismiss">&times;</button>
+      </div>
+    </div>
+    <style>
+      .maint-banner {
+        background: linear-gradient(90deg, #f59e0b, #d97706);
+        color: #fff;
+        padding: 9px 16px;
+      }
+      .maint-banner__inner {
+        max-width: 1200px; margin: 0 auto;
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      }
+      .maint-banner__text { flex: 1; font-size: 13px; line-height: 1.5; }
+      .maint-banner__text .mt-token { font-weight: 700; }
+      .maint-banner__close {
+        background: none; border: none; color: #fff;
+        font-size: 20px; line-height: 1; cursor: pointer;
+        padding: 0 2px; flex-shrink: 0; opacity: .8;
+      }
+      .maint-banner__close:hover { opacity: 1; }
+      @media (max-width: 600px) {
+        .maint-banner__text { font-size: 12px; }
+      }
+    </style>
+    <!-- A real file on disk, served by express.static — resolved before
+         maintenanceMiddleware ever runs, so this loads normally regardless of
+         maintenance mode. Only fillTokenNodes() is used here; the toolbar/popover
+         machinery in this file targets elements this page doesn't have, so it
+         simply never activates. -->
+    <script src="/assets/js/maintenanceEditor.js"></script>
+    <script>
+      (function () {
+        var banner = document.getElementById('maintBanner');
+        if (banner && window.MaintenanceEditor) {
+          window.MaintenanceEditor.fillTokenNodes(banner);
+        }
+        var closeBtn = document.getElementById('maintBannerClose');
+        if (closeBtn) closeBtn.addEventListener('click', function () {
+          if (banner) banner.style.display = 'none';
+        });
+      }());
+    </script>
+    <% } %>
 
     <!-- Announcement strips — sit directly under the header, above page content -->
     <% if (!locals.hideHeader && _strips.length) { %>
