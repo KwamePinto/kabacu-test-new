@@ -207,6 +207,13 @@
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    // The game iframe is full-screen, but tawk.to's launcher renders in its
+    // own iframe appended straight to <body> with a z-index far above ours,
+    // so it still floats over the game — right where in-game ads put their
+    // skip button. Hide it for as long as the modal is open.
+    if (typeof Tawk_API !== 'undefined' && typeof Tawk_API.hideWidget === 'function') {
+      Tawk_API.hideWidget();
+    }
   }
 
   function closeGame() {
@@ -214,6 +221,9 @@
     modal.setAttribute('aria-hidden', 'true');
     frame.src = ''; // stop game audio/loop once closed, not just hidden
     document.body.style.overflow = '';
+    if (typeof Tawk_API !== 'undefined' && typeof Tawk_API.showWidget === 'function') {
+      Tawk_API.showWidget();
+    }
   }
 
   document.querySelectorAll('.game-card').forEach(function (card) {

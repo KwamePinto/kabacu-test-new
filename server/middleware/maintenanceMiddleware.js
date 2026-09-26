@@ -30,11 +30,18 @@ async function maintenanceMiddleware(req, res, next) {
   // string "/command", so /command/verify (admin 2FA) was never actually
   // exempted — an admin mid-login during maintenance would have hit the
   // maintenance page instead of the code-entry form.
+  //
+  // /palmpay/webhook is PalmPay's own server calling us back, carrying no
+  // tester session cookie — the tester-bypass below never applies to it, so
+  // without this exemption every webhook gets our 503 maintenance page
+  // instead of ever reaching palmPayWebhook, and a genuinely paid top-up
+  // never gets confirmed for as long as maintenance mode is on.
   if (
     url.startsWith('/admin') ||
     url.startsWith('/command') ||
     url.startsWith('/api') ||
-    url.startsWith('/uploads')
+    url.startsWith('/uploads') ||
+    url === '/palmpay/webhook'
   ) {
     return next();
   }
