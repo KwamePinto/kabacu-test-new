@@ -36,12 +36,18 @@ async function maintenanceMiddleware(req, res, next) {
   // without this exemption every webhook gets our 503 maintenance page
   // instead of ever reaching palmPayWebhook, and a genuinely paid top-up
   // never gets confirmed for as long as maintenance mode is on.
+  //
+  // /notification/register is the same category of gap: a mobile device
+  // registering its push token, authenticated by its own x-token header
+  // (see app.js's matching CSRF exemption), not a browser session — it was
+  // never covered by any of the prefixes below either.
   if (
     url.startsWith('/admin') ||
     url.startsWith('/command') ||
     url.startsWith('/api') ||
     url.startsWith('/uploads') ||
-    url === '/palmpay/webhook'
+    url === '/palmpay/webhook' ||
+    url === '/notification/register'
   ) {
     return next();
   }

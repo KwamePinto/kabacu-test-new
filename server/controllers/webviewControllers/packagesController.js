@@ -2227,7 +2227,7 @@ exports.conversionHistory = async (req, res) => {
 
 exports.faqPage = async (req, res) => {
   try {
-    const Faq = require('../models/FaqModel');
+    const Faq = require('../../models/FaqModel');
     const CATEGORY_ORDER = ['getting-started', 'wallet', 'data', 'courses', 'account', 'rewards'];
     /* `$ne: 'admin'` rather than `audience: 'user'` on purpose: every FAQ
        written before the audience field existed has no such field, and an
