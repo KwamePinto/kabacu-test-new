@@ -975,6 +975,22 @@
           el.addEventListener('click', close);
         });
 
+        /* A CTA button navigates away (handled elsewhere, by the site-wide
+           link interceptor) but was never wired to close() — so on the last
+           step, or the only step, the overlay stayed put and kept covering
+           the page through the transition, and reappeared immediately on
+           the destination page since the tour had never been marked seen.
+           Only the last step's CTA closes: an earlier step's button is a
+           mid-tour aside, not the end of it, so leaving does not also mean
+           "done with the tour" the way finishing it does. */
+        popup.querySelectorAll('.ann-popup__cta').forEach(function (cta) {
+          cta.addEventListener('click', function () {
+            var step = cta.closest('.ann-popup__step');
+            var stepIndex = step ? parseInt(step.dataset.step, 10) : -1;
+            if (stepIndex === steps.length - 1) close();
+          });
+        });
+
         document.addEventListener('keydown', function (e) {
           if (popup.hidden) return;
           if (e.key === 'Escape') close();
