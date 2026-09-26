@@ -91,7 +91,6 @@
     <!-- Network panels — each has its own pagination if needed -->
     <% let panelIdx = 0; %>
     <% for (let provider in groupedProducts) { %>
-    <% const npag = netPagination[provider]; %>
     <div id="net_<%= panelIdx %>" class="tab-panel network-panel <%= provider === activeNetwork ? 'active' : '' %>">
       <%
         const panelItems = groupedProducts[provider];
@@ -168,25 +167,9 @@
         <% }) %>
       </div>
 
-      <% if (npag && npag.pages > 1) { %>
-      <div class="pagination">
-        <% if (npag.hasPrev) { %>
-        <a href="/category/data-category?network=<%= provider %>&page=<%= npag.current - 1 %>" class="pagination__btn">
-          <i data-lucide="chevron-left"></i>
-        </a>
-        <% } %>
-        <% for (let i = 1; i <= npag.pages; i++) { %>
-        <a href="/category/data-category?network=<%= provider %>&page=<%= i %>" class="pagination__page <%= i === npag.current ? 'active' : '' %>">
-          <%= i %>
-        </a>
-        <% } %>
-        <% if (npag.hasNext) { %>
-        <a href="/category/data-category?network=<%= provider %>&page=<%= npag.current + 1 %>" class="pagination__btn">
-          <i data-lucide="chevron-right"></i>
-        </a>
-        <% } %>
-      </div>
-      <% } %>
+      <!-- Populated client-side, over whatever the plan filter currently
+           leaves visible — see the pagination script below. -->
+      <div class="pagination" data-pagination></div>
     </div>
     <% panelIdx++; %>
     <% } %>
@@ -262,21 +245,79 @@
     });
   }
 
-  // ── Network → size sub-filters (per network panel) ──
-  // Plan filter — a single dropdown per provider panel, no secondary size row.
+  // ── Plan filter + pagination (per network panel) ──
+  // Both run together on purpose: paginating the panel's full card set and
+  // only then filtering by plan is what used to hide most of a plan's
+  // listings on whatever later page they happened to land on. Filtering
+  // first and paginating the result — entirely client-side, so a next/prev
+  // click never reloads the page and never loses the selected plan — is what
+  // this section replaces it with.
+  const BUNDLE_PAGE_SIZE = 12;
+
   document.querySelectorAll('.network-panel').forEach(panel => {
     const planSelect = panel.querySelector('.network-filter-select');
     const cards = Array.from(panel.querySelectorAll('.bundle-card'));
-    if (!planSelect) return;
+    const paginationEl = panel.querySelector('[data-pagination]');
+    let currentPage = 1;
 
-    function apply(plan) {
-      cards.forEach(card => {
-        card.style.display = (plan === 'all' || card.dataset.brand === plan) ? '' : 'none';
+    function matchingCards() {
+      const plan = planSelect ? (planSelect.value || 'all') : 'all';
+      return cards.filter(card => plan === 'all' || card.dataset.brand === plan);
+    }
+
+    function pageLink(label, page, className) {
+      const a = document.createElement('a');
+      a.href = '#';
+      a.className = className;
+      if (label.icon) {
+        const i = document.createElement('i');
+        i.setAttribute('data-lucide', label.icon);
+        a.appendChild(i);
+      } else {
+        a.textContent = label.text;
+      }
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        currentPage = page;
+        render();
+      });
+      return a;
+    }
+
+    function render() {
+      const matching = matchingCards();
+      const totalPages = Math.max(1, Math.ceil(matching.length / BUNDLE_PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      cards.forEach(card => { card.style.display = 'none'; });
+      const start = (currentPage - 1) * BUNDLE_PAGE_SIZE;
+      matching.slice(start, start + BUNDLE_PAGE_SIZE).forEach(card => { card.style.display = ''; });
+
+      if (paginationEl) {
+        paginationEl.innerHTML = '';
+        if (totalPages > 1) {
+          if (currentPage > 1) {
+            paginationEl.appendChild(pageLink({ icon: 'chevron-left' }, currentPage - 1, 'pagination__btn'));
+          }
+          for (let i = 1; i <= totalPages; i++) {
+            paginationEl.appendChild(pageLink({ text: String(i) }, i, 'pagination__page' + (i === currentPage ? ' active' : '')));
+          }
+          if (currentPage < totalPages) {
+            paginationEl.appendChild(pageLink({ icon: 'chevron-right' }, currentPage + 1, 'pagination__btn'));
+          }
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    }
+
+    if (planSelect) {
+      planSelect.addEventListener('change', function () {
+        currentPage = 1;
+        render();
       });
     }
 
-    planSelect.addEventListener('change', function () { apply(this.value); });
-    apply(planSelect.value || 'all');
+    render();
   });
 
   // ── Buy modal ──

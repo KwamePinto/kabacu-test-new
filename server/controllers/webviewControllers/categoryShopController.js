@@ -103,9 +103,7 @@ function coursePurchaseEmail({ username, email, courseTitle, free, loginUrl }) {
 
 exports.dataCategory = async (req, res) => {
   try {
-    const perPage  = 12;
     const reqNet   = (req.query.network || '').toUpperCase();
-    const reqPage  = parseInt(req.query.page) || 1;
 
     /* Fetch active DATA products sorted: network A-Z, lowest price first within each,
        alongside every Network (including soft-deleted ones) so we can resolve each
@@ -146,25 +144,23 @@ exports.dataCategory = async (req, res) => {
       ...Object.keys(allGrouped).filter(p => !PROVIDER_ORDER.includes(p)),
     ];
 
-    /* Build per-provider page slices + pagination metadata */
+    /* Every product for each provider goes to the view — pagination happens
+       entirely client-side now (see data-category.ejs), over whatever the
+       plan filter leaves visible. Slicing to a page server-side, before the
+       plan filter ever runs, was the bug: a plan's products were scattered
+       across whichever page they happened to land on, so picking one hid
+       everything but whatever few of its listings were on the current page,
+       and the plan filter itself reset on every next/prev click because
+       that was a fresh page load with no filter in the URL. */
     const groupedProducts = {};
-    const netPagination   = {};
-
     for (const provider of providerKeys) {
-      const items = allGrouped[provider];
-      const pages = Math.ceil(items.length / perPage) || 1;
-      /* Only the requested provider uses the requested page; others default to 1 */
-      const page  = Math.min(Math.max(reqNet === provider.toUpperCase() ? reqPage : 1, 1), pages);
-
-      groupedProducts[provider] = items.slice((page - 1) * perPage, page * perPage);
-      netPagination[provider]   = { pages, current: page, hasNext: page < pages, hasPrev: page > 1 };
+      groupedProducts[provider] = allGrouped[provider];
     }
 
     const activeNetwork = providerKeys.find(p => p.toUpperCase() === reqNet) || (providerKeys[0] || '');
 
     res.render('webview/data-category', {
       groupedProducts,
-      netPagination,
       activeNetwork,
       viewerCountry: viewer,
       viewerCountryName: viewer.code ? countryName(viewer.code) : '',
