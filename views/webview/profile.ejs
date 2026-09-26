@@ -195,6 +195,24 @@
           <i data-lucide="moon"></i><span>Dark</span>
         </button>
       </div>
+
+      <!-- Language. Saved to the account; applied site-wide by Google
+           Translate (layouts/main.ejs). The select is marked notranslate so
+           each language keeps its own name whatever the page is shown in. -->
+      <div class="acct-link acct-link--static">
+        <div class="acct-link__icon" style="background:var(--input-bg);">
+          <i data-lucide="languages"></i>
+        </div>
+        <div class="acct-link__body">
+          <span class="acct-link__label">Language</span>
+          <span class="acct-link__sub">Translates the whole site</span>
+        </div>
+      </div>
+      <select id="languageSelect" class="form-select notranslate" aria-label="Language" style="margin-top:10px;">
+        <% (locals.languages || []).forEach(function (l) { %>
+          <option value="<%= l.code %>" <%= (user.language || 'en') === l.code ? 'selected' : '' %>><%= l.name %></option>
+        <% }); %>
+      </select>
     </div>
   </div>
 
@@ -447,5 +465,40 @@
   });
 
   paint(stored());
+})();
+</script>
+
+<script>
+/* ── Language ─────────────────────────────────────────────────────────────
+   The server saves the choice and sets the googtrans cookie; a reload is all
+   it takes for the layout to pick it up. Any googtrans cookie Google may have
+   written on the parent domain is expired first so it can't override ours. */
+(function () {
+  var select = document.getElementById('languageSelect');
+  if (!select) return;
+  var current = select.value;
+
+  select.addEventListener('change', async function () {
+    var language = select.value;
+    select.disabled = true;
+    try {
+      var res = await fetch('/user-profile/language', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
+        body: JSON.stringify({ language: language })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok || !data.success) throw new Error(data.message || 'Could not update language.');
+
+      var expired = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      document.cookie = expired + '; domain=.' + location.hostname;
+      document.cookie = expired + '; domain=.' + location.hostname.split('.').slice(-2).join('.');
+      location.reload();
+    } catch (err) {
+      select.value = current;
+      select.disabled = false;
+      Swal.fire({ icon: 'error', title: 'Action Failed', text: err.message });
+    }
+  });
 })();
 </script>

@@ -17,6 +17,7 @@ const SpecialCode = require("../../models/SpecialReferralCodeModel");
 const ReferralCodeRequest = require("../../models/ReferralCodeRequestModel");
 const referralCodeService = require("../../services/referralCodeService");
 const marketService = require("../../services/marketService");
+const { LANGUAGES, isSupportedLanguage, setLanguageCookie } = require("../../config/languages");
 const axios = require("axios");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
@@ -1836,6 +1837,7 @@ exports.userProfile = async (req, res) => {
       referralsCount,
       referralsRewarded,
       signupBonus,
+      languages: LANGUAGES,
     });
   } catch (error) {
     console.log(error);
@@ -2012,6 +2014,26 @@ exports.referralsPage = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+  }
+};
+
+/* Saves the site language and sets the cookie Google Translate reads, so the
+   choice sticks on this device straight away and follows the account to any
+   other device at the next login. JSON in/out — called from the profile page. */
+exports.setLanguage = async (req, res) => {
+  try {
+    const { language } = req.body || {};
+    if (!isSupportedLanguage(language)) {
+      return res.status(400).json({ success: false, message: "Unsupported language." });
+    }
+
+    await User.updateOne({ _id: req.user.id }, { $set: { language } });
+    setLanguageCookie(res, language);
+
+    return res.json({ success: true, language });
+  } catch (err) {
+    console.error("SET LANGUAGE ERROR:", err.message || err);
+    return res.status(500).json({ success: false, message: "Could not update language." });
   }
 };
 

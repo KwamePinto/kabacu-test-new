@@ -5,6 +5,7 @@ const countries = require("i18n-iso-countries");
 
 const UserModel = require('../../models/UserModel');
 const {generateUserToken} = require('../../config/authUtils');
+const { setLanguageCookie } = require('../../config/languages');
 const sendEmail = require('../../utils/emailService');
 const referralService = require('../../services/referralService');
 const { resolveLoginCountry, setWalletCountry, toCode, DEFAULT_COUNTRY } = require('../../utils/country');
@@ -193,6 +194,9 @@ exports.loginPost = async (req,res)=>{
                     24 * 60 * 60 * 1000
             }
         );
+
+        // Site language follows the account, not the device.
+        setLanguageCookie(res, user.language);
 
         // =====================================
         // LANDING MARKET
@@ -784,6 +788,8 @@ async (req, res) => {
 
 exports.logout = (req, res) => {
     res.clearCookie('user_token')
+    // Don't leave this account's language behind for whoever uses the device next.
+    res.clearCookie('googtrans', { path: '/' })
     res.redirect('/')
 }
 
