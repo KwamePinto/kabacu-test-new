@@ -50,6 +50,12 @@ exports.packagesView = async (req, res) => {
     // .lean() skips Mongoose document hydration; these are read-only here.
 
     const byNewest = { createdAt: -1 };
+    // Featured products lead the New Arrivals section; whatever's left of the
+    // 8 shown slots is filled with the most recent non-featured products —
+    // a single sort gets both for free, since it's the same list either way,
+    // just reordered: featured products (newest-first among themselves) come
+    // first, then everything else falls in behind them by recency.
+    const featuredFirst = { featured: -1, createdAt: -1 };
 
     // Signed-in users only see their own market; signed-out visitors see the
     // market they picked in the header, or everything if they haven't picked.
@@ -63,7 +69,7 @@ exports.packagesView = async (req, res) => {
       coursesProducts,
       user,
     ] = await Promise.all([
-      Product.find({ category: "DATA", ...market }).sort(byNewest).limit(60).lean(),
+      Product.find({ category: "DATA", isActive: { $ne: false }, ...market }).sort(featuredFirst).limit(60).lean(),
       Product.find({ category: "AUTOMOBILE", ...market }).sort(byNewest).limit(5).lean(),
       Product.find({ category: "ELECTRONICS", ...market }).sort(byNewest).limit(5).lean(),
       Product.find({ category: "COURSES", ...market }).sort(byNewest).limit(5).lean(),

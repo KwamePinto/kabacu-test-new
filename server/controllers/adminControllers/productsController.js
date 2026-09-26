@@ -265,6 +265,22 @@ exports.toggleProduct = [
   },
 ];
 
+exports.toggleFeatured = [
+  authenticateAdminUser,
+  async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id);
+      if (!product) return res.json({ success: false, error: "Product not found." });
+      product.featured = !product.featured;
+      await product.save();
+      res.json({ success: true, featured: product.featured });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, error: error.message });
+    }
+  },
+];
+
 exports.editProductGet = [
   authenticateAdminUser,
   async (req, res) => {

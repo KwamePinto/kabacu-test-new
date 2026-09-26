@@ -21,6 +21,7 @@ router.get('/edit-product/:id',  getProducts.editProductGet);
 router.post('/edit-product/:id', upload.array('images', 3), getProducts.editProductPost);
 router.post('/delete-product/:id',  getProducts.deleteProduct);
 router.post('/toggle-product/:id',  getProducts.toggleProduct);
+router.post('/toggle-featured/:id', getProducts.toggleFeatured);
 
 /* Payment methods moved to the Payments & Wallets panel at
    /admin/payments-wallets. These stay as redirects so a bookmarked link or an

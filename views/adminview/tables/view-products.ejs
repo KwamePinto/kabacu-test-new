@@ -30,6 +30,7 @@
                             <th>Price</th>
                             <th>RP</th>
                             <th>Listed</th>
+                            <th>Featured</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
@@ -71,6 +72,16 @@
                               </div>
                             </td>
                             <td>
+                              <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input featured-toggle"
+                                  id="featured-<%= product._id %>"
+                                  data-id="<%= product._id %>"
+                                  data-name="<%= product.productName %>"
+                                  <%= product.featured ? 'checked' : '' %>>
+                                <label class="custom-control-label" for="featured-<%= product._id %>"></label>
+                              </div>
+                            </td>
+                            <td>
                               <div class="dropdown dropdown-action">
                                 <a href="#" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
                                   Actions
@@ -86,7 +97,7 @@
                           <% }) %>
                           <% } else { %>
                           <tr>
-                            <td colspan="9" class="text-center">No products found</td>
+                            <td colspan="10" class="text-center">No products found</td>
                           </tr>
                           <% } %>
                         </tbody>
@@ -206,6 +217,39 @@ document.querySelectorAll('.prod-toggle').forEach(function(checkbox) {
             icon: 'success',
             title: nowActive ? 'Product Listed' : 'Product Unlisted',
             text: '"' + name + '" is now ' + (nowActive ? 'visible to users.' : 'hidden from users.'),
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else {
+          self.checked = !checked;
+          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Could not update product.' });
+        }
+      })
+      .catch(function() {
+        self.checked = !checked;
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Network error. Please try again.' });
+      });
+  });
+});
+
+document.querySelectorAll('.featured-toggle').forEach(function(checkbox) {
+  checkbox.addEventListener('change', function() {
+    var id      = this.dataset.id;
+    var name    = this.dataset.name;
+    var checked = this.checked;
+    var self    = this;
+
+    fetch('/admin/product/toggle-featured/' + id, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: data.featured ? 'Marked Featured' : 'Unmarked Featured',
+            text: '"' + name + '" is ' + (data.featured ? 'now featured on the home page.' : 'no longer featured.'),
             timer: 2000,
             showConfirmButton: false,
           });

@@ -24,6 +24,13 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Admin-toggled. Featured products are shown first on the home page's
+  // New Arrivals section (see packagesController.js::packagesView) — the
+  // remaining slots are filled with the most recent non-featured products.
+  featured: {
+    type: Boolean,
+    default: false,
+  },
   images: [String],
   costPrice: {
     type: Number,
