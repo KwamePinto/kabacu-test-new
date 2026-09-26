@@ -456,20 +456,11 @@
   color: var(--error);
 }
 
-.referral-track-list--placeholder {
-  opacity: 0.55;
-  margin-bottom: 10px;
-}
-
 .referral-track-empty {
   text-align: center;
   color: var(--muted);
   font-size: 13px;
   padding: 24px 0;
-}
-
-.referral-track-list--placeholder + .referral-track-empty {
-  padding-top: 0;
 }
 
 /* ── Reward totals by type (dedicated /referrals page) ────── */

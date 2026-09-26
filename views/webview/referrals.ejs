@@ -408,9 +408,7 @@
     <%
       /* Each row's reward comes from r.rewardLabel, set in referralsPage:
          the real figure once paid, otherwise what that referral would be
-         worth on today's settings if the person completes a purchase.
-         REWARD_PLACEHOLDERS is only used by the empty-state preview below. */
-      var REWARD_PLACEHOLDERS = ['5 BTT', '$2 USDT', '+500 RP'];
+         worth on today's settings if the person completes a purchase. */
     %>
     <div class="acct-section">
       <h3 class="acct-section__title">Your Referrals</h3>
@@ -451,24 +449,7 @@
       </div>
       <% } %>
       <% } else { %>
-      <%
-        /* Placeholder rows so the design can be previewed before any real
-           referrals exist — swapped out automatically once myReferrals is non-empty. */
-        var PLACEHOLDER_REFERRALS = [
-          { name: 'Ade O.', fulfilled: true },
-          { name: 'Chidinma K.', fulfilled: true },
-          { name: 'Musa B.', fulfilled: false },
-          { name: 'Grace T.', fulfilled: false },
-        ];
-      %>
-      <div class="referral-track-list referral-track-list--placeholder">
-        <% PLACEHOLDER_REFERRALS.forEach(function (p, i) { %>
-        <div class="referral-track-row <%= p.fulfilled ? 'referral-track-row--fulfilled' : 'referral-track-row--unfulfilled' %>">
-          <span class="referral-track-row__name"><%= p.name %></span>
-          <span class="referral-track-row__reward"><%= REWARD_PLACEHOLDERS[i % REWARD_PLACEHOLDERS.length] %></span>
-        </div>
-        <% }) %>
-      </div>
+      <p class="referral-track-empty">Nobody has used your referral link yet.</p>
       <% } %>
     </div>
 
