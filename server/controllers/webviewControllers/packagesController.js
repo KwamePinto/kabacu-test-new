@@ -110,7 +110,7 @@ exports.packagesView = async (req, res) => {
 exports.dataForm = async (req, res) => {
   try {
     res.render("webview/dataform");
-  } catch (error) {}
+  } catch (error) { }
 };
 
 // CREATE CHECKOUT
@@ -917,7 +917,7 @@ exports.payWithWallet = async (req, res) => {
         });
       }
 
-      total     = price;
+      total = price;
       totalCost = product.costPrice || 0;
 
       // ✅ ADD RP
@@ -978,7 +978,7 @@ exports.payWithWallet = async (req, res) => {
           price = product.coursesDetails?.course_price || 0;
         }
 
-        total     += price * item.quantity;
+        total += price * item.quantity;
         totalCost += (product.costPrice || 0) * item.quantity;
 
         // ✅ ADD RP
@@ -997,14 +997,14 @@ exports.payWithWallet = async (req, res) => {
     if (productId && itemsToProcess[0]?.product?.category === 'DATA') {
       const COOLDOWN_MS = 3 * 60 * 1000;
       const recentAttempt = await Transaction.findOne({
-        user:      userId,
-        product:   productId,
-        status:    { $in: ['failed', 'pending'] },
+        user: userId,
+        product: productId,
+        status: { $in: ['failed', 'pending'] },
         createdAt: { $gte: new Date(Date.now() - COOLDOWN_MS) },
       }).sort({ createdAt: -1 }).lean();
 
       if (recentAttempt) {
-        const elapsed   = Date.now() - new Date(recentAttempt.createdAt).getTime();
+        const elapsed = Date.now() - new Date(recentAttempt.createdAt).getTime();
         const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
         const mins = Math.floor(remaining / 60);
         const secs = remaining % 60;
@@ -1073,7 +1073,7 @@ exports.payWithWallet = async (req, res) => {
     if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
-    const balanceBefore         = walletUtil.getBalance(walletSnap, buyerMarket);
+    const balanceBefore = walletUtil.getBalance(walletSnap, buyerMarket);
     const balanceAfterDeduction = balanceBefore - total;
 
     // Atomic refund helper used by error paths below
@@ -1128,23 +1128,23 @@ exports.payWithWallet = async (req, res) => {
         // Create placeholder transaction BEFORE the API call — ensures a record exists
         // even if the server crashes or loses connection mid-request.
         const tx = await Transaction.create({
-          user:          userId,
-          product:       itemsToProcess[0]?.product?._id,
-          products:      itemsToProcess.map((item) => ({
-            product:  item.product._id,
+          user: userId,
+          product: itemsToProcess[0]?.product?._id,
+          products: itemsToProcess.map((item) => ({
+            product: item.product._id,
             quantity: item.quantity,
           })),
           phone,
-          amount:        total,
-          rpEarned:      totalRP,
-          walletType:    "NAIRA",
+          amount: total,
+          rpEarned: totalRP,
+          walletType: "NAIRA",
           paymentMethod: "wallet",
-          status:        "pending",
-          provider:      product.dataDetails.provider === "GSUBZ" ? "GSUBZ" : "ODS",
-          reference:     "PAY-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
+          status: "pending",
+          provider: product.dataDetails.provider === "GSUBZ" ? "GSUBZ" : "ODS",
+          reference: "PAY-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
           balanceBefore,
-          balanceAfter:  balanceAfterDeduction,
-          apiResponse:   { _reserved: true },
+          balanceAfter: balanceAfterDeduction,
+          apiResponse: { _reserved: true },
         });
 
         apiResponse = await purchaseData(product, phone);
@@ -1182,10 +1182,10 @@ exports.payWithWallet = async (req, res) => {
         if (apiResponse.status !== "success") {
           await refundWallet();
 
-          tx.status       = "failed";
-          tx.rpEarned     = 0;
+          tx.status = "failed";
+          tx.rpEarned = 0;
           tx.balanceAfter = balanceBefore; // wallet was refunded, so final balance is back to original
-          tx.apiResponse  = apiResponse;
+          tx.apiResponse = apiResponse;
           await tx.save();
 
           notify(userId, {
@@ -1201,9 +1201,9 @@ exports.payWithWallet = async (req, res) => {
         }
 
         // Success — update the placeholder record instead of creating a new transaction
-        tx.status      = "success";
-        tx.rpEarned    = totalRP;
-        tx.markup      = total - totalCost;
+        tx.status = "success";
+        tx.rpEarned = totalRP;
+        tx.markup = total - totalCost;
         tx.apiResponse = apiResponse;
         await tx.save();
 
@@ -1217,22 +1217,22 @@ exports.payWithWallet = async (req, res) => {
     if (!successTx) {
       // Cart with no DATA items — create the transaction record now
       successTx = await Transaction.create({
-        user:          userId,
-        product:       itemsToProcess[0]?.product?._id,
-        products:      itemsToProcess.map((item) => ({
-          product:  item.product._id,
+        user: userId,
+        product: itemsToProcess[0]?.product?._id,
+        products: itemsToProcess.map((item) => ({
+          product: item.product._id,
           quantity: item.quantity,
         })),
-        phone:         checkout?.phone || "",
-        amount:        total,
-        markup:        total - totalCost,
-        rpEarned:      totalRP,
-        walletType:    "NAIRA",
+        phone: checkout?.phone || "",
+        amount: total,
+        markup: total - totalCost,
+        rpEarned: totalRP,
+        walletType: "NAIRA",
         paymentMethod: "wallet",
-        status:        "success",
-        reference:     "PAY-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
+        status: "success",
+        reference: "PAY-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
         balanceBefore,
-        balanceAfter:  balanceAfterDeduction,
+        balanceAfter: balanceAfterDeduction,
         apiResponse,
       });
     }
@@ -1571,9 +1571,9 @@ exports.palmPayWebhook = async (req, res) => {
 
     // Failed payment — safe to process multiple times
     if (!topUp.walletCredited) {
-      topUp.webhookData     = req.body;
+      topUp.webhookData = req.body;
       topUp.webhookVerified = true;
-      topUp.status          = "FAILED";
+      topUp.status = "FAILED";
       await topUp.save();
     }
 
@@ -1681,7 +1681,7 @@ exports.convertUSDTtoNaira = async (req, res) => {
     // Snapshot both sides before mutating so the conversion can be shown on
     // the admin account statement like any other wallet movement.
     const nairaBefore = wallet.balances.NAIRA || 0;
-    const usdtBefore  = wallet.balances.USDT || 0;
+    const usdtBefore = wallet.balances.USDT || 0;
 
     wallet.balances.USDT -= amount;
     wallet.balances.NAIRA += nairaAmount;
@@ -1875,8 +1875,8 @@ exports.referralsPage = async (req, res) => {
        grant has no ongoing home now that packages are not on offer, so it is
        simply not counted (it was never a summable amount anyway). */
     const rewardStats = {
-      rp:   { total: 0, claimed: 0, unclaimed: 0 },
-      btt:  { total: 0, claimed: 0, unclaimed: 0 },
+      rp: { total: 0, claimed: 0, unclaimed: 0 },
+      btt: { total: 0, claimed: 0, unclaimed: 0 },
       usdt: { total: 0, claimed: 0, unclaimed: 0 },
     };
 
@@ -1923,10 +1923,10 @@ exports.referralsPage = async (req, res) => {
 
     function rewardLabelFor(r) {
       if (r.status === 'rewarded') {
-        if (r.rewardType === 'rewardpoint')                       return `+${r.rewardAmount || 0} RP`;
-        if (r.rewardType === 'BTT' || r.rewardType === 'USDT')    return `${(r.rewardAmount || 0).toLocaleString()} ${r.rewardType}`;
+        if (r.rewardType === 'rewardpoint') return `+${r.rewardAmount || 0} RP`;
+        if (r.rewardType === 'BTT' || r.rewardType === 'USDT') return `${(r.rewardAmount || 0).toLocaleString()} ${r.rewardType}`;
         // Historic rows only — 'money' and 'data' are not awarded any more.
-        if (r.rewardType === 'money')                             return `₦${(r.rewardAmount || 0).toLocaleString()}`;
+        if (r.rewardType === 'money') return `₦${(r.rewardAmount || 0).toLocaleString()}`;
         if (r.rewardType === 'data') {
           const d = r.rewardProduct && r.rewardProduct.dataDetails;
           return d ? `${d.plan_type || 'Data'}` : 'Data bundle';
@@ -1943,8 +1943,8 @@ exports.referralsPage = async (req, res) => {
     // The referral list itself is paginated — everything else on the page
     // (stats, rewards) is computed from the full unpaginated set above.
     const perPage = 10;
-    const pages   = Math.ceil(myReferrals.length / perPage) || 1;
-    const page    = Math.min(Math.max(parseInt(req.query.page) || 1, 1), pages);
+    const pages = Math.ceil(myReferrals.length / perPage) || 1;
+    const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), pages);
 
     /* Code ownership: the current code, every code they have ever held, and
        whatever they have queued. Past codes are shown because they still work —
@@ -2227,7 +2227,7 @@ exports.conversionHistory = async (req, res) => {
 
 exports.faqPage = async (req, res) => {
   try {
-    const Faq = require('../../models/FaqModel');
+    const Faq = require('../models/FaqModel');
     const CATEGORY_ORDER = ['getting-started', 'wallet', 'data', 'courses', 'account', 'rewards'];
     /* `$ne: 'admin'` rather than `audience: 'user'` on purpose: every FAQ
        written before the audience field existed has no such field, and an
@@ -2242,8 +2242,8 @@ exports.faqPage = async (req, res) => {
       .lean();
 
     const faqsByCategory = {};
-    CATEGORY_ORDER.forEach(function(cat) { faqsByCategory[cat] = []; });
-    faqs.forEach(function(faq) {
+    CATEGORY_ORDER.forEach(function (cat) { faqsByCategory[cat] = []; });
+    faqs.forEach(function (faq) {
       if (faqsByCategory[faq.category]) faqsByCategory[faq.category].push(faq);
     });
 
