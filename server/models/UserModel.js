@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
+const { LANGUAGE_CODES } = require('../config/languages');
 
 
 const userSchema = new Schema({
@@ -21,6 +22,10 @@ const userSchema = new Schema({
      * market the user can actually pay in.
      */
     walletCountry: { type: String, default: 'NG', uppercase: true, trim: true },
+
+    // Site language, applied through Google Translate. Codes and cookie
+    // handling live in config/languages.js.
+    language: { type: String, default: 'en', enum: LANGUAGE_CODES },
     phone_number: { type: String },
     minerId: { type: Number, unique: true,sparse: true },
     password: { type: String, required: true },

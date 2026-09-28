@@ -56,6 +56,7 @@ router.post('/wallet/pay', authenticateUser, getPackages.payWithWallet);
 router.get('/user-profile', authenticateUser, getPackages.userProfile);
 
 router.post('/edit-user-profile', authenticateUser, getPackages.editUserProfile);
+router.post('/user-profile/language', authenticateUser, getPackages.setLanguage);
 
 router.get('/referrals', authenticateUser, getPackages.referralsPage);
 

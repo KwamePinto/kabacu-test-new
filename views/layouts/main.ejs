@@ -48,6 +48,23 @@
   <link rel="stylesheet" href="/assets/css/new/history.css">
   <link rel="stylesheet" href="/assets/css/new/profile.css">
   <link rel="stylesheet" href="/assets/css/new/checkout.css">
+
+  <!-- Google Translate chrome. The widget is only a driver (see the bottom of
+       <body>), so its toolbar, hover tooltips and highlight are all hidden, and
+       the offset it pushes onto <body> for its toolbar is cancelled. -->
+  <style>
+    #google_translate_element,
+    .skiptranslate > iframe,
+    iframe.skiptranslate,
+    .goog-te-banner-frame,
+    .VIpgJd-ZVi9od-ORHb-OEVmcd,
+    #goog-gt-tt,
+    .goog-te-balloon-frame,
+    .VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; }
+    body { top: 0 !important; }
+    .goog-text-highlight,
+    .VIpgJd-yAWNEb-VIpgJd-fmcmS-sn54Q { background: none !important; box-shadow: none !important; }
+  </style>
 </head>
 <body class="<% if (locals.hideHeader) { %>no-header<% } %> <% if (locals.isTesterSession) { %>tester-mode<% } %>">
 
@@ -1035,5 +1052,29 @@
   </script>
   <!-- Drives every .wallet-switch balance card (wallet page, profile). -->
   <script src="/assets/js/wallet-switcher.js"></script>
+
+  <!-- Site language. The server sets Google's own `googtrans` cookie at login
+       and when the setting changes (config/languages.js); the widget reads it
+       on load and translates the page. English means no cookie, so the
+       third-party script is not loaded at all for the default language. -->
+  <div id="google_translate_element"></div>
+  <script>
+    (function () {
+      var m = document.cookie.match(/(?:^|;\s*)googtrans=([^;]*)/);
+      var target = m ? decodeURIComponent(m[1]).split('/')[2] : '';
+      if (!target || target === 'en') return;
+
+      window.kbcTranslateInit = function () {
+        new google.translate.TranslateElement(
+          { pageLanguage: 'en', autoDisplay: false },
+          'google_translate_element'
+        );
+      };
+      var s = document.createElement('script');
+      s.src = 'https://translate.google.com/translate_a/element.js?cb=kbcTranslateInit';
+      s.async = true;
+      document.body.appendChild(s);
+    })();
+  </script>
 </body>
 </html>
