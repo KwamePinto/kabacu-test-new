@@ -187,6 +187,11 @@ app.use('/admin/payments-wallets',    require('./server/routes/adminRoutes/payme
 // ── Notification device registration (mobile — x-token auth, no CSRF) ────────
 app.post('/notification/register', require('./server/controllers/apiControllers/notificationController').registerDevice);
 
+// ── Support handoff (footer "Support" link) ───────────────────────────────────
+// optionalUser (app.use above) already populates req.user when signed in, so
+// this works for both signed-in and signed-out visitors — see supportRedirect.
+app.get('/support/redirect', require('./server/controllers/webviewControllers/userController').supportRedirect);
+
 // ── API routes (CORS enabled here only) ──────────────────────────────────────
 app.use('/api', apiCors, require('./server/routes/apiRoutes'));
 

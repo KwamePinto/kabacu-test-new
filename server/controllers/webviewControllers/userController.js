@@ -1498,3 +1498,30 @@ exports.profileChangePasswordNewPost = async (req, res) => {
   }
 };
 
+/**
+ * Footer "Support" link. Signed-in visitors get sent through with their own
+ * email pre-identified via ctc-support-sso, so the support app already knows
+ * who they are; signed-out visitors just go to the plain support URL — there
+ * is no verified email to encrypt for them. The link is built here, not on
+ * the client, because doing so requires SSO_SHARED_KEY, which must never
+ * reach the browser (see ctc-support-sso/ctc-support-sso.js's own warning —
+ * anyone holding that key can mint a valid handoff for any email).
+ */
+exports.supportRedirect = async (req, res) => {
+  const baseUrl = 'https://customer.creativetimecenter.com';
+
+  try {
+    if (!req.user) return res.redirect(baseUrl);
+
+    const user = await UserModel.findById(req.user.id).select('email').lean();
+    if (!user || !user.email) return res.redirect(baseUrl);
+
+    const { ctcSupportSsoLink } = require('../../../ctc-support-sso/ctc-support-sso');
+    const url = await ctcSupportSsoLink(user.email, process.env.SSO_SHARED_KEY, { baseUrl });
+    return res.redirect(url);
+  } catch (error) {
+    console.error('SUPPORT SSO REDIRECT ERROR:', error);
+    return res.redirect(baseUrl);
+  }
+};
+

@@ -37,6 +37,7 @@
     "i18n-iso-countries": "^7.14.0",
     "jsonwebtoken": "^9.0.3",
     "libphonenumber-js": "^1.13.12",
+    "libsodium-wrappers": "^0.8.4",
     "mailgun": "^0.5.0",
     "md5": "^2.3.0",
     "method-override": "^3.0.0",
