@@ -29,12 +29,34 @@ const PAGE_GAP_MS = 300;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/** "1 Failed 2 Successful and 0 Unsure" -> { failed, ok, unsure, legs } */
+/**
+ * "1 Failed 2 Successful and 0 Unsure" -> { failed, ok, unsure, legs }
+ *
+ * ODS has used at least two wordings for this. The original:
+ *   "1 Failed 2 Successful and 0 Unsure out of the transactions"
+ * and a newer one first seen 2026-08-28, with no separate "unsure" bucket:
+ *   "Partial delivery: 1/2 portions completed."
+ * Both are tried — the second one silently going unrecognized is exactly how
+ * 17 short deliveries back to 2026-08-28 went unflagged (transactions were
+ * checked, api_response just failed to parse as any known shape, and null
+ * reads downstream as "single leg, nothing to split").
+ */
 function parseLegs(apiResponse) {
-  const m = String(apiResponse || '').match(/(\d+)\s*Failed\s+(\d+)\s*Successful\s+and\s+(\d+)\s*Unsure/i);
-  if (!m) return null;
-  const failed = +m[1], ok = +m[2], unsure = +m[3];
-  return { failed, ok, unsure, legs: failed + ok + unsure };
+  const text = String(apiResponse || '');
+
+  const m = text.match(/(\d+)\s*Failed\s+(\d+)\s*Successful\s+and\s+(\d+)\s*Unsure/i);
+  if (m) {
+    const failed = +m[1], ok = +m[2], unsure = +m[3];
+    return { failed, ok, unsure, legs: failed + ok + unsure };
+  }
+
+  const p = text.match(/Partial delivery:\s*(\d+)\s*\/\s*(\d+)\s*portions?\s*completed/i);
+  if (p) {
+    const ok = +p[1], legs = +p[2];
+    return { failed: legs - ok, ok, unsure: 0, legs };
+  }
+
+  return null;
 }
 
 /** "15GB Data Plan" / "15GB" -> 15 */
