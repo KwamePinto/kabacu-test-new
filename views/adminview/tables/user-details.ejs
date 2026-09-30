@@ -337,8 +337,8 @@
                           }
                           if (r.status === 'void') return 'Not eligible';
                           if (!rSet || !rSet.isActive) return 'Programme paused';
-                          if (rSet.rewardType === 'rewardpoint')                     return 'Would pay ' + (rSet.amount || 0) + ' RP';
-                          if (rSet.rewardType === 'BTT' || rSet.rewardType === 'USDT') return 'Would pay ' + (rSet.amount || 0).toLocaleString() + ' ' + rSet.rewardType;
+                          if (rSet.rewardType === 'rewardpoint')                     return (rSet.amount || 0) + ' RP';
+                          if (rSet.rewardType === 'BTT' || rSet.rewardType === 'USDT') return (rSet.amount || 0).toLocaleString() + ' ' + rSet.rewardType;
                           return 'Programme paused';
                         }
 
@@ -518,9 +518,13 @@
                       <% } %>
 
                       <!-- Everyone they brought in -->
-                      <h6 class="mt-4 mb-2" style="font-size:13px;font-weight:700;">People they referred</h6>
+                      <div class="d-flex justify-content-between align-items-center flex-wrap mt-4 mb-2" style="gap:8px;">
+                        <h6 class="mb-0" style="font-size:13px;font-weight:700;">People they referred</h6>
+                        <input type="text" id="referrals-made-search-input" class="form-control"
+                               placeholder="Search name, email, code…" style="max-width:280px;">
+                      </div>
                       <div class="table-responsive">
-                        <table class="table table-striped mb-0">
+                        <table class="table table-striped mb-0" id="table-referrals-made">
                           <thead>
                             <tr>
                               <th>User</th>
@@ -1067,4 +1071,20 @@
     }
   });
 })();
+</script>
+<script>
+// Referrals-made table — same client-side paginate + type-to-filter pattern
+// as the All Products table (view-products.ejs): every row is already
+// rendered server-side, DataTables just paginates and filters it in place.
+window.addEventListener('load', function () {
+  var referralsTable = document.getElementById('table-referrals-made');
+  if (!referralsTable) return;
+  var dt = $(referralsTable).DataTable();
+  var timer;
+  document.getElementById('referrals-made-search-input').addEventListener('input', function () {
+    var q = this.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () { dt.search(q).draw(); }, 300);
+  });
+});
 </script>
