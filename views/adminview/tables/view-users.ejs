@@ -68,6 +68,7 @@
                           <th>Phone</th>
                           <th>Country</th>
                           <th>Miner ID</th>
+                          <th>Referral Code</th>
                           <th>RP Balance</th>
                           <th>Verified</th>
                           <th>Registered</th>
@@ -97,6 +98,10 @@
                       { data: 'country' },
                       { data: 'minerId', orderable: false, render: function(d) {
                           return d ? '<span class="badge badge-info">' + d + '</span>' : '<span class="text-muted">—</span>';
+                        }
+                      },
+                      { data: 'referralCode', orderable: false, render: function(d) {
+                          return d ? '<code>' + d + '</code>' : '<span class="text-muted">—</span>';
                         }
                       },
                       { data: null, orderable: false, render: function() { return '<span class="text-muted">—</span>'; } },

@@ -1,185 +1,468 @@
+<%
+  function naira(n) { return '₦' + Math.round(n || 0).toLocaleString(); }
+  function pct(n) { return (Math.round((n || 0) * 10) / 10) + '%'; }
+  function marginOf(profit, revenue) { return revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : 0; }
+
+  var PROVIDER_LABEL = { ODS: 'OurDataStore', GSUBZ: 'GSubz' };
+  function providerLabel(p) { return PROVIDER_LABEL[p] || p || 'Unknown'; }
+
+  var REWARD_TYPE_LABEL = { money: 'Cash', data: 'Data', rewardpoint: 'Reward Points', BTT: 'BTT', USDT: 'USDT', null: 'Unspecified' };
+  function rewardTypeLabel(t) { return REWARD_TYPE_LABEL[t] || t || 'Unspecified'; }
+
+  var _navSections = [
+    { id: 'profits',  label: 'Profits',            icon: 'trending-up' },
+    { id: 'products', label: 'Product Analytics',  icon: 'bar-chart-2' },
+    { id: 'rewards',  label: 'Reward Analytics',   icon: 'gift' },
+  ];
+%>
 <div class="loader"></div>
 <div id="app">
-  <div class="main-wrapper main-wrapper-1">
+  <div class="main-wrapper main-wrapper-1 kp-has-drawer">
     <div class="navbar-bg"></div>
+
     <%- include('../partials/headerAdmin.ejs') %>
     <%- include('../partials/sideMenuAdmin.ejs') %>
 
     <div class="main-content">
       <section class="section">
-
-        <div class="section-header">
-          <h1>Profit Report</h1>
-          <div class="section-header-breadcrumb">
-            <div class="breadcrumb-item active"><a href="/admin/main/dashboard">Dashboard</a></div>
-            <div class="breadcrumb-item">Profit Report</div>
-          </div>
-        </div>
-
         <div class="section-body">
 
-          <!-- ── Quick-stat cards ──────────────────────────────────────── -->
-          <div class="row mb-4">
-            <div class="col-6 col-lg-3">
-              <div class="card card-statistic-1">
-                <div class="card-icon bg-primary"><i class="fas fa-calendar-day"></i></div>
-                <div class="card-wrap">
-                  <div class="card-header"><h4>Today</h4></div>
-                  <div class="card-body">₦<%= Number(quickStats.today || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-lg-3">
-              <div class="card card-statistic-1">
-                <div class="card-icon bg-success"><i class="fas fa-calendar-week"></i></div>
-                <div class="card-wrap">
-                  <div class="card-header"><h4>This Week</h4></div>
-                  <div class="card-body">₦<%= Number(quickStats.week || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-lg-3">
-              <div class="card card-statistic-1">
-                <div class="card-icon bg-warning"><i class="fas fa-calendar-alt"></i></div>
-                <div class="card-wrap">
-                  <div class="card-header"><h4>This Month</h4></div>
-                  <div class="card-body">₦<%= Number(quickStats.month || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-lg-3">
-              <div class="card card-statistic-1">
-                <div class="card-icon bg-danger"><i class="fas fa-infinity"></i></div>
-                <div class="card-wrap">
-                  <div class="card-header"><h4>All Time</h4></div>
-                  <div class="card-body">₦<%= Number(quickStats.allTime || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div class="kp-panel">
 
-          <!-- ── Date range filter ─────────────────────────────────────── -->
-          <div class="card mb-4">
-            <div class="card-header"><h4 class="mb-0">Filter by Date Range</h4></div>
-            <div class="card-body">
-              <form method="get" action="/admin/profit" class="form-inline flex-wrap" style="gap:12px;">
-                <div class="form-group">
-                  <label class="mr-2 font-weight-600">From</label>
-                  <input type="date" name="from" class="form-control" value="<%= filters.from %>" style="max-width:180px;">
-                </div>
-                <div class="form-group">
-                  <label class="mr-2 font-weight-600">To</label>
-                  <input type="date" name="to" class="form-control" value="<%= filters.to %>" style="max-width:180px;">
-                </div>
-                <button type="submit" class="btn btn-primary">Apply</button>
-                <% if (filters.from || filters.to) { %>
-                <a href="/admin/profit" class="btn btn-light">Clear</a>
-                <% } %>
-              </form>
+            <div class="kp-panel__head">
+              <h1 class="kp-panel__title">Analytics</h1>
+              <p class="kp-panel__sub kp-panel__section-label"><%= _navSections[0].label %></p>
             </div>
-          </div>
 
-          <!-- ── Filtered summary (only shown when a filter is active) ── -->
-          <% if (filters.from || filters.to) { %>
-          <div class="row mb-4">
-            <div class="col-12">
-              <div class="alert alert-primary mb-0" style="border-radius:8px;">
-                <strong>Filtered range:</strong>
-                <%= filters.from || 'beginning' %> &rarr; <%= filters.to || 'today' %>
-                &nbsp;&mdash;&nbsp;
-                <strong><%= summary.count %></strong> sale<%= summary.count !== 1 ? 's' : '' %> &nbsp;|&nbsp;
-                Revenue: <strong>₦<%= Number(summary.totalRevenue || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}) %></strong> &nbsp;|&nbsp;
-                Profit: <strong>₦<%= Number(summary.totalProfit || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}) %></strong>
-                <% if (summary.totalRevenue > 0) { %>
-                &nbsp;|&nbsp; Margin: <strong><%= ((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1) %>%</strong>
-                <% } %>
-              </div>
-            </div>
-          </div>
-          <% } %>
+            <div class="kp-panel__body">
 
-          <!-- ── Transaction table ─────────────────────────────────────── -->
-          <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <h4 class="mb-0">Sales Breakdown</h4>
-              <span class="text-muted" style="font-size:13px;">
-                Showing <%= transactions.length %> record<%= transactions.length !== 1 ? 's' : '' %>
-                <% if (!filters.from && !filters.to) { %>(all time, latest 200)<% } %>
-              </span>
-            </div>
-            <div class="card-body p-0">
-              <% if (transactions.length === 0) { %>
-              <div class="text-center py-5 text-muted">
-                <i class="fas fa-chart-bar fa-2x mb-2"></i>
-                <p class="mb-0">No profit data yet for this period.</p>
-                <small>Profit is recorded on new sales going forward.</small>
-              </div>
-              <% } else { %>
-              <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0" id="profitTable">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Date</th>
-                      <th>Customer</th>
-                      <th>Product</th>
-                      <th class="text-right">Selling Price</th>
-                      <th class="text-right">Cost Price</th>
-                      <th class="text-right">Profit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% transactions.forEach(function(tx) {
-                      const product    = tx.product;
-                      const costPrice  = product ? (product.costPrice || 0) : (tx.amount - tx.markup);
-                      const productName = product
-                        ? (product.dataDetails?.plan_name || product.coursesDetails?.title || product.electronicDetails?.itemName || product.item_name || product.category || '—')
-                        : '—';
-                      const customer   = tx.user ? (tx.user.name || tx.user.username || tx.user.email || 'Unknown') : 'Unknown';
-                      const margin     = tx.amount > 0 ? ((tx.markup / tx.amount) * 100).toFixed(1) : 0;
-                    %>
-                    <tr>
-                      <td style="white-space:nowrap; font-size:13px;">
-                        <%= new Date(tx.createdAt).toLocaleDateString('en-NG', {day:'2-digit', month:'short', year:'numeric'}) %>
-                        <br>
-                        <small class="text-muted"><%= new Date(tx.createdAt).toLocaleTimeString('en-NG', {hour:'2-digit', minute:'2-digit'}) %></small>
-                      </td>
-                      <td style="font-size:13px;"><%= customer %></td>
-                      <td style="font-size:13px;">
-                        <%= productName %>
-                        <% if (product && product.category) { %>
-                        <br><small class="text-muted"><%= product.category %></small>
+              <%- include('partials/panelDrawer', {
+                panelKey: 'analytics',
+                drawerLabel: 'Analytics',
+                sections: _navSections
+              }) %>
+
+              <div class="kp-panel__main">
+
+                <!-- ══════════════════════════════════════════════════════
+                     PROFITS
+                     ══════════════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="profits">
+
+                  <div class="kp-stats">
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--good"><%= naira(quickStats.today) %></div>
+                      <div class="kp-stat__lbl">Profit Today</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--good"><%= naira(quickStats.week) %></div>
+                      <div class="kp-stat__lbl">This Week</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--good"><%= naira(quickStats.month) %></div>
+                      <div class="kp-stat__lbl">This Month</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--good"><%= naira(quickStats.allTime) %></div>
+                      <div class="kp-stat__lbl">All Time</div>
+                    </div>
+                  </div>
+
+                  <div class="kp-card" style="margin-bottom:18px;">
+                    <div class="kp-card__head"><h2 class="kp-card__title">Filter by Date</h2></div>
+                    <div class="kp-card__body">
+                      <form method="get" action="/admin/profit" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+                        <div class="kp-field" style="min-width:160px;">
+                          <label class="kp-field__label">From</label>
+                          <input type="date" name="from" class="kp-input" value="<%= filters.from %>">
+                        </div>
+                        <div class="kp-field" style="min-width:160px;">
+                          <label class="kp-field__label">To</label>
+                          <input type="date" name="to" class="kp-input" value="<%= filters.to %>">
+                        </div>
+                        <button type="submit" class="kp-btn kp-btn--primary">Apply</button>
+                        <% if (filters.from || filters.to) { %>
+                        <a href="/admin/profit" class="kp-btn">Clear</a>
                         <% } %>
-                      </td>
-                      <td class="text-right" style="font-size:13px;">₦<%= Number(tx.amount).toLocaleString('en-NG', {minimumFractionDigits:2}) %></td>
-                      <td class="text-right" style="font-size:13px; color:#6b7280;">₦<%= Number(costPrice).toLocaleString('en-NG', {minimumFractionDigits:2}) %></td>
-                      <td class="text-right">
-                        <span style="font-weight:700; color:#16a34a;">₦<%= Number(tx.markup).toLocaleString('en-NG', {minimumFractionDigits:2}) %></span>
-                        <br><small class="text-muted"><%= margin %>%</small>
-                      </td>
-                    </tr>
-                    <% }) %>
-                  </tbody>
-                  <tfoot class="thead-light">
-                    <tr>
-                      <td colspan="3" class="text-right font-weight-700">Total</td>
-                      <td class="text-right font-weight-700">₦<%= Number(summary.totalRevenue || 0).toLocaleString('en-NG', {minimumFractionDigits:2}) %></td>
-                      <td class="text-right font-weight-700 text-muted">—</td>
-                      <td class="text-right font-weight-700" style="color:#16a34a;">₦<%= Number(summary.totalProfit || 0).toLocaleString('en-NG', {minimumFractionDigits:2}) %></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <% } %>
-            </div>
-          </div>
+                      </form>
+
+                      <% if (filters.from || filters.to) { %>
+                      <div class="kp-note" style="margin-top:16px;">
+                        <strong>Filtered range:</strong>
+                        <%= summary.count %> sale<%= summary.count !== 1 ? 's' : '' %>,
+                        <%= naira(summary.totalRevenue) %> revenue,
+                        <%= naira(summary.totalProfit) %> profit
+                        (<%= pct(marginOf(summary.totalProfit, summary.totalRevenue)) %> margin)
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <div class="kp-card" style="margin-bottom:18px;">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Profit by Provider</h2>
+                      <div class="kp-card__aside"><span class="kp-mute" style="font-size:12px;">Same range as above</span></div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <% if (!byProvider.length) { %>
+                      <div class="kp-empty">No successful sales in this range yet.</div>
+                      <% } else { %>
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr><th>Provider</th><th class="kp-table__num">Sales</th><th class="kp-table__num">Revenue</th><th class="kp-table__num">Profit</th><th class="kp-table__num">Margin</th></tr>
+                          </thead>
+                          <tbody>
+                            <% byProvider.forEach(function (row) { %>
+                            <tr>
+                              <td><span class="kp-pill kp-pill--info"><%= providerLabel(row._id) %></span></td>
+                              <td class="kp-table__num"><%= row.count %></td>
+                              <td class="kp-table__num"><%= naira(row.revenue) %></td>
+                              <td class="kp-table__num kp-strong"><%= naira(row.profit) %></td>
+                              <td class="kp-table__num"><%= pct(marginOf(row.profit, row.revenue)) %></td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Sales Breakdown</h2>
+                      <div class="kp-card__aside"><span class="kp-pill kp-pill--info">Latest 200</span></div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <% if (!transactions.length) { %>
+                      <div class="kp-empty">No successful sales in this range yet.</div>
+                      <% } else { %>
+                      <div class="kp-tablewrap">
+                        <table class="kp-table">
+                          <thead>
+                            <tr>
+                              <th>Date</th><th>Customer</th><th>Product</th>
+                              <th class="kp-table__num">Selling Price</th>
+                              <th class="kp-table__num">Cost Price</th>
+                              <th class="kp-table__num">Profit</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% var totRevenue = 0, totCost = 0, totProfit = 0; %>
+                            <% transactions.forEach(function (tx) { %>
+                            <%
+                              var prod = tx.product;
+                              var name = prod
+                                ? (prod.category === 'DATA' ? ((prod.dataDetails && (prod.dataDetails.plan_name || prod.dataDetails.plan_type)) || 'Data bundle')
+                                  : prod.category === 'COURSES' ? ((prod.coursesDetails && prod.coursesDetails.title) || 'Course')
+                                  : prod.category === 'ELECTRONICS' ? ((prod.electronicDetails && prod.electronicDetails.itemName) || 'Electronics item')
+                                  : prod.category === 'AUTOMOBILE' ? ((prod.automobileDetails && (prod.automobileDetails.brand + ' ' + prod.automobileDetails.model)) || 'Vehicle')
+                                  : (prod.item_name || prod.category || 'Product'))
+                                : 'Unknown product';
+                              var costPrice = prod ? (prod.costPrice || 0) : (tx.amount - tx.markup);
+                              totRevenue += tx.amount || 0; totCost += costPrice; totProfit += tx.markup || 0;
+                            %>
+                            <tr>
+                              <td class="kp-mute" style="white-space:nowrap;"><%= new Date(tx.createdAt).toLocaleDateString() %></td>
+                              <td><%= tx.user ? (tx.user.username || tx.user.email || 'Unknown') : 'Unknown' %></td>
+                              <td><%= name %></td>
+                              <td class="kp-table__num"><%= naira(tx.amount) %></td>
+                              <td class="kp-table__num kp-mute"><%= naira(costPrice) %></td>
+                              <td class="kp-table__num kp-strong"><%= naira(tx.markup) %></td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td colspan="3" class="kp-strong">Total</td>
+                              <td class="kp-table__num kp-strong"><%= naira(totRevenue) %></td>
+                              <td class="kp-table__num kp-strong"><%= naira(totCost) %></td>
+                              <td class="kp-table__num kp-strong"><%= naira(totProfit) %></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- ══════════════════════════════════════════════════════
+                     PRODUCT ANALYTICS
+                     ══════════════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="products">
+
+                  <div class="kp-card">
+                    <div class="kp-card__head">
+                      <h2 class="kp-card__title">Product Performance</h2>
+                      <div class="kp-card__aside"><span class="kp-pill kp-pill--info"><%= productStats.length %> product<%= productStats.length !== 1 ? 's' : '' %></span></div>
+                    </div>
+                    <div class="kp-card__body kp-card__body--flush">
+                      <% if (!productStats.length) { %>
+                      <div class="kp-empty">No sales recorded against a specific product yet.</div>
+                      <% } else { %>
+                      <div class="kp-tablewrap">
+                        <table class="kp-table" id="productAnalyticsTable">
+                          <thead>
+                            <tr>
+                              <th>Product</th><th>Category</th><th>Provider / Carrier</th>
+                              <th class="kp-table__num">Units Sold</th>
+                              <th class="kp-table__num">Revenue</th>
+                              <th class="kp-table__num">Profit</th>
+                              <th class="kp-table__num">RP Paid</th>
+                              <th class="kp-table__num">Short Deliveries</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% productStats.forEach(function (p) { %>
+                            <tr>
+                              <td><span class="kp-strong"><%= p.name %></span></td>
+                              <td><span class="kp-pill kp-pill--info"><%= p.category %></span></td>
+                              <td>
+                                <% if (p.provider) { %>
+                                <span class="kp-pill <%= p.provider === 'GSUBZ' ? 'kp-pill--good' : 'kp-pill--info' %>"><%= providerLabel(p.provider) %></span>
+                                <% if (p.carrier) { %> <span class="kp-mute" style="font-size:12px;"><%= p.carrier %></span><% } %>
+                                <% } else { %><span class="kp-mute">&mdash;</span><% } %>
+                              </td>
+                              <td class="kp-table__num"><%= p.unitsSold %></td>
+                              <td class="kp-table__num"><%= naira(p.revenue) %></td>
+                              <td class="kp-table__num kp-strong"><%= naira(p.profit) %></td>
+                              <td class="kp-table__num"><%= p.rpPaid.toLocaleString() %></td>
+                              <td class="kp-table__num">
+                                <% if (p.shortCount > 0) { %>
+                                <span class="kp-pill kp-pill--warn"><%= p.shortCount %></span>
+                                <% } else { %>0<% } %>
+                              </td>
+                              <td class="kp-table__act">
+                                <button type="button" class="kp-btn kp-btn--sm js-view-product" data-id="<%= p.id %>">View More</button>
+                              </td>
+                            </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- ══════════════════════════════════════════════════════
+                     REWARD ANALYTICS
+                     ══════════════════════════════════════════════════════ -->
+                <div class="kp-section" data-section="rewards">
+
+                  <div class="kp-stats">
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--warn"><%= naira(rewards.grandTotal) %></div>
+                      <div class="kp-stat__lbl">Total Reward Cost (₦)</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= naira(rewards.referral.total) %></div>
+                      <div class="kp-stat__lbl">Referral Rewards</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= naira(rewards.commission.total) %></div>
+                      <div class="kp-stat__lbl">Referral Commissions</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= naira(rewards.signupBonus.total) %></div>
+                      <div class="kp-stat__lbl">Signup Bonuses</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= naira(rewards.adminRefund.total) %></div>
+                      <div class="kp-stat__lbl">Admin Refunds</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num"><%= naira(rewards.shortTopUp.total) %></div>
+                      <div class="kp-stat__lbl">Free Short-Delivery Top-Ups</div>
+                    </div>
+                    <div class="kp-stat">
+                      <div class="kp-stat__num kp-stat__num--mute"><%= rewards.rpAccrued.total.toLocaleString() %> RP</div>
+                      <div class="kp-stat__lbl">RP Accrued (not yet redeemable)</div>
+                    </div>
+                  </div>
+
+                  <div class="kp-note" style="margin-bottom:18px;">
+                    <strong>About RP:</strong> Reward Points only ever accrue in this system today — there is no
+                    redemption path yet that converts RP into ₦, a wallet balance, or a product. The figure above is
+                    an outstanding liability count, not a realised cost, and is intentionally excluded from the
+                    Total Reward Cost above.
+                  </div>
+
+                  <div class="kp-grid kp-grid--2">
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Referral Rewards</h2></div>
+                      <div class="kp-card__body kp-card__body--flush">
+                        <% if (!rewards.referral.rows.length) { %>
+                        <div class="kp-empty">No referral rewards paid out yet.</div>
+                        <% } else { %>
+                        <div class="kp-tablewrap">
+                          <table class="kp-table">
+                            <thead><tr><th>Type</th><th class="kp-table__num">Paid</th><th class="kp-table__num">Total</th></tr></thead>
+                            <tbody>
+                              <% rewards.referral.rows.forEach(function (r) { %>
+                              <tr><td><%= rewardTypeLabel(r._id) %></td><td class="kp-table__num"><%= r.count %></td><td class="kp-table__num kp-strong"><%= naira(r.total) %></td></tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } %>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Referral Commissions</h2></div>
+                      <div class="kp-card__body kp-card__body--flush">
+                        <% if (!rewards.commission.rows.length) { %>
+                        <div class="kp-empty">No ongoing commissions paid out yet.</div>
+                        <% } else { %>
+                        <div class="kp-tablewrap">
+                          <table class="kp-table">
+                            <thead><tr><th>Currency</th><th class="kp-table__num">Payouts</th><th class="kp-table__num">Total</th></tr></thead>
+                            <tbody>
+                              <% rewards.commission.rows.forEach(function (r) { %>
+                              <tr><td><%= r._id || 'NGN' %></td><td class="kp-table__num"><%= r.count %></td><td class="kp-table__num kp-strong"><%= naira(r.total) %></td></tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } %>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Signup Bonuses</h2></div>
+                      <div class="kp-card__body kp-card__body--flush">
+                        <% if (!rewards.signupBonus.rows.length) { %>
+                        <div class="kp-empty">No signup bonuses claimed yet.</div>
+                        <% } else { %>
+                        <div class="kp-tablewrap">
+                          <table class="kp-table">
+                            <thead><tr><th>Type</th><th class="kp-table__num">Claimed</th><th class="kp-table__num">Total</th></tr></thead>
+                            <tbody>
+                              <% rewards.signupBonus.rows.forEach(function (r) { %>
+                              <tr><td><%= rewardTypeLabel(r._id) %></td><td class="kp-table__num"><%= r.count %></td><td class="kp-table__num kp-strong"><%= naira(r.total) %></td></tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } %>
+                      </div>
+                    </div>
+
+                    <div class="kp-card">
+                      <div class="kp-card__head"><h2 class="kp-card__title">Admin Refunds &amp; Goodwill</h2></div>
+                      <div class="kp-card__body kp-card__body--flush">
+                        <div class="kp-tablewrap">
+                          <table class="kp-table">
+                            <thead><tr><th>Reason</th><th class="kp-table__num">Count</th><th class="kp-table__num">Total</th></tr></thead>
+                            <tbody>
+                              <tr><td>Short-delivery refunds</td><td class="kp-table__num"><%= rewards.adminRefund.shortDelivery.count %></td><td class="kp-table__num kp-strong"><%= naira(rewards.adminRefund.shortDelivery.total) %></td></tr>
+                              <tr><td>Other goodwill refunds</td><td class="kp-table__num"><%= rewards.adminRefund.other.count %></td><td class="kp-table__num kp-strong"><%= naira(rewards.adminRefund.other.total) %></td></tr>
+                              <tr><td>Free short-delivery top-ups (provider cost)</td><td class="kp-table__num"><%= rewards.shortTopUp.count %></td><td class="kp-table__num kp-strong"><%= naira(rewards.shortTopUp.total) %></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div><!-- /kp-panel__main -->
+            </div><!-- /kp-panel__body -->
+          </div><!-- /kp-panel -->
 
         </div>
       </section>
+    </div>
 
-      <footer class="main-footer">
-        <div class="footer-left">&copy; <%= new Date().getFullYear() %> Kabacu. All rights reserved.</div>
-        <div class="footer-right"></div>
-      </footer>
+    <%- include('../partials/footerAdmin.ejs') %>
+  </div>
+</div>
+
+<!-- Product detail modal -->
+<div class="modal fade" id="productDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="productDetailModalTitle">Product Detail</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body" id="productDetailModalBody">
+        <div class="kp-empty">Loading&hellip;</div>
+      </div>
     </div>
   </div>
 </div>
+
+<script src="/admin/assets/js/app.min.js"></script>
+<script src="/admin/assets/js/scripts.js"></script>
+<script src="/admin/assets/js/kbc-panel.js"></script>
+<script>
+function naira(n) { return '₦' + Math.round(n || 0).toLocaleString(); }
+
+document.querySelectorAll('.js-view-product').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var id = btn.dataset.id;
+    var body = document.getElementById('productDetailModalBody');
+    var title = document.getElementById('productDetailModalTitle');
+    title.textContent = 'Product Detail';
+    body.innerHTML = '<div class="kp-empty">Loading&hellip;</div>';
+    $('#productDetailModal').modal('show');
+
+    fetch('/admin/profit/product/' + id)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success) {
+          body.innerHTML = '<div class="kp-empty">' + (data.message || 'Could not load this product.') + '</div>';
+          return;
+        }
+        var p = data.product, s = data.stats;
+        title.textContent = p.name;
+
+        var providerLine = p.provider
+          ? '<span class="kp-pill ' + (p.provider === 'GSUBZ' ? 'kp-pill--good' : 'kp-pill--info') + '">' +
+            (p.provider === 'GSUBZ' ? 'GSubz' : 'OurDataStore') + '</span>' +
+            (p.carrier ? ' <span class="kp-mute">' + p.carrier + '</span>' : '')
+          : '<span class="kp-mute">&mdash;</span>';
+
+        var html = '';
+        html += '<div class="kp-stats" style="margin-bottom:16px;">';
+        html += '  <div class="kp-stat"><div class="kp-stat__num">' + s.unitsSold + '</div><div class="kp-stat__lbl">Units Sold</div></div>';
+        html += '  <div class="kp-stat"><div class="kp-stat__num">' + naira(s.revenue) + '</div><div class="kp-stat__lbl">Revenue</div></div>';
+        html += '  <div class="kp-stat"><div class="kp-stat__num kp-stat__num--good">' + naira(s.profit) + '</div><div class="kp-stat__lbl">Profit (' + s.margin + '%)</div></div>';
+        html += '  <div class="kp-stat"><div class="kp-stat__num">' + s.rpPaid.toLocaleString() + ' RP</div><div class="kp-stat__lbl">RP Paid Out</div></div>';
+        html += '  <div class="kp-stat"><div class="kp-stat__num ' + (s.shortCount > 0 ? 'kp-stat__num--warn' : '') + '">' + s.shortCount + ' (' + s.shortDeliveryRate + '%)</div><div class="kp-stat__lbl">Short Deliveries</div></div>';
+        html += '  <div class="kp-stat"><div class="kp-stat__num">' + naira(s.shortRefundTotal) + '</div><div class="kp-stat__lbl">Refunded for Short Delivery</div></div>';
+        html += '</div>';
+
+        html += '<p><strong>Category:</strong> ' + p.category + ' &nbsp; <strong>Provider:</strong> ' + providerLine + ' &nbsp; <strong>Cost Price:</strong> ' + naira(p.costPrice) + '</p>';
+
+        html += '<h6 style="margin-top:18px;">Recent Transactions</h6>';
+        if (!data.recentTransactions.length) {
+          html += '<div class="kp-empty">No transactions yet.</div>';
+        } else {
+          html += '<div class="kp-tablewrap"><table class="kp-table"><thead><tr><th>Date</th><th>Buyer</th><th class="kp-table__num">Amount</th><th>Status</th></tr></thead><tbody>';
+          data.recentTransactions.forEach(function (t) {
+            var statusPill = t.status === 'success' ? 'kp-pill--good' : (t.status === 'failed' || t.status === 'refunded' ? 'kp-pill--danger' : 'kp-pill--warn');
+            html += '<tr><td>' + new Date(t.date).toLocaleString() + '</td><td>' + t.buyer + '</td><td class="kp-table__num">' + naira(t.amount) + '</td>' +
+              '<td><span class="kp-pill ' + statusPill + '">' + t.status + (t.shortDelivered ? ' &middot; short' : '') + '</span></td></tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+
+        body.innerHTML = html;
+      })
+      .catch(function () {
+        body.innerHTML = '<div class="kp-empty">Network error. Please try again.</div>';
+      });
+  });
+});
+</script>

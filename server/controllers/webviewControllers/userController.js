@@ -8,6 +8,7 @@ const {generateUserToken} = require('../../config/authUtils');
 const { setLanguageCookie } = require('../../config/languages');
 const sendEmail = require('../../utils/emailService');
 const referralService = require('../../services/referralService');
+const referralCodeService = require('../../services/referralCodeService');
 const { resolveLoginCountry, setWalletCountry, toCode, DEFAULT_COUNTRY } = require('../../utils/country');
 
 exports.login = async (req, res) => {
@@ -612,6 +613,22 @@ async (req, res) => {
         });
 
         req.session.pendingVerificationEmail = email;
+
+        // =====================================
+        // ASSIGN THIS ACCOUNT ITS OWN REFERRAL CODE
+        // =====================================
+        // Previously only ever created lazily — the first time the user's own
+        // referrals page or an admin's user-details view happened to need it.
+        // That left every account blank until then, which is why the "All
+        // Users" table (once it actually displayed the field) showed so many
+        // gaps. Generating it now means it exists from the moment the account
+        // does, same as the referral link below. Non-fatal: an account must
+        // never fail to be created over its own promotional code.
+        try {
+            await referralCodeService.ensurePrimaryCode(newUser._id);
+        } catch (codeErr) {
+            console.error('SIGNUP REFERRAL CODE GEN ERROR:', codeErr.message || codeErr);
+        }
 
         // =====================================
         // APPLY REFERRAL CODE (optional, non-fatal)

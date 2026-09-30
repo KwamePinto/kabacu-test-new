@@ -4,6 +4,7 @@ const validator = require('validator');
 const UserModel = require('../../models/UserModel');
 const { generateUserToken } = require('../../config/authUtils');
 const emailService = require('../../utils/emailService');
+const referralCodeService = require('../../services/referralCodeService');
 
 exports.login = async (req, res) => {
   try {
@@ -123,6 +124,15 @@ exports.register = async (req, res) => {
       verificationToken: otp,
       verificationTokenExpires: Date.now() + 15 * 60 * 1000
     });
+
+    // Same gap fixed on the web signup path: without this, an account has no
+    // referral code of its own until something lazily generates one on first
+    // use. Non-fatal — account creation must not fail over it.
+    try {
+      await referralCodeService.ensurePrimaryCode(user._id);
+    } catch (codeErr) {
+      console.error('SIGNUP REFERRAL CODE GEN ERROR:', codeErr.message || codeErr);
+    }
 
     await emailService.sendOTP(email, otp);
 

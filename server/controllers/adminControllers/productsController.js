@@ -459,7 +459,7 @@ exports.getUsersData = [
         User.countDocuments(),
         User.countDocuments(filter),
         User.find(filter)
-          .select('username email firstname lastname createdAt isVerified country phone_number minerId')
+          .select('username email firstname lastname createdAt isVerified country phone_number minerId referralCode')
           .sort({ [sortField]: orderDir })
           .skip(start)
           .limit(length)
@@ -467,14 +467,15 @@ exports.getUsersData = [
       ]);
 
       const data = users.map((u, i) => ({
-        rowNum:     start + i + 1,
-        id:         u._id,
-        username:   u.username || '—',
-        email:      u.email || '—',
-        phone:      u.phone_number || '—',
-        country:    u.country || '—',
-        minerId:    u.minerId || null,
-        isVerified: u.isVerified,
+        rowNum:       start + i + 1,
+        id:           u._id,
+        username:     u.username || '—',
+        email:        u.email || '—',
+        phone:        u.phone_number || '—',
+        country:      u.country || '—',
+        minerId:      u.minerId || null,
+        referralCode: u.referralCode || null,
+        isVerified:   u.isVerified,
         createdAt:  new Date(u.createdAt || parseInt(u._id.toString().substring(0, 8), 16) * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       }));
 
