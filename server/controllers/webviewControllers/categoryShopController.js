@@ -103,7 +103,7 @@ function coursePurchaseEmail({ username, email, courseTitle, free, loginUrl }) {
 
 exports.dataCategory = async (req, res) => {
   try {
-    const reqNet   = (req.query.network || '').toUpperCase();
+    const reqNet = (req.query.network || '').toUpperCase();
 
     /* Fetch active DATA products sorted: network A-Z, lowest price first within each,
        alongside every Network (including soft-deleted ones) so we can resolve each
@@ -171,28 +171,28 @@ exports.dataCategory = async (req, res) => {
   }
 }
 
-exports.eletronicCategory = async (req,res)=>{
-try{
+exports.eletronicCategory = async (req, res) => {
+  try {
     const electronicProducts = await Product.find({ category: 'ELECTRONICS', isActive: { $ne: false } }).sort({ createdAt: -1 }).limit(9);
-    res.render('webview/electronic-category',{
-        electronicProducts
+    res.render('webview/electronic-category', {
+      electronicProducts
     })
-}catch(erro){
+  } catch (erro) {
     console.log(error)
-}
+  }
 
 
 }
 
-exports.automobileCategory = async (req,res)=>{
-try{
+exports.automobileCategory = async (req, res) => {
+  try {
     const automobileProducts = await Product.find({ category: 'AUTOMOBILE', isActive: { $ne: false } }).sort({ createdAt: -1 }).limit(9);
-    res.render('webview/automobile-category',{
-        automobileProducts
+    res.render('webview/automobile-category', {
+      automobileProducts
     })
-}catch(erro){
+  } catch (erro) {
     console.log(error)
-}
+  }
 
 
 }
@@ -304,10 +304,10 @@ exports.coursePurchase = async (req, res) => {
       });
       const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
       sendEmail({
-        to:      email,
+        to: email,
         subject: `You're enrolled in "${course.title || 'your course'}" — Start Learning Now`,
-        html:    coursePurchaseEmail({ username: user.username, email, courseTitle: course.title || '', free: true, loginUrl }),
-        text:    `Hi ${user.username}, you are now enrolled in "${course.title || ''}". Log in at ${loginUrl} using ${email} to start learning.`,
+        html: coursePurchaseEmail({ username: user.username, email, courseTitle: course.title || '', free: true, loginUrl }),
+        text: `Hi ${user.username}, you are now enrolled in "${course.title || ''}". Log in at ${loginUrl} using ${email} to start learning.`,
       }).catch(err => console.error('[coursePurchaseEmail free]', err.message));
       return res.redirect(`${redirectBase}?enrolled=1`);
     }
@@ -365,10 +365,10 @@ exports.coursePurchase = async (req, res) => {
 
     const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
     sendEmail({
-      to:      email,
+      to: email,
       subject: `You're enrolled in "${course.title || 'your course'}" — Start Learning Now`,
-      html:    coursePurchaseEmail({ username: user.username, email, courseTitle: course.title || '', free: false, loginUrl }),
-      text:    `Hi ${user.username}, you are now enrolled in "${course.title || ''}". Log in at ${loginUrl} using ${email} to start learning.`,
+      html: coursePurchaseEmail({ username: user.username, email, courseTitle: course.title || '', free: false, loginUrl }),
+      text: `Hi ${user.username}, you are now enrolled in "${course.title || ''}". Log in at ${loginUrl} using ${email} to start learning.`,
     }).catch(err => console.error('[coursePurchaseEmail paid]', err.message));
 
     return res.redirect(`${redirectBase}?enrolled=1`);
@@ -398,15 +398,15 @@ exports.gamesCategory = async (req, res) => {
   res.render('webview/games-category', { games, apiError });
 };
 
-exports.p2pCategory = async (req,res)=>{
-try{
-    
-    res.render('webview/p2p-category',{
-       
+exports.p2pCategory = async (req, res) => {
+  try {
+
+    res.render('webview/p2p-category', {
+
     })
-}catch(erro){
+  } catch (erro) {
     console.log(error)
-}
+  }
 
 
 }

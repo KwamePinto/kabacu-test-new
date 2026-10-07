@@ -1,3 +1,4 @@
+const mongoose    = require('mongoose');
 const Transaction = require('../../models/TransactionModel');
 const TopUp       = require('../../models/TopUpModal');
 const User        = require('../../models/UserModel');
@@ -25,7 +26,12 @@ exports.dashboard = [authenticateAdminUser, async (req, res) => {
             recentTransactions
         ] = await Promise.all([
             User.countDocuments(),
-            User.countDocuments({ createdAt: { $gte: today } }),
+            // UserModel has no real `createdAt` field (never had `timestamps`,
+            // per its own createdAtSafe() comment) — filtering on it here
+            // always matched zero documents, so "joined today" silently never
+            // moved regardless of real signups. The ObjectId's own embedded
+            // timestamp is the only creation time every account actually has.
+            User.countDocuments({ _id: { $gte: mongoose.Types.ObjectId.createFromTime(Math.floor(today.getTime() / 1000)) } }),
             User.countDocuments({ isVerified: true }),
             // Single $facet pass replaces 5 separate aggregations + 1 countDocuments
             Transaction.aggregate([
