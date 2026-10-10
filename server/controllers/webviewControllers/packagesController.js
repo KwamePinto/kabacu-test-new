@@ -1948,12 +1948,6 @@ exports.referralsPage = async (req, res) => {
 
     myReferrals.forEach(r => { r.rewardLabel = rewardLabelFor(r); });
 
-    // The referral list itself is paginated — everything else on the page
-    // (stats, rewards) is computed from the full unpaginated set above.
-    const perPage = 10;
-    const pages = Math.ceil(myReferrals.length / perPage) || 1;
-    const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), pages);
-
     /* Code ownership: the current code, every code they have ever held, and
        whatever they have queued. Past codes are shown because they still work —
        a user who has moved to a vanity code needs to know their old links have
@@ -2003,8 +1997,6 @@ exports.referralsPage = async (req, res) => {
       pendingRequest,
       recentRequests,
       codePricing,
-      myReferralsPage: myReferrals.slice((page - 1) * perPage, page * perPage),
-      referralPagination: { pages, current: page, hasNext: page < pages, hasPrev: page > 1 },
       referralsRewarded: myReferrals.filter(r => r.status === 'rewarded').length,
       rewardStats,
       commissionEvents,

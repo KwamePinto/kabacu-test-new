@@ -676,6 +676,7 @@
 .pagination__btn,
 .pagination__page {
   width: 36px; height: 36px;
+  border: none;
   border-radius: var(--r-sm);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px;
@@ -684,6 +685,7 @@
   background: var(--surface);
   box-shadow: var(--shadow-xs);
   text-decoration: none;
+  cursor: pointer;
   transition: all .15s;
 }
 

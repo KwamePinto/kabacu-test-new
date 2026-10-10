@@ -414,40 +414,36 @@
       <h3 class="acct-section__title">Your Referrals</h3>
 
       <% if ((myReferrals || []).length) { %>
-      <div class="referral-track-list">
-        <% (myReferralsPage || []).forEach(function (r) { %>
+      <div class="referral-search">
+        <i data-lucide="search" class="referral-search__icon"></i>
+        <input type="text" id="referralSearchInput" class="referral-search__input"
+               placeholder="Search by username…" autocomplete="off"
+               aria-label="Search your referrals">
+        <button type="button" id="referralSearchClear" class="referral-search__clear" aria-label="Clear search" hidden>
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="referral-track-list" id="referralTrackList">
+        <% myReferrals.forEach(function (r) { %>
         <%
           /* Green only once the reward is actually paid. 'qualified' means the
              threshold was met but the payout hasn't completed, so it is not yet
              money in hand and stays on the unfulfilled styling. */
           var fulfilled = r.status === 'rewarded';
+          var rName = (r.referred && r.referred.username) || 'User';
         %>
-        <div class="referral-track-row <%= fulfilled ? 'referral-track-row--fulfilled' : 'referral-track-row--unfulfilled' %>">
-          <span class="referral-track-row__name"><%= (r.referred && r.referred.username) || 'User' %></span>
+        <div class="referral-track-row <%= fulfilled ? 'referral-track-row--fulfilled' : 'referral-track-row--unfulfilled' %>"
+             data-name="<%= rName.toLowerCase() %>">
+          <span class="referral-track-row__name"><%= rName %></span>
           <span class="referral-track-row__reward"><%= r.rewardLabel || '—' %></span>
         </div>
         <% }) %>
       </div>
 
-      <% if (referralPagination && referralPagination.pages > 1) { %>
-      <div class="pagination">
-        <% if (referralPagination.hasPrev) { %>
-        <a href="/referrals?page=<%= referralPagination.current - 1 %>" class="pagination__btn">
-          <i data-lucide="chevron-left"></i>
-        </a>
-        <% } %>
-        <% for (let i = 1; i <= referralPagination.pages; i++) { %>
-        <a href="/referrals?page=<%= i %>" class="pagination__page <%= i === referralPagination.current ? 'active' : '' %>">
-          <%= i %>
-        </a>
-        <% } %>
-        <% if (referralPagination.hasNext) { %>
-        <a href="/referrals?page=<%= referralPagination.current + 1 %>" class="pagination__btn">
-          <i data-lucide="chevron-right"></i>
-        </a>
-        <% } %>
-      </div>
-      <% } %>
+      <p class="referral-track-empty" id="referralNoResults" hidden>No referrals match your search.</p>
+
+      <div class="pagination" id="referralPaginationBar"></div>
       <% } else { %>
       <p class="referral-track-empty">Nobody has used your referral link yet.</p>
       <% } %>
@@ -621,6 +617,91 @@
         }
       });
     }
+  })();
+
+  /* ── Your Referrals: live search + client-side pagination ─────────────
+     myReferrals is rendered in full (see referralsPage) so search can reach
+     every referral, not just whichever page happened to be showing. */
+  (function () {
+    var list = document.getElementById('referralTrackList');
+    if (!list) return;
+
+    var rows = Array.prototype.slice.call(list.querySelectorAll('.referral-track-row'));
+    var input = document.getElementById('referralSearchInput');
+    var clearBtn = document.getElementById('referralSearchClear');
+    var noResults = document.getElementById('referralNoResults');
+    var pager = document.getElementById('referralPaginationBar');
+    var PER_PAGE = 10;
+    var page = 1;
+
+    function matching() {
+      var q = (input.value || '').trim().toLowerCase();
+      if (!q) return rows;
+      return rows.filter(function (row) { return row.dataset.name.indexOf(q) !== -1; });
+    }
+
+    function pagerBtn(icon, enabled, onClick) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pagination__btn';
+      btn.innerHTML = '<i data-lucide="' + icon + '"></i>';
+      if (!enabled) {
+        btn.style.opacity = '.35';
+        btn.style.pointerEvents = 'none';
+      } else {
+        btn.addEventListener('click', onClick);
+      }
+      return btn;
+    }
+
+    function pagerPage(i) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pagination__page' + (i === page ? ' active' : '');
+      btn.textContent = i;
+      btn.addEventListener('click', function () { page = i; render(); });
+      return btn;
+    }
+
+    function render() {
+      var visible = matching();
+      var pages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
+      if (page > pages) page = pages;
+
+      rows.forEach(function (row) { row.style.display = 'none'; });
+      visible.slice((page - 1) * PER_PAGE, page * PER_PAGE).forEach(function (row) {
+        row.style.display = '';
+      });
+
+      noResults.hidden = visible.length > 0;
+
+      pager.innerHTML = '';
+      if (pages > 1) {
+        pager.appendChild(pagerBtn('chevron-left', page > 1, function () { page--; render(); }));
+        for (var i = 1; i <= pages; i++) pager.appendChild(pagerPage(i));
+        pager.appendChild(pagerBtn('chevron-right', page < pages, function () { page++; render(); }));
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    if (input) {
+      input.addEventListener('input', function () {
+        page = 1;
+        if (clearBtn) clearBtn.hidden = !input.value;
+        render();
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        input.value = '';
+        clearBtn.hidden = true;
+        page = 1;
+        render();
+        input.focus();
+      });
+    }
+
+    render();
   })();
 </script>
 

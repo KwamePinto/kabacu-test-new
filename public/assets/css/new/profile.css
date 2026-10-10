@@ -398,8 +398,41 @@
   font-weight: 500;
 }
 
+/* ── Referral search (dedicated /referrals page) ─────────── */
+.referral-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+.referral-search__icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--muted); pointer-events: none;
+}
+.referral-search__input {
+  width: 100%; height: 40px;
+  padding: 0 36px 0 36px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--input-bg); color: var(--text);
+  font-size: 13px; font-family: var(--font);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.referral-search__input::placeholder { color: var(--muted); }
+.referral-search__input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.referral-search__clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border: none; border-radius: 50%;
+  background: transparent; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.referral-search__clear:hover { background: var(--surface); color: var(--text); }
+.referral-search__clear svg { width: 14px; height: 14px; }
+
 /* ── Referral tracking list (dedicated /referrals page) ──── */
-/* Paginated server-side (10/page), so no max-height/scroll needed here. */
+/* All referrals render into the DOM; search and pagination (10/page) are
+   both client-side so search can reach every referral, not just one page. */
 .referral-track-list {
   display: flex;
   flex-direction: column;
