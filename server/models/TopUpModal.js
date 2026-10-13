@@ -128,6 +128,28 @@ const topupSchema = new mongoose.Schema({
         default: false
     },
 
+    /**
+     * Set when PalmPay's webhook reports a paid amount that does not match
+     * what this top-up actually asked for — the dynamic virtual account
+     * PalmPay gives the customer per order means they can transfer the wrong
+     * amount into it. Left uncredited and held for manual review rather than
+     * crediting the requested amount regardless (which would over-credit a
+     * short payment) or crediting what was received (which the rest of the
+     * flow — rpEarned, bonuses, etc. — is never sized for).
+     */
+    amountMismatch: {
+        type: Boolean,
+        default: false
+    },
+    amountExpected: {
+        type: Number,
+        default: null
+    },
+    amountReceivedFromPalmPay: {
+        type: Number,
+        default: null
+    },
+
     apiResponse: Object,
 
     webhookData: Object,

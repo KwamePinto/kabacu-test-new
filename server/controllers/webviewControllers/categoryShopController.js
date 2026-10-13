@@ -9,6 +9,7 @@ const Transaction = require('../../models/TransactionModel')
 const CoursePurchase = require('../../models/CoursePurchaseModel')
 const referralService = require('../../services/referralService')
 const { resolveViewerCountry, countryFilter, toName: countryName } = require('../../utils/country')
+const walletUtil = require('../../utils/wallet')
 const axios = require('axios')
 
 const { authenticateUser } = require('../../config/authMiddleware');
@@ -313,11 +314,11 @@ exports.coursePurchase = async (req, res) => {
     }
 
     // Paid — wallet deduction
-    if (!wallet || (wallet.balances?.NAIRA || 0) < price) {
+    if (!wallet || !walletUtil.sufficientFunds(wallet.balances?.NAIRA || 0, price)) {
       return res.redirect(`${redirectBase}?insufficient=1`);
     }
 
-    wallet.balances.NAIRA -= price;
+    wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA - price);
     await wallet.save();
 
     const ref = 'CRS-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -333,7 +334,7 @@ exports.coursePurchase = async (req, res) => {
         transactionRef: ref,
       });
     } catch (createErr) {
-      wallet.balances.NAIRA += price;
+      wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA + price);
       await wallet.save();
       throw createErr;
     }

@@ -12,6 +12,25 @@ const { toCode, toName, toFlag, DEFAULT_COUNTRY } = require('./country');
 
 const NAIRA_PATH = 'balances.NAIRA';
 
+/**
+ * Snap a monetary value to 2 decimal places (kobo/cent precision).
+ *
+ * Repeated `$inc` operations on a balance accumulate IEEE-754 drift over time
+ * (e.g. a balance that should read exactly 500 settles at 499.99999999999994).
+ * That is invisible anywhere the UI rounds for display, but a strict numeric
+ * comparison against it is not — a user with "exactly" enough money to buy
+ * something would be told their balance is insufficient. Round here, once,
+ * rather than at each comparison site.
+ */
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+/** True when `balance` covers `amount`, tolerant of float drift below cent precision. */
+function sufficientFunds(balance, amount) {
+  return round2(balance) >= round2(amount);
+}
+
 /** Normalise anything country-shaped to an ISO code, defaulting to Nigeria. */
 function marketOf(value) {
   return toCode(value) || DEFAULT_COUNTRY;
@@ -87,9 +106,13 @@ function setBalance(wallet, country, amount) {
  */
 async function applyDelta(Wallet, userId, country, delta) {
   const path = balancePath(country);
+  const amount = round2(delta);
+  // A pipeline update (array form) rounds the new value atomically in the
+  // same operation that applies it, so this write can never itself introduce
+  // drift — unlike a plain `$inc`, which adds the raw float as-is.
   const before = await Wallet.findOneAndUpdate(
     { user: userId },
-    { $inc: { [path]: Number(delta) || 0 } },
+    [{ $set: { [path]: { $round: [{ $add: [{ $ifNull: [`$${path}`, 0] }, amount] }, 2] } } }],
     { new: false },
   );
   if (!before) return null;
@@ -97,7 +120,7 @@ async function applyDelta(Wallet, userId, country, delta) {
   const balanceBefore = getBalance(before, country);
   return {
     balanceBefore,
-    balanceAfter: balanceBefore + (Number(delta) || 0),
+    balanceAfter: round2(balanceBefore + amount),
     market: marketOf(country),
   };
 }
@@ -141,4 +164,6 @@ module.exports = {
   setBalance,
   applyDelta,
   balancesFor,
+  round2,
+  sufficientFunds,
 };

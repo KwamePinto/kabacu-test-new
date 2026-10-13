@@ -256,13 +256,13 @@ exports.walletCheckout = async (req, res) => {
       return res.redirect("/checkout");
     }
 
-    if (user.walletBalance < amount) {
+    if (!walletUtil.sufficientFunds(user.walletBalance, amount)) {
       req.flash("error", "Insufficient balance");
       return res.redirect("/my-wallet");
     }
 
     // Deduct balance
-    user.walletBalance -= amount;
+    user.walletBalance = walletUtil.round2(user.walletBalance - amount);
     await user.save();
 
     // ✅ FIX PHONE
@@ -379,7 +379,7 @@ exports.retryTransaction = async (req, res) => {
     const apiResponse = await purchaseData(product, tx.phone);
 
     if (apiResponse.status === "success") {
-      if (wallet.balances.NAIRA < tx.amount) {
+      if (!walletUtil.sufficientFunds(wallet.balances.NAIRA, tx.amount)) {
         return res.json({
           success: false,
           insufficientBalance: true,
@@ -389,7 +389,7 @@ exports.retryTransaction = async (req, res) => {
         });
       }
 
-      wallet.balances.NAIRA -= tx.amount;
+      wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA - tx.amount);
       await wallet.save();
 
       tx.status = "success";
@@ -1072,20 +1072,32 @@ exports.payWithWallet = async (req, res) => {
     // The path is resolved from the buyer's market, so Nigeria still hits
     // balances.NAIRA and every other market hits its own entry.
     const balPath = walletUtil.balancePath(buyerMarket);
+    const roundedTotal = walletUtil.round2(total);
+    // $expr + $round (not a plain $gte) so a balance that drifted a fraction
+    // of a kobo below a "clean" total (e.g. 499.99999999999994 instead of 500)
+    // still passes — see utils/wallet.js::round2. The update is a pipeline
+    // (array form) so the stored value is re-rounded to 2dp in the same
+    // atomic write, which also stops the drift from compounding further.
     const walletSnap = await Wallet.findOneAndUpdate(
-      { user: userId, [balPath]: { $gte: total } },
-      { $inc: { [balPath]: -total } },
+      {
+        user: userId,
+        $expr: { $gte: [{ $round: [{ $ifNull: [`$${balPath}`, 0] }, 2] }, roundedTotal] },
+      },
+      [{ $set: { [balPath]: { $round: [{ $subtract: [{ $ifNull: [`$${balPath}`, 0] }, roundedTotal] }, 2] } } }],
       { new: false }
     );
     if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
     const balanceBefore = walletUtil.getBalance(walletSnap, buyerMarket);
-    const balanceAfterDeduction = balanceBefore - total;
+    const balanceAfterDeduction = walletUtil.round2(balanceBefore - roundedTotal);
 
     // Atomic refund helper used by error paths below
     const refundWallet = () =>
-      Wallet.findOneAndUpdate({ user: userId }, { $inc: { [balPath]: total } });
+      Wallet.findOneAndUpdate(
+        { user: userId },
+        [{ $set: { [balPath]: { $round: [{ $add: [{ $ifNull: [`$${balPath}`, 0] }, roundedTotal] }, 2] } } }]
+      );
 
     // =====================================
     // ✅ GET CHECKOUT FOR DATA
@@ -1536,6 +1548,32 @@ exports.palmPayWebhook = async (req, res) => {
     // }
 
     if (req.body.orderStatus == 2) {
+      // PalmPay's own payload carries what was actually paid into the virtual
+      // account — the dynamic-account model means a customer can transfer the
+      // wrong amount into it. Crediting topUp.amount unconditionally (what we
+      // originally asked for) regardless of this would over-credit a short
+      // payment or silently swallow an overpayment. Verify the two match
+      // before any money moves; a mismatch is held for manual review rather
+      // than guessed at either way.
+      const paidAmount = Number(req.body.amount);
+      const expectedAmount = Number(topUp.amount);
+      const amountVerified = Number.isFinite(paidAmount) && paidAmount === expectedAmount;
+
+      if (!amountVerified) {
+        await TopUp.updateOne(
+          { _id: topUp._id },
+          { $set: {
+              webhookData: req.body,
+              webhookVerified: true,
+              amountMismatch: true,
+              amountExpected: expectedAmount,
+              amountReceivedFromPalmPay: Number.isFinite(paidAmount) ? paidAmount : null,
+            } }
+        );
+        console.error(`[palmpay webhook] AMOUNT MISMATCH on TopUp ${topUp._id} (${topUp.reference}): expected ${expectedAmount}, PalmPay reports ${req.body.amount}. NOT crediting — held for manual review.`);
+        return res.json({ success: true, message: 'Amount mismatch — held for manual review' });
+      }
+
       // Atomic compare-and-swap: claim this webhook only if the wallet hasn't been credited yet.
       // Two simultaneous webhooks can't both pass — only one gets a non-null result.
       const claimed = await TopUp.findOneAndUpdate(
@@ -1626,7 +1664,7 @@ exports.convertUSDTtoNaira = async (req, res) => {
     }
 
     // CHECK BALANCE
-    if (wallet.balances.USDT < amount) {
+    if (!walletUtil.sufficientFunds(wallet.balances.USDT, amount)) {
       return res.json({
         success: false,
         message: "Insufficient USDT balance",
@@ -2332,7 +2370,7 @@ exports.transferRPToBittokenHandler = async (req, res) => {
     const currentRP =
       wallet && wallet.balances && wallet.balances.RP ? wallet.balances.RP : 0;
 
-    if (currentRP < rpAmount) {
+    if (!walletUtil.sufficientFunds(currentRP, rpAmount)) {
       return res.json({
         success: false,
         message: "Insufficient Reward Points balance.",
@@ -2340,7 +2378,7 @@ exports.transferRPToBittokenHandler = async (req, res) => {
     }
 
     // Deduct first
-    wallet.balances.RP -= rpAmount;
+    wallet.balances.RP = walletUtil.round2(wallet.balances.RP - rpAmount);
     await wallet.save();
 
     // Call BitToken API

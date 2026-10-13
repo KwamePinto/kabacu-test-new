@@ -52,6 +52,10 @@ router.put('/profile', apiAuth, profile.updateProfile);
 // ── Course access (public — used by external course website) ──
 router.get('/public/course-access', publicCourses.courseAccess);
 
+// ── RP credit from CSkillsHub (HMAC-signed, no session auth — see
+//    publicCoursesController.js::creditRp for the full contract) ──
+router.post('/public/course-rp/credit', publicCourses.creditRp);
+
 // ── User notifications ─────────────────────────────────────
 router.get('/notifications',           apiAuth, userNotif.getNotifications);
 router.post('/notifications/read-all', apiAuth, userNotif.markAllRead);

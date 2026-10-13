@@ -2,6 +2,7 @@ const Transaction = require('../../models/TransactionModel');
 const Wallet      = require('../../models/WalletModal');
 const Product     = require('../../models/ProductsModal');
 const User        = require('../../models/UserModel');
+const walletUtil  = require('../../utils/wallet');
 const { purchaseData } = require('../../services/dataProviders');
 
 exports.getTransactions = async (req, res) => {
@@ -59,7 +60,7 @@ exports.retryTransaction = async (req, res) => {
     const apiResponse = await purchaseData(product, tx.phone);
 
     if (apiResponse.status === 'success') {
-      if (wallet.balances.NAIRA < tx.amount) {
+      if (!walletUtil.sufficientFunds(wallet.balances.NAIRA, tx.amount)) {
         return res.json({
           success: false,
           insufficientBalance: true,
@@ -69,7 +70,7 @@ exports.retryTransaction = async (req, res) => {
         });
       }
       const balanceBefore = wallet.balances.NAIRA;
-      wallet.balances.NAIRA -= tx.amount;
+      wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA - tx.amount);
       await wallet.save();
       tx.status = 'success';
       tx.balanceBefore = balanceBefore;

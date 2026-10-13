@@ -10,6 +10,7 @@ const SiteSettings = require('../../models/SiteSettingsModel');
 const { userMessage } = require('../../services/ourdatastore');
 const { purchaseData } = require('../../services/dataProviders');
 const { generateSignature, verifySignature } = require('../../utils/palmpay');
+const walletUtil = require('../../utils/wallet');
 const axios  = require('axios');
 const crypto = require('crypto');
 
@@ -66,20 +67,30 @@ exports.payWithWallet = async (req, res) => {
 
     // Atomic balance check + deduction — prevents double-spend if two requests arrive simultaneously.
     // Returns the document as it was BEFORE the decrement (new: false), so we know balanceBefore.
+    // $expr + $round tolerates float drift in the stored balance (see
+    // utils/wallet.js::round2); the pipeline update re-rounds it on write so
+    // drift doesn't compound further.
+    const roundedTotal = walletUtil.round2(total);
     const walletSnap = await Wallet.findOneAndUpdate(
-      { user: userId, 'balances.NAIRA': { $gte: total } },
-      { $inc: { 'balances.NAIRA': -total } },
+      {
+        user: userId,
+        $expr: { $gte: [{ $round: [{ $ifNull: ['$balances.NAIRA', 0] }, 2] }, roundedTotal] },
+      },
+      [{ $set: { 'balances.NAIRA': { $round: [{ $subtract: [{ $ifNull: ['$balances.NAIRA', 0] }, roundedTotal] }, 2] } } }],
       { new: false }
     );
     if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
     const balanceBefore         = walletSnap.balances.NAIRA;
-    const balanceAfterDeduction = balanceBefore - total;
+    const balanceAfterDeduction = walletUtil.round2(balanceBefore - roundedTotal);
 
     // Atomic refund helper used by error paths below
     const refundWallet = () =>
-      Wallet.findOneAndUpdate({ user: userId }, { $inc: { 'balances.NAIRA': total } });
+      Wallet.findOneAndUpdate(
+        { user: userId },
+        [{ $set: { 'balances.NAIRA': { $round: [{ $add: [{ $ifNull: ['$balances.NAIRA', 0] }, roundedTotal] }, 2] } } }]
+      );
 
     let checkout = null;
     if (itemsToProcess.some(i => i.product.category === 'DATA')) {
@@ -399,7 +410,7 @@ exports.convertUSDTtoNaira = async (req, res) => {
     const wallet = await Wallet.findOne({ user: userId });
     if (!wallet) return res.status(404).json({ success: false, message: 'Wallet not found' });
 
-    if (wallet.balances.USDT < amount) {
+    if (!walletUtil.sufficientFunds(wallet.balances.USDT, amount)) {
       return res.json({ success: false, message: 'Insufficient USDT balance' });
     }
 
@@ -569,6 +580,29 @@ exports.palmPayWebhook = async (req, res) => {
     }
 
     if (req.body.orderStatus == 2) {
+      // Same gap, same fix as the webview webhook (packagesController.js):
+      // PalmPay's own payload carries what was actually paid into the
+      // dynamic virtual account, which can differ from what we asked for.
+      // Verify before crediting rather than trusting topUp.amount blindly.
+      const paidAmount = Number(req.body.amount);
+      const expectedAmount = Number(topUp.amount);
+      const amountVerified = Number.isFinite(paidAmount) && paidAmount === expectedAmount;
+
+      if (!amountVerified) {
+        await TopUp.updateOne(
+          { _id: topUp._id },
+          { $set: {
+              webhookData: req.body,
+              webhookVerified: true,
+              amountMismatch: true,
+              amountExpected: expectedAmount,
+              amountReceivedFromPalmPay: Number.isFinite(paidAmount) ? paidAmount : null,
+            } }
+        );
+        console.error(`[api palmpay webhook] AMOUNT MISMATCH on TopUp ${topUp._id} (${topUp.reference}): expected ${expectedAmount}, PalmPay reports ${req.body.amount}. NOT crediting — held for manual review.`);
+        return res.json({ success: true, message: 'Amount mismatch — held for manual review' });
+      }
+
       // Atomic compare-and-swap: claim this webhook only if the wallet hasn't been credited yet.
       // Two simultaneous webhooks can't both pass — only one gets a non-null result.
       const claimed = await TopUp.findOneAndUpdate(
