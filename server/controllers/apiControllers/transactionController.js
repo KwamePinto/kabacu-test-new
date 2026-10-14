@@ -70,7 +70,7 @@ exports.retryTransaction = async (req, res) => {
         });
       }
       const balanceBefore = wallet.balances.NAIRA;
-      wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA - tx.amount);
+      wallet.balances.NAIRA = walletUtil.truncate2(wallet.balances.NAIRA - tx.amount);
       await wallet.save();
       tx.status = 'success';
       tx.balanceBefore = balanceBefore;

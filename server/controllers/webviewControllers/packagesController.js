@@ -262,7 +262,7 @@ exports.walletCheckout = async (req, res) => {
     }
 
     // Deduct balance
-    user.walletBalance = walletUtil.round2(user.walletBalance - amount);
+    user.walletBalance = walletUtil.truncate2(user.walletBalance - amount);
     await user.save();
 
     // ✅ FIX PHONE
@@ -389,7 +389,7 @@ exports.retryTransaction = async (req, res) => {
         });
       }
 
-      wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA - tx.amount);
+      wallet.balances.NAIRA = walletUtil.truncate2(wallet.balances.NAIRA - tx.amount);
       await wallet.save();
 
       tx.status = "success";
@@ -1072,31 +1072,32 @@ exports.payWithWallet = async (req, res) => {
     // The path is resolved from the buyer's market, so Nigeria still hits
     // balances.NAIRA and every other market hits its own entry.
     const balPath = walletUtil.balancePath(buyerMarket);
-    const roundedTotal = walletUtil.round2(total);
-    // $expr + $round (not a plain $gte) so a balance that drifted a fraction
+    const truncatedTotal = walletUtil.truncate2(total);
+    // $expr + truncExpr (not a plain $gte) so a balance that drifted a fraction
     // of a kobo below a "clean" total (e.g. 499.99999999999994 instead of 500)
-    // still passes — see utils/wallet.js::round2. The update is a pipeline
-    // (array form) so the stored value is re-rounded to 2dp in the same
-    // atomic write, which also stops the drift from compounding further.
+    // still passes — see utils/wallet.js::truncate2/truncExpr. The update is a
+    // pipeline (array form) so the stored value is re-truncated to 2dp in the
+    // same atomic write, which also stops the drift from compounding further.
     const walletSnap = await Wallet.findOneAndUpdate(
       {
         user: userId,
-        $expr: { $gte: [{ $round: [{ $ifNull: [`$${balPath}`, 0] }, 2] }, roundedTotal] },
+        $expr: { $gte: [walletUtil.truncExpr({ $ifNull: [`$${balPath}`, 0] }), truncatedTotal] },
       },
-      [{ $set: { [balPath]: { $round: [{ $subtract: [{ $ifNull: [`$${balPath}`, 0] }, roundedTotal] }, 2] } } }],
-      { new: false }
+      [{ $set: { [balPath]: walletUtil.truncExpr({ $subtract: [{ $ifNull: [`$${balPath}`, 0] }, truncatedTotal] }) } }],
+      { new: false, updatePipeline: true }
     );
     if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
     const balanceBefore = walletUtil.getBalance(walletSnap, buyerMarket);
-    const balanceAfterDeduction = walletUtil.round2(balanceBefore - roundedTotal);
+    const balanceAfterDeduction = walletUtil.truncate2(balanceBefore - truncatedTotal);
 
     // Atomic refund helper used by error paths below
     const refundWallet = () =>
       Wallet.findOneAndUpdate(
         { user: userId },
-        [{ $set: { [balPath]: { $round: [{ $add: [{ $ifNull: [`$${balPath}`, 0] }, roundedTotal] }, 2] } } }]
+        [{ $set: { [balPath]: walletUtil.truncExpr({ $add: [{ $ifNull: [`$${balPath}`, 0] }, truncatedTotal] }) } }],
+        { updatePipeline: true }
       );
 
     // =====================================
@@ -2378,7 +2379,7 @@ exports.transferRPToBittokenHandler = async (req, res) => {
     }
 
     // Deduct first
-    wallet.balances.RP = walletUtil.round2(wallet.balances.RP - rpAmount);
+    wallet.balances.RP = walletUtil.truncate2(wallet.balances.RP - rpAmount);
     await wallet.save();
 
     // Call BitToken API

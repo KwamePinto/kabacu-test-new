@@ -67,29 +67,30 @@ exports.payWithWallet = async (req, res) => {
 
     // Atomic balance check + deduction — prevents double-spend if two requests arrive simultaneously.
     // Returns the document as it was BEFORE the decrement (new: false), so we know balanceBefore.
-    // $expr + $round tolerates float drift in the stored balance (see
-    // utils/wallet.js::round2); the pipeline update re-rounds it on write so
-    // drift doesn't compound further.
-    const roundedTotal = walletUtil.round2(total);
+    // $expr + truncExpr tolerates float drift in the stored balance (see
+    // utils/wallet.js::truncate2/truncExpr); the pipeline update re-truncates
+    // it on write so drift doesn't compound further.
+    const truncatedTotal = walletUtil.truncate2(total);
     const walletSnap = await Wallet.findOneAndUpdate(
       {
         user: userId,
-        $expr: { $gte: [{ $round: [{ $ifNull: ['$balances.NAIRA', 0] }, 2] }, roundedTotal] },
+        $expr: { $gte: [walletUtil.truncExpr({ $ifNull: ['$balances.NAIRA', 0] }), truncatedTotal] },
       },
-      [{ $set: { 'balances.NAIRA': { $round: [{ $subtract: [{ $ifNull: ['$balances.NAIRA', 0] }, roundedTotal] }, 2] } } }],
-      { new: false }
+      [{ $set: { 'balances.NAIRA': walletUtil.truncExpr({ $subtract: [{ $ifNull: ['$balances.NAIRA', 0] }, truncatedTotal] }) } }],
+      { new: false, updatePipeline: true }
     );
     if (!walletSnap) {
       return res.json({ success: false, message: 'Insufficient wallet balance. Please top up your wallet to continue.' });
     }
     const balanceBefore         = walletSnap.balances.NAIRA;
-    const balanceAfterDeduction = walletUtil.round2(balanceBefore - roundedTotal);
+    const balanceAfterDeduction = walletUtil.truncate2(balanceBefore - truncatedTotal);
 
     // Atomic refund helper used by error paths below
     const refundWallet = () =>
       Wallet.findOneAndUpdate(
         { user: userId },
-        [{ $set: { 'balances.NAIRA': { $round: [{ $add: [{ $ifNull: ['$balances.NAIRA', 0] }, roundedTotal] }, 2] } } }]
+        [{ $set: { 'balances.NAIRA': walletUtil.truncExpr({ $add: [{ $ifNull: ['$balances.NAIRA', 0] }, truncatedTotal] }) } }],
+        { updatePipeline: true }
       );
 
     let checkout = null;

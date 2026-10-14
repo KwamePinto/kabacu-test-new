@@ -318,7 +318,7 @@ exports.coursePurchase = async (req, res) => {
       return res.redirect(`${redirectBase}?insufficient=1`);
     }
 
-    wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA - price);
+    wallet.balances.NAIRA = walletUtil.truncate2(wallet.balances.NAIRA - price);
     await wallet.save();
 
     const ref = 'CRS-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -334,7 +334,7 @@ exports.coursePurchase = async (req, res) => {
         transactionRef: ref,
       });
     } catch (createErr) {
-      wallet.balances.NAIRA = walletUtil.round2(wallet.balances.NAIRA + price);
+      wallet.balances.NAIRA = walletUtil.truncate2(wallet.balances.NAIRA + price);
       await wallet.save();
       throw createErr;
     }
