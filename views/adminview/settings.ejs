@@ -13,13 +13,19 @@
               <% /* Anything switched off, or maintenance being on, is worth counting into a badge so an admin sees it
                 without opening every section. */ var offCount=(settings.rpTransferEnabled ? 0 : 1) +
                 (settings.bttTopupEnabled ? 0 : 1) + (settings.usdtTopupEnabled ? 0 : 1); var
-                maintOn=settings.maintenanceModeEnabled || settings.maintenanceBannerEnabled; %>
+                maintOn=settings.maintenanceModeEnabled || settings.maintenanceBannerEnabled; var
+                pagesOffCount=(pages || []).filter(function (p) { return !p.enabled; }).length; %>
 
                 <div class="kp-panel">
 
+                  <% /* 'tool' and 'eye-off' are not rendering from this app's bundled icon set (confirmed —
+                    'toggle-left' and 'server' below render fine, so this isn't a library-loading issue, just
+                    these two names) — using 'settings' and 'monitor' instead, both already proven working in
+                    views/partials/sideMenuAdmin.ejs's main nav. */ %>
                   <% var _navSections=[ { id: 'features' , label: 'Wallet Features' , icon: 'toggle-left' , badge:
                     offCount }, { id: 'provider' , label: 'Provider' , icon: 'server' }, { id: 'maintenance' ,
-                    label: 'Maintenance' , icon: 'tool' , badge: maintOn ? 1 : 0 } ]; %>
+                    label: 'Maintenance' , icon: 'settings' , badge: maintOn ? 1 : 0 }, { id: 'page-visibility' ,
+                    label: 'Page Visibility' , icon: 'monitor' , badge: pagesOffCount } ]; %>
                     <div class="kp-panel__head">
                       <h1 class="kp-panel__title">Site Settings</h1>
                       <p class="kp-panel__sub kp-panel__section-label">
@@ -364,6 +370,83 @@
                             </div>
 
                           </form>
+
+                          <!-- ══ Page Visibility ═══════════════════════════════════
+                               Not part of the form above — each card saves itself
+                               independently via fetch (POST /admin/page-visibility/:key),
+                               same as Announcements. A signed-in tester
+                               (/command/testing) always sees the real page regardless
+                               of these toggles — see server/middleware/pageFlagsMiddleware.js. -->
+                          <div class="kp-section" data-section="page-visibility">
+                            <div class="kp-note" style="margin-bottom:16px;">
+                              Turn a page off to show the public a "coming soon" page instead.
+                              A signed-in tester always sees the real page regardless of this toggle.
+                            </div>
+                            <div class="kp-grid">
+                              <% (pages || []).forEach(function (p) { %>
+                              <div class="kp-card">
+                                <div class="kp-card__head">
+                                  <h2 class="kp-card__title"><%= p.label %></h2>
+                                  <div class="kp-card__aside">
+                                    <span class="kp-pill <%= p.enabled ? 'kp-pill--good' : 'kp-pill--warn' %>" id="pv-pill-<%= p.key %>">
+                                      <%= p.enabled ? 'Live' : 'Coming soon' %>
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div class="kp-card__body kp-card__body--pad">
+                                  <div class="kp-row">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Show to the public</span>
+                                      <p class="kp-row__hint"><%= p.route %></p>
+                                    </div>
+                                    <div class="kp-row__ctrl">
+                                      <label class="kp-toggle">
+                                        <input type="checkbox" id="pv-enabled-<%= p.key %>" data-pill="pv-pill-<%= p.key %>" <%= p.enabled ? 'checked' : '' %>>
+                                        <span class="kp-toggle__track"></span>
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Coming-soon title</span>
+                                      <p class="kp-row__hint">Leave blank to use "<%= p.label %> — Coming Soon".</p>
+                                    </div>
+                                    <input type="text" id="pv-title-<%= p.key %>" class="kp-input" style="width:100%;"
+                                           value="<%= p.comingSoonTitle %>" placeholder="<%= p.label %> — Coming Soon">
+                                  </div>
+
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Coming-soon message</span>
+                                      <p class="kp-row__hint">Leave blank to use the default "under development" notice.</p>
+                                    </div>
+                                    <textarea id="pv-message-<%= p.key %>" class="kp-input" rows="3" style="width:100%;"
+                                      placeholder="We're working on something great here. This feature will be available soon — thank you for your patience."><%= p.comingSoonMessage %></textarea>
+                                  </div>
+
+                                  <div class="kp-row kp-row--stack">
+                                    <div class="kp-row__main">
+                                      <span class="kp-row__label">Coming-soon image</span>
+                                      <p class="kp-row__hint">Leave blank to use the default under-maintenance illustration.</p>
+                                    </div>
+                                    <% if (p.comingSoonImage) { %>
+                                      <img src="<%= p.comingSoonImage %>" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;margin-bottom:8px;">
+                                    <% } %>
+                                    <input type="file" id="pv-image-<%= p.key %>" accept="image/*" class="kp-input" style="padding:6px 10px;height:auto;">
+                                    <input type="text" id="pv-imageurl-<%= p.key %>" class="kp-input" style="width:100%;margin-top:6px;"
+                                           placeholder="…or paste an image URL, e.g. /assets/images/new.PNG">
+                                  </div>
+                                </div>
+
+                                <div class="kp-card__foot">
+                                  <button type="button" class="kp-btn kp-btn--primary" id="pv-save-<%= p.key %>" onclick="savePageFlag('<%= p.key %>')">Save</button>
+                                </div>
+                              </div>
+                              <% }) %>
+                            </div>
+                          </div>
                         </div><!-- /kp-panel__main -->
                     </div><!-- /kp-panel__body -->
                 </div><!-- /kp-panel -->
@@ -592,4 +675,53 @@
       if (result.isConfirmed) document.getElementById('settingsForm').submit();
     });
   });
+</script>
+<script>
+  // ── Page Visibility section — each card saves itself independently via
+  // fetch, same AJAX pattern as Announcements, since it is not part of
+  // #settingsForm above.
+  var PV_CSRF = '<%= csrfToken %>';
+
+  document.querySelectorAll('[id^="pv-enabled-"]').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var pill = document.getElementById(this.dataset.pill);
+      if (!pill) return;
+      pill.textContent = this.checked ? 'Live' : 'Coming soon';
+      pill.className = 'kp-pill ' + (this.checked ? 'kp-pill--good' : 'kp-pill--warn');
+    });
+  });
+
+  async function savePageFlag(key) {
+    var fd = new FormData();
+    fd.append('enabled', document.getElementById('pv-enabled-' + key).checked ? 'true' : 'false');
+    fd.append('comingSoonTitle', document.getElementById('pv-title-' + key).value);
+    fd.append('comingSoonMessage', document.getElementById('pv-message-' + key).value);
+    fd.append('comingSoonImageUrl', document.getElementById('pv-imageurl-' + key).value);
+
+    var file = document.getElementById('pv-image-' + key).files[0];
+    if (file) fd.append('comingSoonImage', file);
+
+    var btn = document.getElementById('pv-save-' + key);
+    var label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      var res = await fetch('/admin/page-visibility/' + key, {
+        method: 'POST', headers: { 'X-CSRF-Token': PV_CSRF }, body: fd,
+      });
+      var data = await res.json();
+      if (data.success) {
+        Swal.fire({ icon: 'success', text: data.message, toast: true, position: 'top', timer: 1600, showConfirmButton: false });
+        setTimeout(function () { location.reload(); }, 900);
+        return;
+      }
+      Swal.fire({ icon: 'error', text: data.message || 'Failed to save.', confirmButtonColor: '#15a844' });
+    } catch (e) {
+      Swal.fire({ icon: 'error', text: 'Server error. Please try again.', confirmButtonColor: '#15a844' });
+    }
+
+    btn.disabled = false;
+    btn.textContent = label;
+  }
 </script>

@@ -62,8 +62,15 @@
   <!-- ══ Hero section — green bg (desktop), image card + header ══ -->
   <div class="hero-section">
 
-    <!-- Desktop: faint diagonal product-name watermark -->
-    <div class="hero-bg-pattern" aria-hidden="true" id="heroBgPattern"></div>
+    <!-- Desktop: faint diagonal product-name watermark. The clip wrapper is
+         what actually stops the pattern at the hero's edge — the pattern
+         itself stays oversized on every side (including the bottom) so the
+         rotation never shows a gap at a corner; the wrapper's overflow:hidden
+         then hides whatever extends past the hero behind the curve, instead
+         of shrinking the pattern's own box to avoid it. -->
+    <div class="hero-bg-pattern-clip" aria-hidden="true">
+      <div class="hero-bg-pattern" id="heroBgPattern"></div>
+    </div>
 
     <!-- Desktop: centred heading above the card (hidden on mobile) -->
     <div class="hero-section__header desktop-section">
@@ -106,10 +113,17 @@
 
     </div>
 
-    <!-- Desktop: curved wave at the bottom of the green section -->
+    <!-- Desktop: curved wave at the bottom of the green section. Two copies
+         of the same curve: the base is the flat page-colour fill that does
+         the actual colour transition; the second is masked with the same
+         sitewide tile pattern so this band isn't a flat gap between the
+         hero's own word-pattern above it and the page's icon-tile below it
+         — the path's own geometry already confines the texture to the
+         curve, so the tile mask just has to cover the same box. -->
     <div class="hero-wave" aria-hidden="true">
       <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0,120 Q720,0 1440,120 Z" fill="#f4f4f4" />
+        <path d="M0,120 Q720,0 1440,120 Z" class="hero-wave__base" fill="#f4f4f4" />
+        <path d="M0,120 Q720,0 1440,120 Z" class="hero-wave__pattern" />
       </svg>
     </div>
 

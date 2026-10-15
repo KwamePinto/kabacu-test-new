@@ -111,7 +111,7 @@
 .promo-slide__caption { display: none; }
 
 /* Desktop-only decorative hero elements hidden on mobile */
-.hero-bg-pattern,
+.hero-bg-pattern-clip,
 .hero-wave { display: none; }
 
 /* Dots wrapper — spacing for mobile (desktop overrides below) */
@@ -510,12 +510,27 @@
   }
 
   /* ── Background watermark pattern ───────────────────────── */
-  .hero-bg-pattern {
+  /* .hero-section is deliberately overflow:visible (the promo card is meant
+     to spill below the wave), so the pattern can't just rely on its parent
+     to hide its oversized edges — it needs its own clipping box. This wrapper
+     is sized to the hero's own rectangle and clips there, while the pattern
+     inside it stays oversized on every side (including the bottom), so the
+     -13deg rotation always has enough overhang and never shows a gap at a
+     corner. The hero-wave curve sits right at that same clip line, so the
+     cut-off reads as the pattern disappearing behind the curve rather than
+     a flat edge. */
+  .hero-bg-pattern-clip {
     display: block;
     position: absolute;
-    inset: -20%;
+    inset: 0;
     z-index: 0;
+    overflow: hidden;
     pointer-events: none;
+  }
+
+  .hero-bg-pattern {
+    position: absolute;
+    inset: -20%;
     user-select: none;
     font-size: 58px;
     font-weight: 900;
@@ -524,7 +539,6 @@
     letter-spacing: 0.05em;
     word-spacing: 18px;
     transform: rotate(-13deg);
-    overflow: hidden;
   }
 
   /* ── Text + carousel above pattern ──────────────────────── */
@@ -573,16 +587,32 @@
      to BE the page background. The markup carries fill="#f4f4f4" as a no-CSS
      fallback; the CSS fill property overrides that presentation attribute and
      follows the theme, otherwise dark mode showed a bright white curve. */
-  .hero-wave svg path {
+  .hero-wave svg .hero-wave__base {
     fill: var(--bg);
+  }
+
+  /* Second copy of the exact same curve, textured with the sitewide tile
+     instead of a flat fill — the path's own shape already confines this to
+     the curve, so the mask just needs to cover the same box. Same recipe as
+     body::before: paint with --text (flips dark/light automatically) and
+     let the mask's alpha decide what shows. */
+  .hero-wave svg .hero-wave__pattern {
+    fill: var(--text);
+    opacity: .045;
+    mask-image: url('/assets/images/kabakubgtiling-mask.png');
+    -webkit-mask-image: url('/assets/images/kabakubgtiling-mask.png');
+    mask-repeat: repeat;
+    -webkit-mask-repeat: repeat;
+    mask-size: 220px;
+    -webkit-mask-size: 220px;
   }
 
   /* ── Carousel — centred card, floats above the wave ─────── */
   .promo-carousel {
-    height: 440px;
-    border-radius: 20px;
-    width: calc(100% - 180px);
-    max-width: 860px;
+    height: 500px;
+    border-radius: 10px;
+    width: calc(100% - 120px);
+    max-width: 1000px;
     margin: 0 auto -160px;
     overflow: hidden;
     position: relative;

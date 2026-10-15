@@ -109,6 +109,33 @@ body {
 
 @media (min-width: 768px) { body { padding-bottom: 0; } }
 
+/* ── Sitewide tiling background ────────────────────────────
+   kabakubgtiling-mask.png is the same artwork with its flat backing colour
+   stripped out via a Node/sharp script, leaving only the icon shapes as an
+   alpha mask. Painting that mask with `background-color: var(--text)` is
+   what makes ONE asset blend into both themes automatically — --text is
+   already near-black in light mode and near-white in dark mode, so the
+   tile recolours itself for free instead of needing two image exports.
+   A pseudo-element behind the real content (z-index -1) rather than on
+   body itself, since masking body directly would clip its children to the
+   pattern too, not just its own background layer. Not loaded by
+   adminLayout.ejs at all, so the admin dashboard is unaffected by design. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--text);
+  opacity: .045;
+  -webkit-mask-image: url('/assets/images/kabakubgtiling-mask.png');
+          mask-image: url('/assets/images/kabakubgtiling-mask.png');
+  -webkit-mask-repeat: repeat;
+          mask-repeat: repeat;
+  -webkit-mask-size: 220px;
+          mask-size: 220px;
+}
+
 a { text-decoration: none; color: inherit; transition: color .2s; }
 img { max-width: 100%; display: block; }
 /* <picture> is layout-transparent so the inner <img> sizes against the

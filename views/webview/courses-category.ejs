@@ -101,6 +101,10 @@
     <!-- populated grid -->
     <div id="coursesGrid" class="course-grid" style="display:none"></div>
 
+    <!-- Populated client-side, over whatever page of the current
+         search/category filter is showing — see the pagination script below. -->
+    <div id="coursesPagination" class="pagination"></div>
+
     <!-- empty state (no courses at all) -->
     <div id="coursesEmpty" style="display:none;max-width:520px;margin:60px auto;" class="coming-soon">
       <i data-lucide="book-open"></i>
@@ -279,6 +283,14 @@
 .course-card__footer { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
 .course-card__price { font-size:13px; font-weight:800; color:var(--text); }
 
+.course-card__premium, .course-card__rp {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 700; width: fit-content;
+}
+.course-card__premium { color: #92400e; }
+.course-card__rp { color: var(--primary); }
+.course-card__premium svg, .course-card__rp svg { width: 10px; height: 10px; }
+
 .course-difficulty {
   font-size:9px; font-weight:700; letter-spacing:.04em;
   padding:2px 7px; border-radius:4px;
@@ -318,12 +330,23 @@
   var activeCategory  = 'ALL';
   var searchQuery     = '';
 
+  /* ── Pagination — 12 per page (3 rows at the 4-column desktop width) ──
+     Same approach as data-category.ejs's BUNDLE_PAGE_SIZE pagination: fully
+     client-side, since all courses are already fetched up front and
+     filtered/searched in the browser. The difference here is renderCards()
+     rebuilds the grid's innerHTML from a JS array each call (rather than
+     toggling display on pre-built DOM cards), so pagination just slices the
+     filtered array to the current page before handing it to renderCards(). */
+  var COURSES_PAGE_SIZE = 12;
+  var currentPage = 1;
+
   /* ── DOM refs ── */
   var grid        = document.getElementById('coursesGrid');
   var empty       = document.getElementById('coursesEmpty');
   var noResults   = document.getElementById('coursesNoResults');
   var noResultMsg = document.getElementById('coursesNoResultsMsg');
   var pillsWrap   = document.getElementById('categoryPills');
+  var paginationEl = document.getElementById('coursesPagination');
   var searchInput = document.getElementById('courseSearchInput');
   var searchClear = document.getElementById('courseSearchClear');
   var searchBtn   = document.getElementById('courseSearchBtn');
@@ -349,6 +372,7 @@
 
     if (!filtered.length) {
       grid.style.display = 'none';
+      paginationEl.innerHTML = '';
       noResultMsg.textContent = searchQuery
         ? 'No courses match "' + searchQuery + '".'
         : 'No courses in this category.';
@@ -357,8 +381,51 @@
       return;
     }
 
+    var totalPages = Math.max(1, Math.ceil(filtered.length / COURSES_PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    var start = (currentPage - 1) * COURSES_PAGE_SIZE;
     grid.style.display = 'grid';
-    renderCards(filtered);
+    renderCards(filtered.slice(start, start + COURSES_PAGE_SIZE));
+    renderPagination(totalPages);
+  }
+
+  /* ── Pagination controls — same markup/classes as data-category.ejs ── */
+  function pageLink(label, page, className) {
+    var a = document.createElement('a');
+    a.href = '#';
+    a.className = className;
+    if (label.icon) {
+      var i = document.createElement('i');
+      i.setAttribute('data-lucide', label.icon);
+      a.appendChild(i);
+    } else {
+      a.textContent = label.text;
+    }
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      currentPage = page;
+      applyFilter();
+      var heroEl = document.querySelector('.page-hero');
+      if (heroEl && heroEl.scrollIntoView) heroEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return a;
+  }
+
+  function renderPagination(totalPages) {
+    paginationEl.innerHTML = '';
+    if (totalPages <= 1) return;
+
+    if (currentPage > 1) {
+      paginationEl.appendChild(pageLink({ icon: 'chevron-left' }, currentPage - 1, 'pagination__btn'));
+    }
+    for (var i = 1; i <= totalPages; i++) {
+      paginationEl.appendChild(pageLink({ text: String(i) }, i, 'pagination__page' + (i === currentPage ? ' active' : '')));
+    }
+    if (currentPage < totalPages) {
+      paginationEl.appendChild(pageLink({ icon: 'chevron-right' }, currentPage + 1, 'pagination__btn'));
+    }
+    lucide.createIcons();
   }
 
   /* ── Category pills ── */
@@ -382,6 +449,7 @@
       pill.innerHTML += ' <span class="cat-pill__count">(' + counts[cat] + ')</span>';
       pill.addEventListener('click', function () {
         activeCategory = cat;
+        currentPage = 1;
         document.querySelectorAll('.cat-pill').forEach(function (p) { p.classList.remove('active'); });
         pill.classList.add('active');
         applyFilter();
@@ -407,24 +475,41 @@
       card.className = 'course-card';
       card.href = '/category/course/' + id;
 
+      // CSkillsHub's thumbnail URLs currently 404 (confirmed independently —
+      // their own /uploads/thumbnails route is gone server-side). onerror
+      // swaps to the same placeholder a missing thumbnail already gets,
+      // instead of leaving a broken-image icon on every card.
       var thumbHtml = c.thumbnail
-        ? '<img src="' + absUrl(c.thumbnail) + '" alt="' + (c.title || '') + '" loading="lazy">'
+        ? '<img src="' + absUrl(c.thumbnail) + '" alt="' + (c.title || '') + '" loading="lazy" ' +
+          'onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+          '<div class="course-card__thumb--ph" style="display:none;"><i data-lucide="book-open"></i></div>'
         : '<div class="course-card__thumb--ph"><i data-lucide="book-open"></i></div>';
 
       var diffHtml = c.difficulty
         ? '<span class="course-difficulty course-difficulty--' + c.difficulty + '">' + c.difficulty + '</span>'
         : '';
 
-      var currencySym = window.KbcCountrySelector ? window.KbcCountrySelector.getCurrencySymbol() : '₦';
+      // CSkillsHub's own per-course currency, not the viewer's selected
+      // market — a USD-priced course must show $ regardless of market.
+      var currencySym = String(c.currency || 'NGN').toUpperCase() === 'USD' ? '$' : '₦';
       var priceHtml = c.price
         ? '<span class="course-card__price">' + currencySym + Number(c.price).toLocaleString() + '</span>'
         : '<span class="course-card__price">Free</span>';
+
+      var premiumHtml = c.isPremium
+        ? '<span class="course-card__premium"><i data-lucide="crown"></i> Premium</span>'
+        : '';
+
+      var rpHtml = c.rp
+        ? '<span class="course-card__rp"><i data-lucide="star"></i> ' + c.rp + ' RP</span>'
+        : '';
 
       card.innerHTML =
         '<div class="course-card__thumb">' + thumbHtml + '</div>' +
         '<div class="course-card__body">' +
           (c.category ? '<div class="course-card__cat">' + c.category + '</div>' : '') +
           '<div class="course-card__title">' + (c.title || 'Untitled') + '</div>' +
+          premiumHtml + rpHtml +
           '<div class="course-card__footer">' + priceHtml + diffHtml + '</div>' +
         '</div>';
 
@@ -436,22 +521,25 @@
   /* ── Search events ── */
   searchInput.addEventListener('input', function () {
     searchQuery = this.value;
+    currentPage = 1;
     searchClear.style.display = searchQuery.length ? 'flex' : 'none';
     applyFilter();
   });
 
   searchBtn.addEventListener('click', function () {
     searchQuery = searchInput.value;
+    currentPage = 1;
     applyFilter();
   });
 
   searchInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { searchQuery = this.value; applyFilter(); }
+    if (e.key === 'Enter') { searchQuery = this.value; currentPage = 1; applyFilter(); }
   });
 
   searchClear.addEventListener('click', function () {
     searchInput.value = '';
     searchQuery = '';
+    currentPage = 1;
     searchClear.style.display = 'none';
     searchInput.focus();
     applyFilter();
@@ -462,6 +550,7 @@
     searchInput.value = '';
     searchQuery       = '';
     activeCategory    = 'ALL';
+    currentPage       = 1;
     searchClear.style.display = 'none';
     document.querySelectorAll('.cat-pill').forEach(function (p) {
       p.classList.toggle('active', p.textContent.trim().startsWith('All'));
@@ -480,8 +569,7 @@
     }
 
     buildPills();
-    grid.style.display = 'grid';
-    renderCards(allCourses);
+    applyFilter();
   }());
 }());
 </script>

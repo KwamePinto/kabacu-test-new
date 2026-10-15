@@ -127,6 +127,7 @@
           <tr>
             <th>Course</th>
             <th>Amount</th>
+            <th>RP Value</th>
             <th>Type</th>
             <th>Date</th>
           </tr>
@@ -134,6 +135,12 @@
         <tbody>
           <% if (coursePurchases && coursePurchases.length > 0) { %>
             <% coursePurchases.forEach(function(cp) { %>
+              <%
+                // CSkillsHub's own per-course currency, not the viewer's
+                // selected market — see course-detail.ejs for the same note.
+                var cpCurrency = String(cp.currency || 'NGN').toUpperCase();
+                var cpSym = cpCurrency === 'USD' ? '$' : '₦';
+              %>
               <tr>
                 <td data-label="Course">
                   <strong><%= cp.courseTitle || 'Course' %></strong>
@@ -142,7 +149,14 @@
                   <% if (cp.free) { %>
                     <span style="color:var(--primary);font-weight:600;">Free</span>
                   <% } else { %>
-                    <span class="js-currency-symbol">₦</span><%= Number(cp.price || 0).toLocaleString() %>
+                    <%= cpSym %><%= Number(cp.price || 0).toLocaleString() %>
+                  <% } %>
+                </td>
+                <td data-label="RP Value">
+                  <% if (cp.rpEarned > 0) { %>
+                    <span style="color:var(--primary);font-weight:600;" title="Credited on CSkillsHub, not on Kabacu"><%= cp.rpEarned %> RP</span>
+                  <% } else { %>
+                    <span class="text-muted">—</span>
                   <% } %>
                 </td>
                 <td data-label="Type">
@@ -163,7 +177,7 @@
             <% }) %>
           <% } else { %>
             <tr>
-              <td colspan="4">
+              <td colspan="5">
                 <div class="empty-state">
                   <i data-lucide="book-open"></i>
                   <p>No course enrolments yet</p>

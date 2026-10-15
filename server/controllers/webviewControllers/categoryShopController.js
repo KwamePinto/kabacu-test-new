@@ -199,31 +199,26 @@ exports.automobileCategory = async (req, res) => {
 }
 
 
-// exports.courseCategory = async (req, res) => {
-//   const apiUrl = process.env.COURSES_API_URL || 'http://localhost:5000';
-//   let courses  = [];
-//   let apiError = false;
-//
-//   try {
-//     const response = await axios.get(`${apiUrl}/api/public/courses`, {
-//       headers: { 'Cache-Control': 'no-cache' }
-//     });
-//     const data = response.data;
-//     courses = Array.isArray(data)          ? data
-//             : Array.isArray(data.courses)  ? data.courses
-//             : Array.isArray(data.data)     ? data.data
-//             : [];
-//   } catch (err) {
-//     console.error('[courseCategory]', err.message);
-//     apiError = true;
-//   }
-//
-//   res.render('webview/courses-category', { coursesApiUrl: apiUrl, courses, apiError });
-// };
-
-// TO RE-ENABLE COURSES: delete this block and uncomment the code above.
 exports.courseCategory = async (req, res) => {
-  res.render('webview/courses-category', { comingSoon: true, coursesApiUrl: '', courses: [], apiError: false });
+  const apiUrl = process.env.COURSES_API_URL || 'http://localhost:5000';
+  let courses  = [];
+  let apiError = false;
+
+  try {
+    const response = await axios.get(`${apiUrl}/api/public/courses`, {
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    const data = response.data;
+    courses = Array.isArray(data)          ? data
+            : Array.isArray(data.courses)  ? data.courses
+            : Array.isArray(data.data)     ? data.data
+            : [];
+  } catch (err) {
+    console.error('[courseCategory]', err.message);
+    apiError = true;
+  }
+
+  res.render('webview/courses-category', { coursesApiUrl: apiUrl, courses, apiError });
 };
 
 
@@ -240,12 +235,17 @@ exports.courseDetail = async (req, res) => {
     let walletBalance = null;
     let alreadyPurchased = false;
 
+    // CSkillsHub prices a course in NGN or USD — charged from the matching
+    // wallet balance (NAIRA / USDT). Same mapping coursePurchase uses, kept
+    // here as the single source of truth for both.
+    const walletField = String(course.currency || 'NGN').toUpperCase() === 'USD' ? 'USDT' : 'NAIRA';
+
     if (req.user) {
       const [user, wallet] = await Promise.all([
         User.findById(req.user.id),
         Wallet.findOne({ user: req.user.id }),
       ]);
-      if (wallet) walletBalance = wallet.balances?.NAIRA || 0;
+      if (wallet) walletBalance = wallet.balances?.[walletField] || 0;
       const email = user?.email?.toLowerCase().trim();
       if (email) {
         const existing = await CoursePurchase.findOne({ email, courseId: String(req.params.id) });
@@ -257,6 +257,7 @@ exports.courseDetail = async (req, res) => {
       course,
       coursesApiUrl: apiUrl,
       walletBalance,
+      walletField,
       alreadyPurchased,
       cskillshubLoginUrl: process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login',
       hideFooter: true,
@@ -290,6 +291,18 @@ exports.coursePurchase = async (req, res) => {
     const email = user.email.toLowerCase().trim();
     const price = Number(course.price) || 0;
     const isFree = price === 0;
+    const isPremium = !!course.isPremium;
+    // Display-only now — stored on the purchase/transaction record so the
+    // course's RP value stays visible, but never credited to rpBalance here.
+    // The real credit happens on CSkillsHub's side (course completion, etc.)
+    // and reaches Kabacu through its own call to POST
+    // /api/public/course-rp/credit; crediting it here too would double it.
+    const rpEarned = Number(course.rp) || 0;
+    // 'NGN' (the common case, and the default for a course that predates
+    // this field) charges NAIRA; 'USD' charges USDT — see courseDetail's
+    // identical mapping.
+    const currency = String(course.currency || 'NGN').toUpperCase();
+    const walletField = currency === 'USD' ? 'USDT' : 'NAIRA';
 
     const existing = await CoursePurchase.findOne({ email, courseId: String(courseId) });
     if (existing) return res.redirect(`${redirectBase}?already=1`);
@@ -301,6 +314,9 @@ exports.coursePurchase = async (req, res) => {
         courseId: String(courseId),
         courseTitle: course.title || '',
         price: 0,
+        currency,
+        rpEarned,
+        isPremium,
         free: true,
       });
       const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
@@ -313,12 +329,12 @@ exports.coursePurchase = async (req, res) => {
       return res.redirect(`${redirectBase}?enrolled=1`);
     }
 
-    // Paid — wallet deduction
-    if (!wallet || !walletUtil.sufficientFunds(wallet.balances?.NAIRA || 0, price)) {
+    // Paid — wallet deduction, from whichever balance matches the course's own currency
+    if (!wallet || !walletUtil.sufficientFunds(wallet.balances?.[walletField] || 0, price)) {
       return res.redirect(`${redirectBase}?insufficient=1`);
     }
 
-    wallet.balances.NAIRA = walletUtil.truncate2(wallet.balances.NAIRA - price);
+    wallet.balances[walletField] = walletUtil.truncate2(wallet.balances[walletField] - price);
     await wallet.save();
 
     const ref = 'CRS-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -330,39 +346,42 @@ exports.coursePurchase = async (req, res) => {
         courseId: String(courseId),
         courseTitle: course.title || '',
         price,
+        currency,
+        rpEarned,
+        isPremium,
         free: false,
         transactionRef: ref,
       });
     } catch (createErr) {
-      wallet.balances.NAIRA = walletUtil.truncate2(wallet.balances.NAIRA + price);
+      wallet.balances[walletField] = walletUtil.truncate2(wallet.balances[walletField] + price);
       await wallet.save();
       throw createErr;
     }
 
-    const localProduct = await Product.findById(courseId).select('reward_point').lean().catch(() => null);
-    const rpEarned = localProduct?.reward_point || 0;
-
     const courseTx = await Transaction.create({
       user: user._id,
       amount: price,
-      walletType: 'NAIRA',
+      walletType: walletField,
       paymentMethod: 'Wallet',
       status: 'success',
       reference: ref,
       rpEarned,
     });
 
-    if (rpEarned > 0) {
-      await User.findByIdAndUpdate(user._id, { $inc: { rpBalance: rpEarned } });
-    }
-
-    // A paid course counts as a qualifying first purchase for referrals.
+    // A paid course counts as a qualifying first purchase for referrals —
+    // currency-independent (purchase COUNT gates the reward, not amount), so
+    // this is safe regardless of which wallet the course was charged to.
     await referralService.handlePurchase(user._id, { amount: price });
 
     // Ongoing commission — additive, taken from neither the price nor the
-    // buyer's reward points. Courses are always sold in Naira, so the market
-    // is fixed here rather than resolved from the buyer's wallet.
-    await referralService.handleCommission(user._id, { amount: price, market: 'NG', transactionId: courseTx._id });
+    // buyer's reward points. Only fires for NAIRA purchases: handleCommission
+    // pays into a country-wallet market ('NG' -> NAIRA), and USDT is a flat,
+    // non-market-scoped balance with no equivalent mapping here. A USD-priced
+    // course charged to USDT is intentionally left out of commission for now
+    // rather than guessing at a market for it.
+    if (walletField === 'NAIRA') {
+      await referralService.handleCommission(user._id, { amount: price, market: 'NG', transactionId: courseTx._id });
+    }
 
     const loginUrl = process.env.CSKILLSHUB_LOGIN_URL || 'http://localhost:3000/login';
     sendEmail({

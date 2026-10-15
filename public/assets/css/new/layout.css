@@ -395,6 +395,24 @@ body.no-header .page-main {
 .page-hero__title svg { width: 22px; height: 22px; color: var(--primary); }
 .page-hero__sub       { font-size: 14px; color: var(--muted); margin-top: 4px; }
 
+/* Category-page hero: centered heading + subheading with a short divider
+   between them. Scoped to .page-hero__title/.page-hero__sub as DIRECT
+   children of .page-hero only — pages that wrap the title in
+   .page-hero__row (My Wallet, My Top Ups) pair it with an action button
+   that needs to stay put, not get centered away. */
+.page-hero > .page-hero__title {
+  justify-content: center;
+  width: fit-content;
+  margin: 0 auto;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+.page-hero > .page-hero__sub {
+  text-align: center;
+  margin-top: 10px;
+}
+
 /* ── Claim RP link (notifications dropdown footer) ─────────
    Was plain muted text, easy to miss as just another line in the panel.
    A green label makes it read as the actionable item it is. */
